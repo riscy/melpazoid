@@ -523,10 +523,9 @@ def _fetch_pull_requests() -> Iterator[dict]:
 
 if __name__ == '__main__':
     if set(os.environ) & {'CLONE_ADDRESS', 'RECIPE'}:
-        print("ready freddy")
-        # check_remote_package(
-        #     clone_address=os.environ['CLONE_ADDRESS'], recipe=os.environ['RECIPE'],
-        # )
+        check_remote_package(
+            clone_address=os.environ['CLONE_ADDRESS'], recipe=os.environ['RECIPE'],
+        )
     else:
         check_melpa_pr_loop()
     # check_local_package('/Users/rayner/github/shx-for-emacs')

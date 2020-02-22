@@ -9,10 +9,8 @@ env:
   - CLONE_ADDRESS='https://github.com/riscy/shx-for-emacs' RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
 
 install:
-  - yes '' | sudo add-apt-repository ppa:kelleyk/emacs
-  - sudo apt update && sudo apt install emacs26
   - pip install requests
 
 script:
-  - pytest --doctest-modules melpazoid.py || true
+  - pytest --doctest-modules melpazoid.py
   - python melpazoid.py
