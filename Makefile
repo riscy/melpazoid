@@ -4,7 +4,7 @@ PACKAGE_NAME ?= NONE
 .PHONY: run
 run:
 	pytest --doctest-modules
-	python -m pdb melpazoid.py
+	python -m pdb -c continue melpazoid.py
 
 .PHONY: term
 test: image
