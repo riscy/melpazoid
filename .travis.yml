@@ -1,0 +1,14 @@
+sudo: required
+
+language: python
+
+python:
+  - "3.6"
+
+install:
+  - yes '' | sudo add-apt-repository ppa:kelleyk/emacs
+  # - sudo apt update && sudo apt install emacs26
+
+script:
+  - command -v docker
+  - command -v pytest
