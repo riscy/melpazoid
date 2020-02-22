@@ -72,12 +72,10 @@ def run_checks(
     )
     print(output.decode().strip())
     check_license(files, elisp_dir, clone_address)
-    print('\n<details><summary>Other...</summary>')
     check_maintainer(pr_data, clone_address)
     check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
     print_details(recipe, files)
-    print('</details>')
 
 
 @functools.lru_cache()
@@ -285,8 +283,8 @@ def _requirements(
 
 
 def check_maintainer(pr_data: str = None, clone_address: str = None):
-    print('\nMaintainer:')
     if pr_data and clone_address:
+        print('\nMaintainer:')
         # Check the maintainer
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
         if pr_data['user']['login'].lower() not in clone_address.lower():

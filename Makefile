@@ -5,10 +5,6 @@ PACKAGE_NAME ?= NONE
 run:
 	python melpazoid.py
 
-.PHNY: pytest
-pytest:
-	pytest --doctest-modules
-
 .PHONY: term
 test: image
 	@docker run -it --rm --network none ${DOCKERID}
