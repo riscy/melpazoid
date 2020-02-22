@@ -5,10 +5,14 @@ language: python
 python:
   - "3.6"
 
+env:
+  - CLONE_ADDRESS='https://github.com/riscy/shx-for-emacs'
+  - RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
+
 install:
   - yes '' | sudo add-apt-repository ppa:kelleyk/emacs
-  # - sudo apt update && sudo apt install emacs26
+  - sudo apt update && sudo apt install emacs26
 
 script:
-  - command -v docker
-  - command -v pytest
+  - pytest --doctest-modules melpazoid.py || true
+  - python melpazoid.py
