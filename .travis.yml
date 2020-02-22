@@ -12,5 +12,4 @@ install:
   - pip install requests
 
 script:
-  - pytest --doctest-modules melpazoid.py
-  - python melpazoid.py
+  - make pytest run

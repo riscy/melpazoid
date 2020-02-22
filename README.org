@@ -1,30 +1,45 @@
-#+TITLE melpazoid
-#+OPTINS: toc:3 author:t creator:nil num:nil
-#+AUTHOR Chris Rayner
+#+TITLE: melpazoid
+#+OPTIONS: toc:3 author:t creator:nil num:nil
+#+AUTHOR: Chris Rayner
 #+EMAIL: dchrisrayner@gmail.com
 
 [[https://travis-ci.org/riscy/shx-for-emacs][https://travis-ci.org/riscy/melpazoid.svg?branch=master]]
 
-* Description
-  /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
-  submissions to [[https://github.com/melpa/][MELPA]]. The ambition is to have checks that run in an "clean"
-  environment, either through CI or through a container on your local machine.
+/melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
+submissions to [[https://github.com/melpa/][MELPA]]. The ambition is to have checks that run in an "clean"
+environment, either through CI or through a container on your local machine.
 
-* Use Travis
-  Fork this repository and open a PR against it that modifies the ~.travis.yml~
-  file with your recipe and your clone address.  The build information on your
-  pull request will report any discovered issues.
+* How to use melpazoid
+** Locally
+   You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. A
+   container will be built with (hopefully) all of your requirements installed.
+   The output scroll will report any discovered issues.
 
-* Local install
-  You will need Python >= 3.6 (along with the ~requests~ package) and Docker.
+*** Test a MELPA PR
+    #+begin_src bash
+    MELPA_PR_URL='https://github.com/melpa/melpa/pull/6718' make
+    #+end_src
+*** Test a remote package
+    #+begin_src bash
+    CLONE_URL='https://github.com/riscy/shx-for-emacs' \
+        RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' \
+        make
+    #+end_src
+*** Test a local package (work in progress)
+    #+begin_src bash
+    PKG_PATH='/path/to/package' \
+        PKG_NAME='package-name' \
+        make
+    #+end_src
+** Use Travis
+   You can still use this software if you don't want to install it or its
+   dependencies. Fork this repository and open a PR against it that modifies the
+   ~.travis.yml~ file with your CLONE_URL and RECIPE, for example:
 
-** Test your MELPA PR
-   1. Run `make`
-   2. Copy and paste the URL of your MELPA PR into the console
+   #+begin_src yaml
+   env: >-
+     CLONE_URL='https://github.com/me/my-package-repo
+     RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
+   #+end_src
 
-   A Docker container will be built with (hopefully) all of your requirements
-   installed.  The output scroll will report any discovered issues.
-** Test a local package
-   TODO
-** Test a remote package
-   TODO
+   The build information on your pull request will report any discovered issues.

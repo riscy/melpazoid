@@ -298,7 +298,6 @@ def check_maintainer(pr_data: str = None, clone_address: str = None):
 def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
     print('\nLicense:')
     repo_licensed = False
-
     if clone_address:
         repo_licensed = _check_license_github_api(clone_address)
     if not repo_licensed:
@@ -318,7 +317,7 @@ def _check_license_github_api(clone_address: str) -> bool:
         repo_suffix = match.groups()[0].strip('/')
         license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
         if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
-            print(f"- ✔ GitHub API found `{license_.get('name')}`")
+            print(f"- GitHub API found `{license_.get('name')}` 💯")
             return True
         if license_:
             print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`")
@@ -355,7 +354,7 @@ def _check_license_in_files(elisp_files: list):
             print(f"- {CLR_ULINE}{elisp_file}{CLR_OFF} has no license text")
             individual_files_licensed = False
         else:
-            print(f"- ✔ {os.path.basename(elisp_file)} has {license_} license text")
+            print(f"- {os.path.basename(elisp_file)} has {license_} license text 💯")
     return individual_files_licensed
 
 
@@ -461,71 +460,74 @@ def yes_p(text: str) -> bool:
     return not keep.startswith('n')
 
 
-def check_remote_package(clone_address: str = None, recipe: str = None):
-    """Check an existing MELPA package (once)."""
-    clone_address = clone_address or input('Clone address: ').strip()
-    recipe = recipe or input('Recipe (optional?): ') or ''
+def check_remote_package(clone_address: str, recipe: str = ''):
+    """Check a remotely-hosted package."""
     with tempfile.TemporaryDirectory() as elisp_dir:
         _clone(clone_address, _branch(recipe), into=elisp_dir)
         run_checks(recipe, elisp_dir, clone_address)
 
 
-def check_local_package(elisp_dir: str = None):
-    """Check a local package (once)."""
+def check_local_package(elisp_dir: str = None, package_name: str = None):
+    """Check a locally-hosted package."""
     elisp_dir = elisp_dir or input('Path: ').strip()
     assert os.path.isdir(elisp_dir)
-    package_name = input(f"Name of package at {elisp_dir}: ")
+    package_name = package_name or input(f"Name of package at {elisp_dir}: ")
     recipe = f'({package_name or "NONAME"} :repo "N/A")'
     run_checks(recipe, elisp_dir)
 
 
+def check_melpa_pr(pr_url: str):
+    """Check a PR on MELPA."""
+    match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
+    pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
+    recipe: str = _recipe(pr_data['diff_url'])
+    clone_address: str = _clone_address(pr_data['body'])
+    try:
+        with tempfile.TemporaryDirectory() as elisp_dir:
+            _clone(clone_address, _branch(recipe), into=elisp_dir)
+            run_checks(recipe, elisp_dir, clone_address, pr_data)
+    except subprocess.CalledProcessError as err:
+        template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
+        print(f"{CLR_WARN}{err}: is {template} intact?{CLR_OFF}")
+
+
 def check_melpa_pr_loop():
-    """Check MELPA pull requests (indefinitely)."""
-    for pr_data in _fetch_pull_requests():
-        recipe = _recipe(pr_data['diff_url'])  # type: str
-        clone_address = _clone_address(pr_data['body'])  # type: str
-        try:
-            with tempfile.TemporaryDirectory() as elisp_dir:
-                _clone(clone_address, _branch(recipe), into=elisp_dir)
-                run_checks(recipe, elisp_dir, clone_address, pr_data)
-        except subprocess.CalledProcessError as err:
-            template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
-            print(f"{CLR_WARN}{err}: is {template} intact?{CLR_OFF}")
+    """Check MELPA pull requests in a loop."""
+    for pr_url in _fetch_pull_requests():
+        check_melpa_pr(pr_url)
 
 
 def _fetch_pull_requests() -> Iterator[dict]:
     """Repeatedly yield PR URL's."""
     # TODO: only supports macOS (needs pbpaste or equivalents)
-    previous_url = None
+    previous_pr_url = None
     while True:
         print('-' * 79)
         while True:
-
             match = re.search(MELPA_PR, subprocess.check_output('pbpaste').decode())
-            url = match.string[: match.end()] if match else None
-            if match and url != previous_url:
+            pr_url = match.string[: match.end()] if match else None
+            if match and pr_url != previous_pr_url:
                 break
-
             print(
                 'Watching clipboard for MELPA PR... '
                 + ('😐' if random.randint(0, 2) else '🤨'),
                 end='\r',
             )
             time.sleep(1)
-        previous_url = url
-        print(f"Found MELPA PR {url}")
-        pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
-        if not _is_checkable_pr(pr_data['title']):
-            if not yes_p('PR looks invalid.  Try anyway?'):
-                continue
-        yield pr_data
+        previous_pr_url = pr_url
+        print(f"Found MELPA PR {pr_url}")
+        yield pr_url
 
 
 if __name__ == '__main__':
-    if set(os.environ) & {'CLONE_ADDRESS', 'RECIPE'}:
-        check_remote_package(
-            clone_address=os.environ['CLONE_ADDRESS'], recipe=os.environ['RECIPE'],
-        )
+    if 'MELPA_PR_URL' in os.environ:
+        check_melpa_pr(os.environ['MELPA_PR_URL'])
+    elif 'PKG_PATH' in os.environ and 'PKG_NAME' in os.environ:
+        check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME'])
+    elif 'CLONE_URL' in os.environ:
+        if 'RECIPE' in os.environ:
+            check_remote_package(os.environ['CLONE_URL'], os.environ['RECIPE'])
+        else:
+            check_remote_package(os.environ['CLONE_URL'])
     else:
         check_melpa_pr_loop()
-    # check_local_package('/Users/rayner/github/shx-for-emacs')

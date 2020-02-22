@@ -3,8 +3,11 @@ PACKAGE_NAME ?= NONE
 
 .PHONY: run
 run:
+	python melpazoid.py
+
+.PHNY: pytest
+pytest:
 	pytest --doctest-modules
-	python -m pdb -c continue melpazoid.py
 
 .PHONY: term
 test: image
