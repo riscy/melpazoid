@@ -1,12 +1,13 @@
-sudo: required
+os: linux
 
 language: python
 
 python:
   - "3.6"
 
-env:
-  - CLONE_ADDRESS='https://github.com/riscy/shx-for-emacs' RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
+env: >-
+  CLONE_URL='https://github.com/riscy/shx-for-emacs'
+  RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
 
 install:
   - pip install requests
