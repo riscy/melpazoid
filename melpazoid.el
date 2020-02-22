@@ -62,7 +62,8 @@
     (when melpazoid-can-modify-buffers
       (goto-char (point-min))
       (while (re-search-forward "no-byte-compile:[\s\t]*t" nil t)
-        (replace-match "")
+        (delete-char -1)
+        (insert "nil")
         (melpazoid-insert "- Byte-compiling is enabled in what follows")
         (save-buffer)))))
 
