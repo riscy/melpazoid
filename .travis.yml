@@ -4,12 +4,13 @@ python:
   - "3.6"
 
 # Test a recipe before you even open a MELPA pull request:
-# env: >-
-#   CLONE_URL='https://github.com/riscy/shx-for-emacs'
-#   RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
-# If you already have a pull request open, specify as below:
 env: >-
-  MELPA_PR_URL=https://github.com/melpa/melpa/pull/6713
+  CLONE_URL='https://github.com/riscy/shx-for-emacs'
+  RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
+
+# If you already have a pull request open, specify as below:
+# env: >-
+#   MELPA_PR_URL=https://github.com/melpa/melpa/pull/6713
 
 install:
   - pip install requests
