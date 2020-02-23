@@ -21,11 +21,11 @@ The checks are a combination of:
 4. a license checker (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.py][melpazoid.py]])
 5. some elisp checks (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.el][melpazoid.el]])
 
-The first four are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those
-right. The license checker is currently very crude. The elisp checks are not
-foolproof, sometimes opinionated, and may raise false positives.
+1--4 are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those right.
+The license checker is currently very crude. The elisp checks are not foolproof,
+sometimes opinionated, and may raise false positives.
 
-* How to use melpazoid
+* Usage
   You can [[https://github.com/riscy/melpazoid#fork-it-and-let-ci-do-the-work][fork it and let CI do the work]], or [[https://github.com/riscy/melpazoid#use-it-locally][use it locally]].
 ** Fork it and let CI do the work
    If you don't want to install this software or its dependencies, you are
@@ -39,14 +39,15 @@ foolproof, sometimes opinionated, and may raise false positives.
     Modify the ~env~ field and specify your clone URL and your recipe:
     #+begin_src yaml
     env: >-
-      CLONE_URL='https://github.com/me/my-package-repo
+      CLONE_URL=https://github.com/me/my-package-repo
       RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
     #+end_src
+    Note the apostrophes ~'~ around the RECIPE.
 *** Test a MELPA pull request you've already opened
     Modify the ~env~ field and specify your open MELPA PR:
     #+begin_src yaml
     env: >-
-      MELPA_PR_URL='https://github.com/melpa/melpa/pulls/6713
+      MELPA_PR_URL=https://github.com/melpa/melpa/pull/6713
     #+end_src
 ** Use it locally
    You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. An image
@@ -56,17 +57,18 @@ foolproof, sometimes opinionated, and may raise false positives.
 
 *** Test a MELPA PR
     #+begin_src bash
-    MELPA_PR_URL='https://github.com/melpa/melpa/pull/6718' make
+    MELPA_PR_URL=https://github.com/melpa/melpa/pull/6718 make
     #+end_src
 *** Test a remote package
     #+begin_src bash
-    CLONE_URL='https://github.com/riscy/shx-for-emacs' \
+    CLONE_URL=https://github.com/riscy/shx-for-emacs \
         RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' \
         make
     #+end_src
+    Note the apostrophes ~'~ around the RECIPE.
 *** Test a local package (work in progress)
     #+begin_src bash
-    PKG_PATH='/path/to/package' \
-        PKG_NAME='package-name' \
+    PKG_PATH=/path/to/package \
+        PKG_NAME=package-name \
         make
     #+end_src
