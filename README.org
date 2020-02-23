@@ -7,22 +7,23 @@
 
 /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
 submissions to [[https://github.com/melpa/][MELPA]]. I've been using a variation of this script to help me
-check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]]. The ambition is CI checks that run in an "clean"
+check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]]. The ambition is CI checks that run in a "clean"
 environment, either through CI or through a container on your local machine.
 
-This is a work in progress -- feedback and pull requests are welcome (note my
-current aim is to make this code simpler before I make it any more complicated).
+This is a work in progress -- feedback and pull requests are welcome (grep for
+TODO's, raise an issue, whatever). Note my current aim is to make this code
+simpler before I make it any more complicated.
 
 The checks are a combination of:
-1. byte-compile-file
+1. [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Byte-Compilation.html#Byte-Compilation][byte-compile-file]]
 2. [[https://www.emacswiki.org/emacs/CheckDoc][checkdoc]]
 3. [[https://github.com/purcell/package-lint][package-lint]]
-4. a license checker
-5. some elisp checks
+4. a license checker (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.py][melpazoid.py]])
+5. some elisp checks (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.el][melpazoid.el]])
 
-The first four are on the MELPA checklist, so you should try to get those right.
-The license checker is currently very crude. The elisp checks are not foolproof,
-sometimes opinionated, and may raise false positives.
+The first four are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those
+right. The license checker is currently very crude. The elisp checks are not
+foolproof, sometimes opinionated, and may raise false positives.
 
 * How to use melpazoid
   You can fork it and let CI do the work, or use it locally.
@@ -38,7 +39,7 @@ sometimes opinionated, and may raise false positives.
    Your fork will need to point to the Emacs package you want to build, which
    can be done by modifying the ~.travis.yml~ file in one of the following ways.
 *** Test a recipe before you even open a pull request to MELPA
-    Modify the ~env~ field and specify your clone url and your recipe:
+    Modify the ~env~ field and specify your clone URL and your recipe:
     #+begin_src yaml
     env: >-
       CLONE_URL='https://github.com/me/my-package-repo
