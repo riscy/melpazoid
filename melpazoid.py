@@ -72,10 +72,9 @@ def run_checks(
     )
     print(output.decode().strip())
     check_license(files, elisp_dir, clone_address)
-    check_maintainer(pr_data, clone_address)
     check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
-    print_details(recipe, files)
+    print_details(recipe, files, pr_data, clone_address)
 
 
 @functools.lru_cache()
@@ -282,17 +281,6 @@ def _requirements(
     return {req.split('"')[0].strip() for req in reqs}
 
 
-def check_maintainer(pr_data: str = None, clone_address: str = None):
-    if pr_data and clone_address:
-        print('\nMaintainer:')
-        # Check the maintainer
-        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
-        if pr_data['user']['login'].lower() not in clone_address.lower():
-            print(f"  - {CLR_TIP}NOTE: Repo and recipe owner don't match{CLR_OFF}")
-        if int(pr_data['changed_files']) != 1:
-            print(f"  - {CLR_WARN}PR changes {pr_data['changed_files']} files{CLR_OFF}")
-
-
 def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
     print('\nLicense:')
     repo_licensed = False
@@ -403,9 +391,13 @@ def check_packaging(recipe_files: list, recipe: str):
             print(f"- {CLR_WARN}Package-Requires mismatch in {el}!{CLR_OFF}")
 
 
-def print_details(recipe: str, recipe_files: list):
-    print('\nSummary:')
-    print(f"- {CLR_TIP if ':files' in recipe else ''}{recipe}{CLR_OFF}")
+def print_details(
+    recipe: str, recipe_files: list, pr_data: dict = None, clone_address: str = None
+):
+    print('\nDetails:')
+    print(f"- `{recipe}`")
+    if ':files' in recipe:
+        print('  - Try to simply use the default recipe, if possible')
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
         print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
@@ -426,6 +418,13 @@ def print_details(recipe: str, recipe_files: list):
             f" ({_check_license_in_file(recipe_file) or 'unknown license'})"
             + (f": {header}" if header else "")
         )
+    if pr_data and clone_address:
+        # Check the maintainer
+        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
+        if pr_data['user']['login'].lower() not in clone_address.lower():
+            print(f"  - {CLR_TIP}NOTE: Repo and recipe owner don't match{CLR_OFF}")
+        if int(pr_data['changed_files']) != 1:
+            print(f"  - {CLR_WARN}PR changes {pr_data['changed_files']} files{CLR_OFF}")
 
 
 def print_related_packages(recipe: str):

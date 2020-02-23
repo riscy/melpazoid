@@ -6,11 +6,51 @@
 [[https://travis-ci.org/riscy/shx-for-emacs][https://travis-ci.org/riscy/melpazoid.svg?branch=master]]
 
 /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
-submissions to [[https://github.com/melpa/][MELPA]]. The ambition is to have checks that run in an "clean"
+submissions to [[https://github.com/melpa/][MELPA]]. I've been using a variation of this script to help me
+check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]]. The ambition is CI checks that run in an "clean"
 environment, either through CI or through a container on your local machine.
 
+This is a work in progress -- feedback and pull requests are welcome (note my
+current aim is to make this code simpler before I make it any more complicated).
+
+The checks are a combination of:
+1. byte-compile-file
+2. [[https://www.emacswiki.org/emacs/CheckDoc][checkdoc]]
+3. [[https://github.com/purcell/package-lint][package-lint]]
+4. a license checker
+5. some elisp checks
+
+The first four are on the MELPA checklist, so you should try to get those right.
+The license checker is currently very crude. The elisp checks are not foolproof,
+sometimes opinionated, and may raise false positives.
+
 * How to use melpazoid
-** Locally
+  You can fork it and let CI do the work, or use it locally.
+** Fork it and let CI do the work
+   If you don't want to install this software or its dependencies, you are
+   encouraged to fork this repository and let CI do the work. You will need a
+   bit of experience with GitHub.
+
+   Then enable [[https://travis-ci.org][Travis-CI]] on your fork, or just open a pull request against this
+   repository (I won't merge it). The eventual build information will report any
+   issues.
+
+   Your fork will need to point to the Emacs package you want to build, which
+   can be done by modifying the ~.travis.yml~ file in one of the following ways.
+*** Test a recipe before you even open a pull request to MELPA
+    Modify the ~env~ field and specify your clone url and your recipe:
+    #+begin_src yaml
+    env: >-
+      CLONE_URL='https://github.com/me/my-package-repo
+      RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
+    #+end_src
+*** Test a MELPA pull request you've already opened
+    Modify the ~env~ field and specify your open MELPA PR:
+    #+begin_src yaml
+    env: >-
+      MELPA_PR_URL='https://github.com/melpa/melpa/pulls/6713
+    #+end_src
+** Use it locally
    You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. A
    container will be built with (hopefully) all of your requirements installed.
    The output scroll will report any discovered issues.
@@ -31,15 +71,3 @@ environment, either through CI or through a container on your local machine.
         PKG_NAME='package-name' \
         make
     #+end_src
-** Use Travis
-   You can still use this software if you don't want to install it or its
-   dependencies. Fork this repository and open a PR against it that modifies the
-   ~.travis.yml~ file with your CLONE_URL and RECIPE, for example:
-
-   #+begin_src yaml
-   env: >-
-     CLONE_URL='https://github.com/me/my-package-repo
-     RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
-   #+end_src
-
-   The build information on your pull request will report any discovered issues.
