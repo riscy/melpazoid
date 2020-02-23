@@ -1,4 +1,4 @@
-#+TITLE: melpazoid
+#+TITLE: melpazoid 🤖
 #+OPTIONS: toc:3 author:t creator:nil num:nil
 #+AUTHOR: Chris Rayner
 #+EMAIL: dchrisrayner@gmail.com
@@ -10,8 +10,8 @@ submissions to [[https://github.com/melpa/][MELPA]]. I've been using a variation
 check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]]. The ambition is CI checks that run in a "clean"
 environment, either through CI or through a container on your local machine.
 
-This is a work in progress -- feedback and pull requests are welcome (grep for
-TODO's, raise an issue, whatever). Note my current aim is to make this code
+This is a work in progress -- feedback and pull requests are welcome ( [[https://github.com/riscy/melpazoid/search?q=TODO&unscoped_q=TODO][search
+for TODO]]s, [[https://github.com/riscy/melpazoid/issues][raise an issue]], whatever). Note my current aim is to make this code
 simpler before I make it any more complicated.
 
 The checks are a combination of:
@@ -26,15 +26,12 @@ right. The license checker is currently very crude. The elisp checks are not
 foolproof, sometimes opinionated, and may raise false positives.
 
 * How to use melpazoid
-  You can fork it and let CI do the work, or use it locally.
+  You can [[https://github.com/riscy/melpazoid#fork-it-and-let-ci-do-the-work][fork it and let CI do the work]], or [[https://github.com/riscy/melpazoid#use-it-locally][use it locally]].
 ** Fork it and let CI do the work
    If you don't want to install this software or its dependencies, you are
-   encouraged to fork this repository and let CI do the work. You will need a
-   bit of experience with GitHub.
-
-   Then enable [[https://travis-ci.org][Travis-CI]] on your fork, or just open a pull request against this
-   repository (I won't merge it). The eventual build information will report any
-   issues.
+   encouraged to fork this repository and let CI do the work. Then enable
+   [[https://travis-ci.org][Travis-CI]] on your fork, or just open a pull request against this repository
+   (I won't merge it). The eventual build information will report any issues.
 
    Your fork will need to point to the Emacs package you want to build, which
    can be done by modifying the ~.travis.yml~ file in one of the following ways.
@@ -52,9 +49,10 @@ foolproof, sometimes opinionated, and may raise false positives.
       MELPA_PR_URL='https://github.com/melpa/melpa/pulls/6713
     #+end_src
 ** Use it locally
-   You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. A
-   container will be built with (hopefully) all of your requirements installed.
-   The output scroll will report any discovered issues.
+   You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. An image
+   will be built with (hopefully) all of your requirements installed. By
+   default, it will be run with no network access. The output scroll will report
+   any discovered issues.
 
 *** Test a MELPA PR
     #+begin_src bash
