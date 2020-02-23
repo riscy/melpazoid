@@ -170,6 +170,7 @@ def _tokenize_recipe(recipe: str) -> list:
 
 
 def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
+    # TODO: this could possibly use the MELPA machinery instead
     files_inc: list = []
     files_exc: list = []
     scope = None
@@ -197,6 +198,7 @@ def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
 
 
 def _apply_default_recipe(elisp_dir: str) -> Tuple[list, list]:
+    # TODO: this could possibly use the MELPA machinery instead
     files_inc = glob.glob(os.path.abspath(os.path.join(elisp_dir, '*.el')))
     files_exc = (
         glob.glob(os.path.abspath(os.path.join(elisp_dir, 'test.el')))
@@ -234,12 +236,13 @@ def _main_file(recipe_files: list, recipe: str) -> str:
 
 def _write_requirements(recipe_files: list, recipe: str):
     """Create a little elisp script that Docker will run as setup."""
+    # TODO: this could possibly use Cask instead
     with open('_requirements.el', 'w') as requirements_el:
         requirements_el.write(
             "(require 'package)\n"
             '(package-initialize)\n'
             "(setq package-archives nil)\n"
-            # FIXME: using GNU elpa mirror!
+            # TODO: is it still necessary to use GNU elpa mirror?
             '(add-to-list \'package-archives \'("gnu"   . "http://mirrors.163.com/elpa/gnu/"))\n'
             '(add-to-list \'package-archives \'("melpa" . "http://melpa.org/packages/"))\n'
             '(add-to-list \'package-archives \'("org"   . "http://orgmode.org/elpa/"))\n'
@@ -298,6 +301,7 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
 
 
 def _check_license_github_api(clone_address: str) -> bool:
+    # TODO: gitlab also has a license API -- support it?
     match = re.search(r'github.com/([^"]*)', clone_address)
     if not match:
         return False
@@ -347,6 +351,7 @@ def _check_license_in_files(elisp_files: list):
 
 def _check_license_in_file(elisp_file: str) -> str:
     """Scan the elisp file for some recognized license text."""
+    # TODO: this function could be more comprehensive
     licenses = {
         'GPL': r'GNU.* General Public License',
         'ISC': r'Permission to use, copy, modify, and/or',
@@ -429,6 +434,7 @@ def print_details(
 
 
 def print_related_packages(recipe: str):
+    # TODO: can this be made more useful?
     package_tokens = {
         token for token in _package_name(recipe).split('-') if token != 'mode'
     }
