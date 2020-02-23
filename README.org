@@ -6,12 +6,12 @@
 [[https://travis-ci.org/riscy/shx-for-emacs][https://travis-ci.org/riscy/melpazoid.svg?branch=master]]
 
 /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
-submissions to [[https://github.com/melpa/][MELPA]]. I've been using a variation of this script to help me
-check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]]. The ambition is CI checks that run in a "clean"
-environment, either through CI or through a container on your local machine.
+submissions to [[https://github.com/melpa/][MELPA]]. I've been using this to help check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]].
+The ambition is checks that run in a "clean" environment, either through CI or
+through a container on your local machine.
 
-This is a work in progress -- feedback and pull requests are welcome ( [[https://github.com/riscy/melpazoid/search?q=TODO&unscoped_q=TODO][search
-for TODO]]s, [[https://github.com/riscy/melpazoid/issues][raise an issue]], whatever). Note my current aim is to make this code
+This is a work in progress -- feedback and pull requests are welcome ([[https://github.com/riscy/melpazoid/search?q=TODO&unscoped_q=TODO][search for
+TODO]]s, [[https://github.com/riscy/melpazoid/issues][raise an issue]], whatever). Note my current aim is to make this code
 simpler before I make it any more complicated.
 
 The checks are a combination of:
@@ -34,7 +34,7 @@ foolproof, sometimes opinionated, and may raise false positives.
    (I won't merge it). The eventual build information will report any issues.
 
    Your fork will need to point to the Emacs package you want to build, which
-   can be done by modifying the ~.travis.yml~ file in one of the following ways.
+   can be done by modifying the [[https://github.com/riscy/melpazoid/blob/master/.travis.yml#L6][.travis.yml]] file in one of the following ways.
 *** Test a recipe before you even open a pull request to MELPA
     Modify the ~env~ field and specify your clone URL and your recipe:
     #+begin_src yaml
