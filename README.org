@@ -3,7 +3,7 @@
 #+AUTHOR: Chris Rayner
 #+EMAIL: dchrisrayner@gmail.com
 
-[[https://travis-ci.org/riscy/shx-for-emacs][https://travis-ci.org/riscy/melpazoid.svg?branch=master]]
+[[https://travis-ci.org/riscy/melpazoid][https://travis-ci.org/riscy/melpazoid.svg?branch=master]]
 
 /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
 submissions to [[https://github.com/melpa/][MELPA]]. I've been using this to help check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]].
