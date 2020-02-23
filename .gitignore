@@ -1,2 +1,6 @@
 _requirements.el
 _elisp
+*.elc
+
+.mypy_cache
+.pytest_cache

@@ -1,7 +1,7 @@
+# Based on https://github.com/JAremko/docker-emacs
+
 ARG VERSION=latest
 FROM ubuntu:$VERSION
-
-MAINTAINER JAremko <w3techplaygound@gmail.com>
 
 # Fix "Couldn't register with accessibility bus" error message
 ENV NO_AT_BRIDGE=1
@@ -49,16 +49,16 @@ RUN useradd emacser -d $WORKSPACE
 RUN mkdir -p $ELISP_PATH && chown -R emacser $WORKSPACE
 USER emacser:emacser
 
-COPY setup-core.el $WORKSPACE
-RUN emacs --script $WORKSPACE/setup-core.el
+COPY docker/requirements.el $WORKSPACE
+RUN emacs --script $WORKSPACE/requirements.el
 
 COPY _requirements.el $WORKSPACE
 RUN emacs --script ~/_requirements.el
 
-COPY --chown=emacser:emacser .emacs $WORKSPACE
+COPY --chown=emacser:emacser docker/.emacs $WORKSPACE
 COPY --chown=emacser:emacser _elisp $ELISP_PATH
 COPY --chown=emacser:emacser melpazoid.el $ELISP_PATH
-COPY --chown=emacser:emacser start.sh $ELISP_PATH
+COPY --chown=emacser:emacser docker/start.sh $ELISP_PATH
 
 ARG PACKAGE_NAME
 ENV PACKAGE_NAME "${PACKAGE_NAME}"
