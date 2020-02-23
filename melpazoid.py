@@ -299,23 +299,24 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
 
 def _check_license_github_api(clone_address: str) -> bool:
     match = re.search(r'github.com/([^"]*)', clone_address)
-    if match:
-        repo_suffix = match.groups()[0].strip('/')
-        license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
-        if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
-            print(f"- GitHub API found `{license_.get('name')}` 💯")
-            return True
-        if license_:
-            print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`")
-            if license_ == 'Other':
-                print(
-                    f"  - Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
-                )
-            return False
-        print(
-            '- Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup)'
-        )
+    if not match:
         return False
+    repo_suffix = match.groups()[0].strip('/')
+    license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
+    if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
+        print(f"- GitHub API found `{license_.get('name')}` 💯")
+        return True
+    if license_:
+        print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`")
+        if license_ == 'Other':
+            print(
+                f"  - Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
+            )
+        return False
+    print(
+        '- Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup)'
+    )
+    return False
 
 
 def _check_license_file(elisp_dir: str) -> bool:
@@ -337,7 +338,7 @@ def _check_license_in_files(elisp_files: list):
     for elisp_file in elisp_files:
         license_ = _check_license_in_file(elisp_file)
         if not license_:
-            print(f"- {CLR_ULINE}{elisp_file}{CLR_OFF} has no license text")
+            print(f"- {CLR_ULINE}{elisp_file}{CLR_OFF} has no detectable license text")
             individual_files_licensed = False
         else:
             print(f"- {os.path.basename(elisp_file)} has {license_} license text 💯")
@@ -476,6 +477,7 @@ def check_local_package(elisp_dir: str = None, package_name: str = None):
 def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
+    assert match
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
     recipe: str = _recipe(pr_data['diff_url'])
     clone_address: str = _clone_address(pr_data['body'])
@@ -494,7 +496,7 @@ def check_melpa_pr_loop():
         check_melpa_pr(pr_url)
 
 
-def _fetch_pull_requests() -> Iterator[dict]:
+def _fetch_pull_requests() -> Iterator[str]:
     """Repeatedly yield PR URL's."""
     # TODO: only supports macOS (needs pbpaste or equivalents)
     previous_pr_url = None
@@ -503,7 +505,7 @@ def _fetch_pull_requests() -> Iterator[dict]:
         while True:
             match = re.search(MELPA_PR, subprocess.check_output('pbpaste').decode())
             pr_url = match.string[: match.end()] if match else None
-            if match and pr_url != previous_pr_url:
+            if match and pr_url and pr_url != previous_pr_url:
                 break
             print(
                 'Watching clipboard for MELPA PR... '
