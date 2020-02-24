@@ -1,4 +1,4 @@
-DOCKERID = emacs
+IMAGE_NAME = melpazoid
 PACKAGE_NAME ?= NONE
 
 .PHONY: run
@@ -7,12 +7,13 @@ run:
 
 .PHONY: term
 test: image
-	@docker run -it --rm --network none ${DOCKERID}
+	@docker run -it --rm --network none ${IMAGE_NAME}
 
 .PHONY: term
 term: image
-	docker run -it --rm --entrypoint=/bin/bash ${DOCKERID}
+	docker run -it --rm --entrypoint=/bin/bash ${IMAGE_NAME}
 
 .PHONY: image
 image:
-	@docker build --build-arg PACKAGE_NAME --quiet --tag ${DOCKERID} -f Dockerfile .
+	@docker build --build-arg PACKAGE_NAME --quiet \
+		--tag ${IMAGE_NAME} -f Dockerfile .
