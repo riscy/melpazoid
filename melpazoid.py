@@ -116,7 +116,7 @@ def _recipe(pr_data_diff_url: str) -> str:
         except subprocess.CalledProcessError:
             print('Recipe read HACK failed.  Using default recipe')
             recipe = ''
-        return recipe
+        return recipe.strip()
 
 
 @functools.lru_cache()
@@ -239,18 +239,22 @@ def _write_requirements(recipe_files: list, recipe: str):
     # TODO: this could possibly use Cask instead
     with open('_requirements.el', 'w') as requirements_el:
         requirements_el.write(
-            "(require 'package)\n"
-            '(package-initialize)\n'
-            "(setq package-archives nil)\n"
-            # TODO: is it still necessary to use GNU elpa mirror?
-            '(add-to-list \'package-archives \'("gnu"   . "http://mirrors.163.com/elpa/gnu/"))\n'
-            '(add-to-list \'package-archives \'("melpa" . "http://melpa.org/packages/"))\n'
-            '(add-to-list \'package-archives \'("org"   . "http://orgmode.org/elpa/"))\n'
-            '(package-refresh-contents)\n'
-            "(package-reinstall 'package-lint)\n"
+            '''
+            (require 'package)
+            (package-initialize)
+            (setq package-archives nil)
+            ;; TODO: is it still necessary to use GNU elpa mirror?
+            (add-to-list 'package-archives '("gnu"   . "http://mirrors.163.com/elpa/gnu/"))
+            (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+            (add-to-list 'package-archives '("org"   . "http://orgmode.org/elpa/"))
+            (package-refresh-contents)
+            (package-reinstall 'package-lint)
+            '''
         )
         for req in _requirements(recipe_files, recipe):
             if req != 'emacs':
+                # TODO check if we need to reinstall?
+                # e.g. (package-installed-p 'map (version-to-list "2.0"))
                 requirements_el.write(f"(package-install '{req})\n")
                 if DEBUG:
                     requirements_el.write(f"(require '{req})\n")
