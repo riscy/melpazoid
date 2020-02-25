@@ -19,6 +19,7 @@ import random
 import re
 import requests
 import subprocess
+import sys
 import tempfile
 import time
 from typing import Iterator, Tuple
@@ -58,7 +59,7 @@ def run_checks(
     elisp_dir: str,  # where the package is
     clone_address: str = None,  # optional repo address
     pr_data: dict = None,  # optional data from the PR
-):
+) -> int:
     files: list = _files_in_recipe(recipe, elisp_dir)
     subprocess.check_output(['rm', '-rf', '_elisp'])
     os.makedirs('_elisp')
@@ -71,10 +72,11 @@ def run_checks(
         ['make', 'test', f"PACKAGE_NAME={_package_name(recipe)}"]
     )
     print(output.decode().strip())
-    check_license(files, elisp_dir, clone_address)
-    check_packaging(files, recipe)
+    exit_code = check_license(files, elisp_dir, clone_address)
+    exit_code |= check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
     print_details(recipe, files, pr_data, clone_address)
+    return exit_code
 
 
 @functools.lru_cache()
@@ -288,7 +290,7 @@ def _requirements(
     return {req.split('"')[0].strip() for req in reqs}
 
 
-def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
+def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None) -> int:
     print('\nLicense:')
     repo_licensed = False
     if clone_address:
@@ -302,6 +304,8 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
             '[GPL-compatible](https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses)'
             f" license{CLR_OFF}"
         )
+        return 1
+    return 0
 
 
 def _check_license_github_api(clone_address: str) -> bool:
@@ -371,7 +375,7 @@ def _check_license_in_file(elisp_file: str) -> str:
     return ''
 
 
-def check_packaging(recipe_files: list, recipe: str):
+def check_packaging(recipe_files: list, recipe: str) -> int:
     if ':branch "master"' in recipe:
         print('- No need to specify `:branch "master"` in your recipe')
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
@@ -399,6 +403,8 @@ def check_packaging(recipe_files: list, recipe: str):
         el_requirements = set(_requirements([el]))
         if el_requirements and el_requirements != all_requirements:
             print(f"- {CLR_WARN}Package-Requires mismatch in {el}!{CLR_OFF}")
+            return 1
+    return 0
 
 
 def print_details(
@@ -468,23 +474,23 @@ def yes_p(text: str) -> bool:
     return not keep.startswith('n')
 
 
-def check_remote_package(clone_address: str, recipe: str = ''):
+def check_remote_package(clone_address: str, recipe: str = '') -> int:
     """Check a remotely-hosted package."""
     with tempfile.TemporaryDirectory() as elisp_dir:
         _clone(clone_address, _branch(recipe), into=elisp_dir)
-        run_checks(recipe, elisp_dir, clone_address)
+        return run_checks(recipe, elisp_dir, clone_address)
 
 
-def check_local_package(elisp_dir: str = None, package_name: str = None):
+def check_local_package(elisp_dir: str = None, package_name: str = None) -> int:
     """Check a locally-hosted package."""
     elisp_dir = elisp_dir or input('Path: ').strip()
     assert os.path.isdir(elisp_dir)
     package_name = package_name or input(f"Name of package at {elisp_dir}: ")
     recipe = f'({package_name or "NONAME"} :repo "N/A")'
-    run_checks(recipe, elisp_dir)
+    return run_checks(recipe, elisp_dir)
 
 
-def check_melpa_pr(pr_url: str):
+def check_melpa_pr(pr_url: str) -> int:
     """Check a PR on MELPA."""
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
@@ -494,10 +500,11 @@ def check_melpa_pr(pr_url: str):
     try:
         with tempfile.TemporaryDirectory() as elisp_dir:
             _clone(clone_address, _branch(recipe), into=elisp_dir)
-            run_checks(recipe, elisp_dir, clone_address, pr_data)
+            return run_checks(recipe, elisp_dir, clone_address, pr_data)
     except subprocess.CalledProcessError as err:
         template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
         print(f"{CLR_WARN}{err}: is {template} intact?{CLR_OFF}")
+        return 1
 
 
 def check_melpa_pr_loop():
@@ -529,14 +536,17 @@ def _fetch_pull_requests() -> Iterator[str]:
 
 
 if __name__ == '__main__':
+    exit_code = 0
     if 'MELPA_PR_URL' in os.environ:
-        check_melpa_pr(os.environ['MELPA_PR_URL'])
+        sys.exit(check_melpa_pr(os.environ['MELPA_PR_URL']))
     elif 'PKG_PATH' in os.environ and 'PKG_NAME' in os.environ:
-        check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME'])
+        sys.exit(check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME']))
     elif 'CLONE_URL' in os.environ:
         if 'RECIPE' in os.environ:
-            check_remote_package(os.environ['CLONE_URL'], os.environ['RECIPE'])
+            sys.exit(
+                check_remote_package(os.environ['CLONE_URL'], os.environ['RECIPE'])
+            )
         else:
-            check_remote_package(os.environ['CLONE_URL'])
+            sys.exit(check_remote_package(os.environ['CLONE_URL']))
     else:
         check_melpa_pr_loop()
