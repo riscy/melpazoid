@@ -222,7 +222,7 @@ then also scan comments for REGEXP."
 OBJECTS are objects to interpolate into the string using `format'."
   (let* ((str (concat (melpazoid--string-trim f-str) "\n"))
          (str (apply #'format str objects)))
-    (if (melpazoid--running-as-script-p)
+    (if noninteractive
         (send-string-to-terminal str)
       (with-current-buffer (get-buffer-create melpazoid-buffer)
         (insert str)))))
@@ -260,21 +260,16 @@ OBJECTS are objects to interpolate into the string using `format'."
   (setq melpazoid--misc-header-printed-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
-(defun melpazoid--running-as-script-p ()
-  "Whether we think we're running melpazoid as a script.
-- MELPAZOID_FILENAME must be set as an environment variable
-- We have not been called interactively
-- We aren't (somehow) trying to test the melpazoid file"
-;; TODO: is there a better way to determine when running inside a script?
-  (let ((filename (getenv "MELPAZOID_FILENAME")))
-    (and filename
-         (not (called-interactively-p 'any))
-         (string= (file-name-extension filename) "el")
-         (not (string= (file-name-base filename) "melpazoid")))))
-
-(when (melpazoid--running-as-script-p)
-  (add-to-list 'load-path (file-name-directory (getenv "MELPAZOID_FILENAME")))
-  (melpazoid (getenv "MELPAZOID_FILENAME")))
+(when noninteractive
+  ;; Check every elisp file in `default-directory' (except melpazoid.el)
+  (add-to-list 'load-path ".")
+  (let ((filename nil) (filenames (directory-files ".")))
+    (while filenames
+      (setq filename (car filenames) filenames (cdr filenames))
+      (and (not (string= (file-name-base filename) "melpazoid"))
+           (string= (file-name-extension filename) "el")
+           (melpazoid filename))))
+  (kill-emacs 0))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here

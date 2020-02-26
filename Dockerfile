@@ -58,10 +58,9 @@ RUN emacs --script ~/_requirements.el
 COPY --chown=emacser:emacser docker/.emacs $WORKSPACE
 COPY --chown=emacser:emacser _elisp $ELISP_PATH
 COPY --chown=emacser:emacser melpazoid.el $ELISP_PATH
-COPY --chown=emacser:emacser docker/start.sh $ELISP_PATH
 
 ARG PACKAGE_NAME
 ENV PACKAGE_NAME "${PACKAGE_NAME}"
 
 WORKDIR $ELISP_PATH
-CMD ["/bin/bash", "start.sh"]
+CMD ["/usr/bin/emacs", "--script", "melpazoid.el"]
