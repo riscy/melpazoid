@@ -136,7 +136,7 @@ def _branch(recipe: str) -> str:
 
 
 def _clone(repo: str, branch: str, into: str):
-    print(f"Cloning {repo} ...")
+    print(f"Cloning {repo}")
     subprocess.check_output(['mkdir', '-p', into])
     # git clone prints to stderr, oddly enough:
     try:
@@ -321,8 +321,9 @@ def _check_license_github_api(clone_address: str) -> bool:
         print(f"- GitHub API found `{license_.get('name')}` 💯")
         return True
     if license_:
-        print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`")
-        if license_ == 'Other':
+        print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`{CLR_OFF}")
+        if license_.get('name') == 'Other':
+            # TODO: this should probably be a failure
             print(
                 f"  - Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
             )
@@ -446,6 +447,10 @@ def print_details(
 
 
 def print_related_packages(recipe: str):
+    """
+    Print list of potentially related packages.
+    Could throw ConnectionError.
+    """
     # TODO: can this be made more useful?
     package_tokens = {
         token for token in _package_name(recipe).split('-') if token != 'mode'
@@ -512,7 +517,9 @@ def check_melpa_pr(pr_url: str) -> int:
 def check_melpa_pr_loop():
     """Check MELPA pull requests in a loop."""
     for pr_url in _fetch_pull_requests():
+        print(f"Found MELPA PR {pr_url}")
         check_melpa_pr(pr_url)
+        print('-' * 79)
 
 
 def _fetch_pull_requests() -> Iterator[str]:
@@ -520,7 +527,6 @@ def _fetch_pull_requests() -> Iterator[str]:
     # TODO: only supports macOS (needs pbpaste or equivalents)
     previous_pr_url = None
     while True:
-        print('-' * 79)
         while True:
             match = re.search(MELPA_PR, subprocess.check_output('pbpaste').decode())
             pr_url = match.string[: match.end()] if match else None
@@ -533,7 +539,6 @@ def _fetch_pull_requests() -> Iterator[str]:
             )
             time.sleep(1)
         previous_pr_url = pr_url
-        print(f"Found MELPA PR {pr_url}")
         yield pr_url
 
 

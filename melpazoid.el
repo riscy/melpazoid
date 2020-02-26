@@ -245,7 +245,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   (interactive)
   (melpazoid--reset-state)
   (let ((filename (or filename (buffer-file-name (current-buffer)))))
-    (melpazoid-insert "\n\n### %s" (file-name-nondirectory filename))
+    (melpazoid-insert "\n### %s\n" (file-name-nondirectory filename))
     (save-window-excursion
       (set-buffer (find-file filename))
       (melpazoid-byte-compile filename)
