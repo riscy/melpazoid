@@ -68,15 +68,17 @@ def run_checks(
         files[ii] = os.path.join('_elisp', os.path.basename(recipe_file))
     _write_requirements(files, recipe)
     print('Building container... 🐳')
-    output = subprocess.check_output(
-        ['make', 'test', f"PACKAGE_NAME={_package_name(recipe)}"]
+    returncode = (
+        subprocess.run(
+            ['make', 'test', f"PACKAGE_NAME={_package_name(recipe)}"],
+            stderr=subprocess.PIPE,
+        ).returncode
+        | check_license(files, elisp_dir, clone_address)
+        | check_packaging(files, recipe)
     )
-    print(output.decode().strip())
-    exit_code = check_license(files, elisp_dir, clone_address)
-    exit_code |= check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
     print_details(recipe, files, pr_data, clone_address)
-    return exit_code
+    return returncode
 
 
 @functools.lru_cache()
@@ -536,7 +538,6 @@ def _fetch_pull_requests() -> Iterator[str]:
 
 
 if __name__ == '__main__':
-    exit_code = 0
     if 'MELPA_PR_URL' in os.environ:
         sys.exit(check_melpa_pr(os.environ['MELPA_PR_URL']))
     elif 'PKG_PATH' in os.environ and 'PKG_NAME' in os.environ:
