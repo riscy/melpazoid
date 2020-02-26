@@ -68,28 +68,17 @@ def run_checks(
         files[ii] = os.path.join('_elisp', os.path.basename(recipe_file))
     _write_requirements(files, recipe)
     print('Building container... 🐳')
-    returncode = (
-        subprocess.run(
-            ['make', 'test', f"PACKAGE_NAME={_package_name(recipe)}"],
-            stderr=subprocess.PIPE,
-        ).returncode
-        | check_license(files, elisp_dir, clone_address)
-        | check_packaging(files, recipe)
-    )
+    output = subprocess.check_output(
+        ['make', 'test', f"PACKAGE_NAME={_package_name(recipe)}"]
+    ).decode()
+    output = _parse_test_output(output)
+    print(output)
+    returncode = 1 if CLR_WARN in output else 0
+    returncode |= check_license(files, elisp_dir, clone_address)
+    returncode |= check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
     print_details(recipe, files, pr_data, clone_address)
     return returncode
-
-
-@functools.lru_cache()
-def _is_checkable_pr(pr_data_title: str) -> bool:
-    """
-    >>> _is_checkable_pr('Add shx')
-    True
-    >>> _is_checkable_pr('delete shx')
-    False
-    """
-    return 'delete' not in pr_data_title.lower()
 
 
 @functools.lru_cache()
@@ -101,6 +90,17 @@ def _clone_address(pr_text: str) -> str:
     if '//launchpad.net' in url:
         url = url.replace('//launchpad.net', '//git.launchpad.net')
     return url
+
+
+def _parse_test_output(output: str) -> str:
+    # TODO: what does a checkdoc _error_ look like?
+    pattern = r'(.*:[ ]?[Ee]rror: .*)'
+    output_lines = output.split('\n')
+    for ii, output_line in enumerate(output_lines):
+        output_line = re.sub(r'(### .*)', f"{CLR_INFO}\\g<1>{CLR_OFF}", output_line)
+        output_line = re.sub(pattern, f"{CLR_WARN}\\g<1>{CLR_OFF}", output_line)
+        output_lines[ii] = output_line
+    return '\n'.join(output_lines).strip()
 
 
 def _recipe(pr_data_diff_url: str) -> str:
@@ -144,7 +144,7 @@ def _clone(repo: str, branch: str, into: str):
             ['git', 'clone', '-b', branch, repo, into], stderr=subprocess.STDOUT
         )
     except subprocess.CalledProcessError as err:
-        print(f"WARN: {CLR_WARN}the default branch is not 'master'{CLR_OFF}")
+        print(f"{CLR_WARN}The default branch is not 'master'{CLR_OFF}")
         if branch == 'master':
             subprocess.check_output(['git', 'clone', repo, into])
             return
@@ -318,18 +318,18 @@ def _check_license_github_api(clone_address: str) -> bool:
     repo_suffix = match.groups()[0].strip('/')
     license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
     if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
-        print(f"- GitHub API found `{license_.get('name')}` 💯")
+        print(f"- GitHub API found `{license_.get('name')}`")
         return True
     if license_:
         print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`{CLR_OFF}")
         if license_.get('name') == 'Other':
             # TODO: this should probably be a failure
             print(
-                f"  - Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
+                f"  - {CLR_WARN}Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
             )
         return False
     print(
-        '- Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup)'
+        f"- {CLR_WARN}Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup){CLR_OFF}"
     )
     return False
 
@@ -353,10 +353,10 @@ def _check_license_in_files(elisp_files: list):
     for elisp_file in elisp_files:
         license_ = _check_license_in_file(elisp_file)
         if not license_:
-            print(f"- {CLR_ULINE}{elisp_file}{CLR_OFF} has no detectable license text")
+            print(f"- {CLR_WARN}{elisp_file} has no detectable license text{CLR_OFF}")
             individual_files_licensed = False
         else:
-            print(f"- {os.path.basename(elisp_file)} has {license_} license text 💯")
+            print(f"- {os.path.basename(elisp_file)} has {license_} license text")
     return individual_files_licensed
 
 
