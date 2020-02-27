@@ -24,6 +24,8 @@ import tempfile
 import time
 from typing import Iterator, Tuple
 
+RETURNCODE = 0
+
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -59,7 +61,7 @@ def run_checks(
     elisp_dir: str,  # where the package is
     clone_address: str = None,  # optional repo address
     pr_data: dict = None,  # optional data from the PR
-) -> int:
+):
     files: list = _files_in_recipe(recipe, elisp_dir)
     subprocess.check_output(['rm', '-rf', '_elisp'])
     os.makedirs('_elisp')
@@ -67,18 +69,21 @@ def run_checks(
         subprocess.check_output(['cp', recipe_file, '_elisp/'])
         files[ii] = os.path.join('_elisp', os.path.basename(recipe_file))
     _write_requirements(files, recipe)
-    print('Building container... 🐳')
-    output = subprocess.check_output(
-        ['make', 'test', f"PACKAGE_NAME={_package_name(recipe)}"]
-    ).decode()
-    output = _parse_test_output(output)
-    print(output)
-    returncode = 1 if CLR_WARN in output else 0
-    returncode |= check_license(files, elisp_dir, clone_address)
-    returncode |= check_packaging(files, recipe)
+    check_containerized_build(_package_name(recipe))
+    check_license(files, elisp_dir, clone_address)
+    check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
     print_details(recipe, files, pr_data, clone_address)
-    return returncode
+
+
+def check_containerized_build(package_name):
+    global RETURNCODE
+    print('Building container... 🐳')
+    output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
+    output = output.decode()
+    output = _parse_test_output(output)
+    print(output)
+    RETURNCODE |= 1 if CLR_WARN in output else 0
 
 
 @functools.lru_cache()
@@ -292,7 +297,8 @@ def _requirements(
     return {req.split('"')[0].strip() for req in reqs}
 
 
-def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None) -> int:
+def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
+    global RETURNCODE
     print('\nLicense:')
     repo_licensed = False
     if clone_address:
@@ -306,8 +312,7 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
             '[GPL-compatible](https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses)'
             f" license{CLR_OFF}"
         )
-        return 1
-    return 0
+        RETURNCODE |= 1
 
 
 def _check_license_github_api(clone_address: str) -> bool:
@@ -323,7 +328,6 @@ def _check_license_github_api(clone_address: str) -> bool:
     if license_:
         print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`{CLR_OFF}")
         if license_.get('name') == 'Other':
-            # TODO: this should probably be a failure
             print(
                 f"  - {CLR_WARN}Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
             )
@@ -378,26 +382,31 @@ def _check_license_in_file(elisp_file: str) -> str:
     return ''
 
 
-def check_packaging(recipe_files: list, recipe: str) -> int:
+def check_packaging(recipe_files: list, recipe: str):
+    global RETURNCODE
     if ':branch "master"' in recipe:
-        print('- No need to specify `:branch "master"` in your recipe')
+        print('- {CLR_WARN}No need to specify `:branch "master"` in recipe{CLR_OFF}')
+        RETURNCODE |= 1
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
-        print('- With the gitlab fetcher you MUST set :repo and you MUST NOT set :url')
+        print(
+            '- {CLR_WARN}With the GitLab fetcher you MUST set :repo and you MUST NOT set :url{CLR_OFF}'
+        )
+        RETURNCODE |= 1
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
     # okay to have a -pkg.el file, but doing it incorrectly can break the build:
     for pkg_file in (el for el in recipe_files if el.endswith('-pkg.el')):
         print(
-            f"- {CLR_WARN}Including {os.path.basename(pkg_file)} is discouraged"
-            f" -- MELPA will create a `-pkg.el` file{CLR_OFF}"
+            f"- {CLR_WARN}Including {os.path.basename(pkg_file)} is discouraged -- MELPA will create a `-pkg.el` file{CLR_OFF}"
         )
+        RETURNCODE |= 1
     # If it can't find a -pkg.el file, it looks in <your-package-name>.el.  If
     # you put your package info in your main file then we can use package-lint
     # to catch mistakes and enforce consistency.
     if not _main_file(recipe_files, recipe):
         print(
-            f"- {CLR_WARN}There is no .el file matching "
-            f"the package name '{_package_name(recipe)}'{CLR_OFF}"
+            f"- {CLR_WARN}There is no .el file matching the package name '{_package_name(recipe)}'{CLR_OFF}"
         )
+        RETURNCODE |= 1
     # In fact, if you have different Package-Requires among your source files,
     # the Package-Requires that aren't in <your-package-name>.el are ignored,
     # and there is at least one package in MELPA that accidentally does this.
@@ -405,9 +414,8 @@ def check_packaging(recipe_files: list, recipe: str) -> int:
     for el in recipe_files:
         el_requirements = set(_requirements([el]))
         if el_requirements and el_requirements != all_requirements:
-            print(f"- {CLR_WARN}Package-Requires mismatch in {el}!{CLR_OFF}")
-            return 1
-    return 0
+            print(f"- {CLR_WARN}Package-Requires mismatch between .el files!{CLR_OFF}")
+            RETURNCODE |= 1
 
 
 def print_details(
@@ -481,24 +489,25 @@ def yes_p(text: str) -> bool:
     return not keep.startswith('n')
 
 
-def check_remote_package(clone_address: str, recipe: str = '') -> int:
+def check_remote_package(clone_address: str, recipe: str = ''):
     """Check a remotely-hosted package."""
     with tempfile.TemporaryDirectory() as elisp_dir:
         _clone(clone_address, _branch(recipe), into=elisp_dir)
-        return run_checks(recipe, elisp_dir, clone_address)
+        run_checks(recipe, elisp_dir, clone_address)
 
 
-def check_local_package(elisp_dir: str = None, package_name: str = None) -> int:
+def check_local_package(elisp_dir: str = None, package_name: str = None):
     """Check a locally-hosted package."""
     elisp_dir = elisp_dir or input('Path: ').strip()
     assert os.path.isdir(elisp_dir)
     package_name = package_name or input(f"Name of package at {elisp_dir}: ")
     recipe = f'({package_name or "NONAME"} :repo "N/A")'
-    return run_checks(recipe, elisp_dir)
+    run_checks(recipe, elisp_dir)
 
 
-def check_melpa_pr(pr_url: str) -> int:
+def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
+    global RETURNCODE
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
@@ -511,7 +520,7 @@ def check_melpa_pr(pr_url: str) -> int:
     except subprocess.CalledProcessError as err:
         template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
         print(f"{CLR_WARN}{err}: is {template} intact?{CLR_OFF}")
-        return 1
+        RETURNCODE |= 1
 
 
 def check_melpa_pr_loop():
@@ -544,15 +553,17 @@ def _fetch_pull_requests() -> Iterator[str]:
 
 if __name__ == '__main__':
     if 'MELPA_PR_URL' in os.environ:
-        sys.exit(check_melpa_pr(os.environ['MELPA_PR_URL']))
+        check_melpa_pr(os.environ['MELPA_PR_URL'])
+        sys.exit(RETURNCODE)
     elif 'PKG_PATH' in os.environ and 'PKG_NAME' in os.environ:
-        sys.exit(check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME']))
+        check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME'])
+        sys.exit(RETURNCODE)
     elif 'CLONE_URL' in os.environ:
         if 'RECIPE' in os.environ:
-            sys.exit(
-                check_remote_package(os.environ['CLONE_URL'], os.environ['RECIPE'])
-            )
+            check_remote_package(os.environ['CLONE_URL'], os.environ['RECIPE'])
+            sys.exit(RETURNCODE)
         else:
-            sys.exit(check_remote_package(os.environ['CLONE_URL']))
+            check_remote_package(os.environ['CLONE_URL'])
+            sys.exit(RETURNCODE)
     else:
         check_melpa_pr_loop()
