@@ -42,7 +42,7 @@ sometimes opinionated, and may raise false positives.
       CLONE_URL=https://github.com/me/my-package-repo
       RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
     #+end_src
-    Note the apostrophes ='= around the RECIPE.
+    Note the apostrophes around the RECIPE.
 *** Test a MELPA pull request you've already opened
     Modify the ~env~ field and specify your open MELPA PR:
     #+begin_src yaml
@@ -65,7 +65,7 @@ sometimes opinionated, and may raise false positives.
         RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' \
         make
     #+end_src
-    Note the apostrophes ='= around the RECIPE.
+    Note the apostrophes around the RECIPE.
 *** Test a local package (work in progress)
     #+begin_src bash
     PKG_PATH=/path/to/package \
