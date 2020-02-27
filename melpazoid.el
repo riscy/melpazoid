@@ -28,7 +28,7 @@
   "Wrapper for running `byte-compile-file' against FILENAME."
   ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
   (let ((version (caddr (split-string (emacs-version)))))
-    (melpazoid-insert "<kbd>byte-compile-file</kbd> (using Emacs %s):" version))
+    (melpazoid-insert "byte-compile-file (using Emacs %s):" version))
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
   (cl-letf (((symbol-function 'message) #'ignore))
@@ -76,7 +76,7 @@
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
-  (melpazoid-insert "<kbd>M-x checkdoc</kbd> (using version %s):" checkdoc-version)
+  (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
   (ignore-errors (kill-buffer "*Warnings*"))
   (let ((sentence-end-double-space nil)  ; be a little more leniant
         (checkdoc-proper-noun-list nil)
@@ -99,7 +99,7 @@
   (if (not (melpazoid--run-package-lint-p))
       (melpazoid-insert "(Skipping package-lint on this file)")
     (melpazoid-insert
-     "<kbd>M-x package-lint-current-buffer</kbd> (using version %s):"
+     "package-lint-current-buffer (using version %s):"
      (pkg-info-format-version (pkg-info-package-version "package-lint")))
     (ignore-errors (kill-buffer "*Package-Lint*"))
     (ignore-errors (package-lint-current-buffer))
@@ -124,7 +124,7 @@
   "Wrapper for `melpazoid' check-declare.
 NOTE: this sometimes backfires when running checks automatically inside
 a Docker container, e.g. kellyk/emacs does not include the .el files."
-  (melpazoid-insert "<kbd>M-x check-declare-file</kbd> (optional):")
+  (melpazoid-insert "check-declare-file (optional):")
   (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
   (check-declare-file (buffer-file-name (current-buffer)))
   (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")

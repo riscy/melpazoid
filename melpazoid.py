@@ -24,24 +24,21 @@ import tempfile
 import time
 from typing import Iterator, Tuple
 
-RETURNCODE = 0
-
+DEBUG = False  # eagerly load installed packages, etc.
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
 NO_COLOR = os.environ.get('NO_COLOR')
 CLR_OFF = '' if NO_COLOR else '\033[0m'
-CLR_WARN = '' if NO_COLOR else '\033[31m'
+CLR_ERR = '' if NO_COLOR else '\033[31m'
+CLR_WARN = '' if NO_COLOR else '\033[33m'
 CLR_INFO = '' if NO_COLOR else '\033[32m'
-CLR_TIP = '' if NO_COLOR else '\033[33m'
 CLR_ULINE = '' if NO_COLOR else '\033[4m'
 
 GITHUB_API = 'https://api.github.com/repos'
 MELPA_PR = r'https://github.com/melpa/melpa/pull/([0-9]+)'
 MELPA_PULL_API = f"{GITHUB_API}/melpa/melpa/pulls"
 MELPA_RECIPES = f"{GITHUB_API}/melpa/melpa/contents/recipes"
-
-DEBUG = False  # eagerly load installed packages, etc.
 
 # Valid licenses and their names according to the GitHub API
 # TODO: complete this list!
@@ -56,12 +53,23 @@ VALID_LICENSES_GITHUB = {
 }
 
 
+def return_code(return_code: int = None):
+    """Return (and optionally set) the return code."""
+    global _RETURN_CODE
+    _RETURN_CODE = 0
+    if return_code is not None:
+        _RETURN_CODE = return_code
+    return _RETURN_CODE
+
+
 def run_checks(
     recipe: str,  # e.g. of the form (shx :repo ...)
     elisp_dir: str,  # where the package is
     clone_address: str = None,  # optional repo address
     pr_data: dict = None,  # optional data from the PR
 ):
+    """Entrypoint for running all checks."""
+    return_code(0)
     files: list = _files_in_recipe(recipe, elisp_dir)
     subprocess.check_output(['rm', '-rf', '_elisp'])
     os.makedirs('_elisp')
@@ -77,83 +85,23 @@ def run_checks(
 
 
 def check_containerized_build(package_name):
-    global RETURNCODE
     print('Building container... 🐳')
     output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
     output = output.decode()
-    output = _parse_test_output(output)
-    print(output)
-    RETURNCODE |= 1 if CLR_WARN in output else 0
-
-
-@functools.lru_cache()
-def _clone_address(pr_text: str) -> str:
-    """Figure out the clone address."""
-    url_list = pr_text.split('Direct link to the package repository')[-1].split()
-    url = next(url for url in url_list if url.startswith('http'))
-    # special handling for some sites:
-    if '//launchpad.net' in url:
-        url = url.replace('//launchpad.net', '//git.launchpad.net')
-    return url
-
-
-def _parse_test_output(output: str) -> str:
-    # TODO: what does a checkdoc _error_ look like?
-    pattern = r'(.*:[ ]?[Ee]rror: .*)'
-    output_lines = output.split('\n')
+    output_lines = output.strip().split('\n')
     for ii, output_line in enumerate(output_lines):
-        output_line = re.sub(r'(### .*)', f"{CLR_INFO}\\g<1>{CLR_OFF}", output_line)
-        output_line = re.sub(pattern, f"{CLR_WARN}\\g<1>{CLR_OFF}", output_line)
+        # byte-compile-file writes ":Error: ", package-lint ": error: "
+        if ':Error: ' in output_line or ': error: ' in output_line:
+            output_line = f"{CLR_ERR}{output_line}{CLR_OFF}"
+        elif ':Warning: ' in output_line or ': warning: ' in output_line:
+            output_line = f"{CLR_WARN}{output_line}{CLR_OFF}"
+        elif output_line.startswith('### '):
+            output_line = f"{CLR_INFO}{output_line}{CLR_OFF}"
         output_lines[ii] = output_line
-    return '\n'.join(output_lines).strip()
-
-
-def _recipe(pr_data_diff_url: str) -> str:
-    "Download the user's recipe."
-    # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
-    with tempfile.TemporaryDirectory() as elisp_dir:
-        try:
-            diff_filename = os.path.join(elisp_dir, 'diff')
-            recipe_filename = os.path.join(elisp_dir, 'recipe')
-            with open(diff_filename, 'w') as diff_file:
-                diff_file.write(requests.get(pr_data_diff_url).text)
-            subprocess.check_output(
-                f"patch {recipe_filename} < {diff_filename}", shell=True
-            )
-            with open(recipe_filename) as recipe_file:
-                recipe = re.sub(r'\s+', ' ', recipe_file.read())
-        except subprocess.CalledProcessError:
-            print('Recipe read HACK failed.  Using default recipe')
-            recipe = ''
-        return recipe.strip()
-
-
-@functools.lru_cache()
-def _branch(recipe: str) -> str:
-    """
-    >>> _branch('(shx :branch "develop" ...)')
-    'develop'
-    """
-    match = re.search(':branch "([^"]*)"', recipe)
-    if match:
-        return match.groups()[0]
-    return 'master'
-
-
-def _clone(repo: str, branch: str, into: str):
-    print(f"Cloning {repo}")
-    subprocess.check_output(['mkdir', '-p', into])
-    # git clone prints to stderr, oddly enough:
-    try:
-        subprocess.check_output(
-            ['git', 'clone', '-b', branch, repo, into], stderr=subprocess.STDOUT
-        )
-    except subprocess.CalledProcessError as err:
-        print(f"{CLR_WARN}The default branch is not 'master'{CLR_OFF}")
-        if branch == 'master':
-            subprocess.check_output(['git', 'clone', repo, into])
-            return
-        raise err
+    output = '\n'.join(output_lines)
+    print(output)
+    if CLR_ERR in output:
+        return_code(1)
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
@@ -298,7 +246,6 @@ def _requirements(
 
 
 def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
-    global RETURNCODE
     print('\nLicense:')
     repo_licensed = False
     if clone_address:
@@ -308,11 +255,11 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
     individual_files_licensed = _check_license_in_files(recipe_files)
     if not repo_licensed and not individual_files_licensed:
         print(
-            f"- {CLR_WARN}Use a "
+            f"- {CLR_ERR}Use a "
             '[GPL-compatible](https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses)'
             f" license{CLR_OFF}"
         )
-        RETURNCODE |= 1
+        return_code(1)
 
 
 def _check_license_github_api(clone_address: str) -> bool:
@@ -329,12 +276,14 @@ def _check_license_github_api(clone_address: str) -> bool:
         print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`{CLR_OFF}")
         if license_.get('name') == 'Other':
             print(
-                f"  - {CLR_WARN}Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
+                f"  - {CLR_ERR}Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
             )
+            return_code(1)
         return False
     print(
-        f"- {CLR_WARN}Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup){CLR_OFF}"
+        f"- {CLR_ERR}Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup){CLR_OFF}"
     )
+    return_code(1)
     return False
 
 
@@ -344,23 +293,22 @@ def _check_license_file(elisp_dir: str) -> bool:
         license_ = os.path.basename(license_)
         if license_.startswith('LICENSE') or license_.startswith('COPYING'):
             with open(os.path.join(elisp_dir, license_)) as stream:
-                print(
-                    f"- {CLR_ULINE}{license_}{CLR_OFF} excerpt: `{stream.readline().strip()}...`"
-                )
+                print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
     return False
 
 
-def _check_license_in_files(elisp_files: list):
+def _check_license_in_files(elisp_files: list) -> bool:
     """Check the elisp files themselves."""
     individual_files_licensed = True
     for elisp_file in elisp_files:
         license_ = _check_license_in_file(elisp_file)
+        basename = os.path.basename(elisp_file)
         if not license_:
-            print(f"- {CLR_WARN}{elisp_file} has no detectable license text{CLR_OFF}")
+            print(f"- {CLR_ERR}{basename} has no detectable license text{CLR_OFF}")
             individual_files_licensed = False
         else:
-            print(f"- {os.path.basename(elisp_file)} has {license_} license text")
+            print(f"- {basename} has {license_} license text")
     return individual_files_licensed
 
 
@@ -383,30 +331,29 @@ def _check_license_in_file(elisp_file: str) -> str:
 
 
 def check_packaging(recipe_files: list, recipe: str):
-    global RETURNCODE
     if ':branch "master"' in recipe:
-        print('- {CLR_WARN}No need to specify `:branch "master"` in recipe{CLR_OFF}')
-        RETURNCODE |= 1
+        print('- {CLR_ERR}No need to specify `:branch "master"` in recipe{CLR_OFF}')
+        return_code(1)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         print(
-            '- {CLR_WARN}With the GitLab fetcher you MUST set :repo and you MUST NOT set :url{CLR_OFF}'
+            '- {CLR_ERR}With the GitLab fetcher you MUST set :repo and you MUST NOT set :url{CLR_OFF}'
         )
-        RETURNCODE |= 1
+        return_code(1)
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
     # okay to have a -pkg.el file, but doing it incorrectly can break the build:
     for pkg_file in (el for el in recipe_files if el.endswith('-pkg.el')):
         print(
-            f"- {CLR_WARN}Including {os.path.basename(pkg_file)} is discouraged -- MELPA will create a `-pkg.el` file{CLR_OFF}"
+            f"- {CLR_ERR}Including {os.path.basename(pkg_file)} is discouraged -- MELPA will create a `-pkg.el` file{CLR_OFF}"
         )
-        RETURNCODE |= 1
+        return_code(1)
     # If it can't find a -pkg.el file, it looks in <your-package-name>.el.  If
     # you put your package info in your main file then we can use package-lint
     # to catch mistakes and enforce consistency.
     if not _main_file(recipe_files, recipe):
         print(
-            f"- {CLR_WARN}There is no .el file matching the package name '{_package_name(recipe)}'{CLR_OFF}"
+            f"- {CLR_ERR}There is no .el file matching the package name '{_package_name(recipe)}'{CLR_OFF}"
         )
-        RETURNCODE |= 1
+        return_code(1)
     # In fact, if you have different Package-Requires among your source files,
     # the Package-Requires that aren't in <your-package-name>.el are ignored,
     # and there is at least one package in MELPA that accidentally does this.
@@ -414,8 +361,8 @@ def check_packaging(recipe_files: list, recipe: str):
     for el in recipe_files:
         el_requirements = set(_requirements([el]))
         if el_requirements and el_requirements != all_requirements:
-            print(f"- {CLR_WARN}Package-Requires mismatch between .el files!{CLR_OFF}")
-            RETURNCODE |= 1
+            print(f"- {CLR_ERR}Package-Requires mismatch between .el files!{CLR_OFF}")
+            return_code(1)
 
 
 def print_details(
@@ -438,7 +385,7 @@ def print_details(
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except (IndexError, UnicodeDecodeError):
-                header = f"{CLR_WARN}Couldn't parse header{CLR_OFF}"
+                header = f"{CLR_ERR}Couldn't parse header{CLR_OFF}"
         print(
             f"- {'📁 ' if os.path.isdir(recipe_file) else ''}"
             f"{CLR_ULINE}{recipe_file}{CLR_OFF}"
@@ -449,9 +396,9 @@ def print_details(
         # Check the maintainer
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
         if pr_data['user']['login'].lower() not in clone_address.lower():
-            print(f"  - {CLR_TIP}NOTE: Repo and recipe owner don't match{CLR_OFF}")
+            print(f"  - {CLR_WARN}NOTE: Repo and recipe owner don't match{CLR_OFF}")
         if int(pr_data['changed_files']) != 1:
-            print(f"  - {CLR_WARN}PR changes {pr_data['changed_files']} files{CLR_OFF}")
+            print(f"  - {CLR_ERR}PR changes {pr_data['changed_files']} files{CLR_OFF}")
 
 
 def print_related_packages(recipe: str):
@@ -496,6 +443,34 @@ def check_remote_package(clone_address: str, recipe: str = ''):
         run_checks(recipe, elisp_dir, clone_address)
 
 
+def _clone(repo: str, branch: str, into: str):
+    print(f"Cloning {repo}")
+    subprocess.check_output(['mkdir', '-p', into])
+    # git clone prints to stderr, oddly enough:
+    try:
+        subprocess.check_output(
+            ['git', 'clone', '-b', branch, repo, into], stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as err:
+        print(f"{CLR_ERR}The default branch is not 'master'{CLR_OFF}")
+        if branch == 'master':
+            subprocess.check_output(['git', 'clone', repo, into])
+            return
+        raise err
+
+
+@functools.lru_cache()
+def _branch(recipe: str) -> str:
+    """
+    >>> _branch('(shx :branch "develop" ...)')
+    'develop'
+    """
+    match = re.search(':branch "([^"]*)"', recipe)
+    if match:
+        return match.groups()[0]
+    return 'master'
+
+
 def check_local_package(elisp_dir: str = None, package_name: str = None):
     """Check a locally-hosted package."""
     elisp_dir = elisp_dir or input('Path: ').strip()
@@ -507,7 +482,6 @@ def check_local_package(elisp_dir: str = None, package_name: str = None):
 
 def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
-    global RETURNCODE
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
@@ -519,8 +493,39 @@ def check_melpa_pr(pr_url: str):
             return run_checks(recipe, elisp_dir, clone_address, pr_data)
     except subprocess.CalledProcessError as err:
         template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
-        print(f"{CLR_WARN}{err}: is {template} intact?{CLR_OFF}")
-        RETURNCODE |= 1
+        print(f"{CLR_ERR}{err}: is {template} intact?{CLR_OFF}")
+        return_code(1)
+
+
+def _recipe(pr_data_diff_url: str) -> str:
+    "Download the user's recipe."
+    # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
+    with tempfile.TemporaryDirectory() as elisp_dir:
+        try:
+            diff_filename = os.path.join(elisp_dir, 'diff')
+            recipe_filename = os.path.join(elisp_dir, 'recipe')
+            with open(diff_filename, 'w') as diff_file:
+                diff_file.write(requests.get(pr_data_diff_url).text)
+            subprocess.check_output(
+                f"patch {recipe_filename} < {diff_filename}", shell=True
+            )
+            with open(recipe_filename) as recipe_file:
+                recipe = re.sub(r'\s+', ' ', recipe_file.read())
+        except subprocess.CalledProcessError:
+            print('Recipe read HACK failed.  Using default recipe')
+            recipe = ''
+        return recipe.strip()
+
+
+@functools.lru_cache()
+def _clone_address(pr_text: str) -> str:
+    """Figure out the clone address."""
+    url_list = pr_text.split('Direct link to the package repository')[-1].split()
+    url = next(url for url in url_list if url.startswith('http'))
+    # special handling for some sites:
+    if '//launchpad.net' in url:
+        url = url.replace('//launchpad.net', '//git.launchpad.net')
+    return url
 
 
 def check_melpa_pr_loop():
@@ -554,16 +559,16 @@ def _fetch_pull_requests() -> Iterator[str]:
 if __name__ == '__main__':
     if 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
-        sys.exit(RETURNCODE)
+        sys.exit(return_code())
     elif 'PKG_PATH' in os.environ and 'PKG_NAME' in os.environ:
         check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME'])
-        sys.exit(RETURNCODE)
+        sys.exit(return_code())
     elif 'CLONE_URL' in os.environ:
         if 'RECIPE' in os.environ:
             check_remote_package(os.environ['CLONE_URL'], os.environ['RECIPE'])
-            sys.exit(RETURNCODE)
+            sys.exit(return_code())
         else:
             check_remote_package(os.environ['CLONE_URL'])
-            sys.exit(RETURNCODE)
+            sys.exit(return_code())
     else:
         check_melpa_pr_loop()
