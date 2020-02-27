@@ -53,13 +53,15 @@ VALID_LICENSES_GITHUB = {
 }
 
 
-def return_code(return_code: int = None):
-    """Return (and optionally set) the return code."""
+def return_code(return_code: int = None) -> int:
+    """
+    Return (and optionally set) the current return code.
+    If environment variable NO_ERROR is set, always return 0.
+    """
     global _RETURN_CODE
-    _RETURN_CODE = 0
     if return_code is not None:
         _RETURN_CODE = return_code
-    return _RETURN_CODE
+    return 0 if os.environ.get('NO_ERROR') else _RETURN_CODE
 
 
 def run_checks(
