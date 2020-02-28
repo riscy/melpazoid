@@ -53,17 +53,6 @@ VALID_LICENSES_GITHUB = {
 }
 
 
-def return_code(return_code: int = None) -> int:
-    """
-    Return (and optionally set) the current return code.
-    If environment variable NO_ERROR is set, always return 0.
-    """
-    global _RETURN_CODE
-    if return_code is not None:
-        _RETURN_CODE = return_code
-    return 0 if os.environ.get('NO_ERROR') else _RETURN_CODE
-
-
 def run_checks(
     recipe: str,  # e.g. of the form (shx :repo ...)
     elisp_dir: str,  # where the package is
@@ -86,24 +75,46 @@ def run_checks(
     print_details(recipe, files, pr_data, clone_address)
 
 
+def return_code(return_code: int = None) -> int:
+    """
+    Return (and optionally set) the current return code.
+    If environment variable NO_ERROR is set, always return 0.
+    """
+    global _RETURN_CODE
+    if return_code is not None:
+        _RETURN_CODE = return_code
+    return 0 if os.environ.get('NO_ERROR') else _RETURN_CODE
+
+
+def _note(message: str, color: str = None, highlight: str = None):
+    """Print a note, possibly in color, possibly highlighting specific text."""
+    color = color or ''
+    if highlight:
+        print(re.sub(f"({highlight})", f"{color}\\g<1>{CLR_OFF}", message))
+    else:
+        print(f"{color}{message}{CLR_OFF}")
+
+
+def _fail(message: str, highlight: str = None):
+    _note(message, CLR_ERR, highlight)
+    return_code(1)
+
+
 def check_containerized_build(package_name):
     print('Building container... 🐳')
     output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
     output = output.decode()
     output_lines = output.strip().split('\n')
-    for ii, output_line in enumerate(output_lines):
+    for output_line in output_lines:
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in output_line or ': error: ' in output_line:
-            output_line = f"{CLR_ERR}{output_line}{CLR_OFF}"
+            _fail(output_line, highlight=r' ?[Ee]rror')
         elif ':Warning: ' in output_line or ': warning: ' in output_line:
-            output_line = f"{CLR_WARN}{output_line}{CLR_OFF}"
+            _note(output_line, CLR_WARN, highlight=r' ?[Ww]arning')
         elif output_line.startswith('### '):
-            output_line = f"{CLR_INFO}{output_line}{CLR_OFF}"
-        output_lines[ii] = output_line
-    output = '\n'.join(output_lines)
-    print(output)
-    if CLR_ERR in output:
-        return_code(1)
+            _note(output_line, CLR_INFO)
+        else:
+            print(output_line)
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
@@ -202,7 +213,7 @@ def _write_requirements(recipe_files: list, recipe: str):
             (require 'package)
             (package-initialize)
             (setq package-archives nil)
-            ;; TODO: is it still necessary to use GNU elpa mirror?
+            ;; FIXME: is it still necessary to use GNU elpa mirror?
             (add-to-list 'package-archives '("gnu"   . "http://mirrors.163.com/elpa/gnu/"))
             (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
             (add-to-list 'package-archives '("org"   . "http://orgmode.org/elpa/"))
@@ -212,7 +223,7 @@ def _write_requirements(recipe_files: list, recipe: str):
         )
         for req in _requirements(recipe_files, recipe):
             if req != 'emacs':
-                # TODO check if we need to reinstall?
+                # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
                 requirements_el.write(f"(package-install '{req})\n")
                 if DEBUG:
@@ -256,12 +267,10 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
         repo_licensed = _check_license_file(elisp_dir)
     individual_files_licensed = _check_license_in_files(recipe_files)
     if not repo_licensed and not individual_files_licensed:
+        _fail('- Use a GPL-compatible license:', CLR_ERR)
         print(
-            f"- {CLR_ERR}Use a "
-            '[GPL-compatible](https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses)'
-            f" license{CLR_OFF}"
+            '  https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
         )
-        return_code(1)
 
 
 def _check_license_github_api(clone_address: str) -> bool:
@@ -277,15 +286,11 @@ def _check_license_github_api(clone_address: str) -> bool:
     if license_:
         print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`{CLR_OFF}")
         if license_.get('name') == 'Other':
-            print(
-                f"  - {CLR_ERR}Use a [GitHub-compatible](https://github.com/licensee/licensee) format for your license file{CLR_OFF}"
-            )
-            return_code(1)
+            _fail('  - Use a GitHub-compatible format for your license file.')
+            print('    See: https://github.com/licensee/licensee')
         return False
-    print(
-        f"- {CLR_ERR}Add an [automatically detectable](https://github.com/licensee/licensee) LICENSE file to your repository (e.g. no markup){CLR_OFF}"
-    )
-    return_code(1)
+    _fail('- Use a LICENSE file that GitHub can detect (e.g. no markup).')
+    print('  See: https://github.com/licensee/licensee')
     return False
 
 
@@ -307,10 +312,10 @@ def _check_license_in_files(elisp_files: list) -> bool:
         license_ = _check_license_in_file(elisp_file)
         basename = os.path.basename(elisp_file)
         if not license_:
-            print(f"- {CLR_ERR}{basename} has no detectable license text{CLR_OFF}")
+            _fail(f"- {basename} has no detectable license text")
             individual_files_licensed = False
         else:
-            print(f"- {basename} has {license_} license text")
+            _note(f"- {basename} has {license_} license text", CLR_INFO)
     return individual_files_licensed
 
 
@@ -334,28 +339,20 @@ def _check_license_in_file(elisp_file: str) -> str:
 
 def check_packaging(recipe_files: list, recipe: str):
     if ':branch "master"' in recipe:
-        print('- {CLR_ERR}No need to specify `:branch "master"` in recipe{CLR_OFF}')
-        return_code(1)
+        _fail('- No need to specify `:branch "master"` in recipe', CLR_ERR)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
-        print(
-            '- {CLR_ERR}With the GitLab fetcher you MUST set :repo and you MUST NOT set :url{CLR_OFF}'
-        )
-        return_code(1)
+        _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url}')
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
     # okay to have a -pkg.el file, but doing it incorrectly can break the build:
     for pkg_file in (el for el in recipe_files if el.endswith('-pkg.el')):
-        print(
-            f"- {CLR_ERR}Including {os.path.basename(pkg_file)} is discouraged -- MELPA will create a `-pkg.el` file{CLR_OFF}"
-        )
-        return_code(1)
+        pkg_file = os.path.basename(pkg_file)
+        _fail(f"- Avoid packaging {pkg_file} -- MELPA creates a `-pkg.el` file")
     # If it can't find a -pkg.el file, it looks in <your-package-name>.el.  If
     # you put your package info in your main file then we can use package-lint
     # to catch mistakes and enforce consistency.
     if not _main_file(recipe_files, recipe):
-        print(
-            f"- {CLR_ERR}There is no .el file matching the package name '{_package_name(recipe)}'{CLR_OFF}"
-        )
-        return_code(1)
+        package_name = _package_name(recipe)
+        _fail(f"- There is no .el file matching the package name '{package_name}'")
     # In fact, if you have different Package-Requires among your source files,
     # the Package-Requires that aren't in <your-package-name>.el are ignored,
     # and there is at least one package in MELPA that accidentally does this.
@@ -363,8 +360,7 @@ def check_packaging(recipe_files: list, recipe: str):
     for el in recipe_files:
         el_requirements = set(_requirements([el]))
         if el_requirements and el_requirements != all_requirements:
-            print(f"- {CLR_ERR}Package-Requires mismatch between .el files!{CLR_OFF}")
-            return_code(1)
+            _fail(f"- Package-Requires mismatch between .el files!")
 
 
 def print_details(
@@ -373,7 +369,7 @@ def print_details(
     print('\nDetails:')
     print(f"- `{recipe}`")
     if ':files' in recipe:
-        print('  - Try to simply use the default recipe, if possible')
+        _note('  - Try to simply use the default recipe if possible', CLR_WARN)
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
         print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
@@ -400,7 +396,7 @@ def print_details(
         if pr_data['user']['login'].lower() not in clone_address.lower():
             print(f"  - {CLR_WARN}NOTE: Repo and recipe owner don't match{CLR_OFF}")
         if int(pr_data['changed_files']) != 1:
-            print(f"  - {CLR_ERR}PR changes {pr_data['changed_files']} files{CLR_OFF}")
+            _fail('  - Please only add one recipe per pull request')
 
 
 def print_related_packages(recipe: str):
@@ -446,19 +442,13 @@ def check_remote_package(clone_address: str, recipe: str = ''):
 
 
 def _clone(repo: str, branch: str, into: str):
+    """Raises subprocess.CalledProcessError if git clone fails."""
     print(f"Cloning {repo}")
     subprocess.check_output(['mkdir', '-p', into])
     # git clone prints to stderr, oddly enough:
-    try:
-        subprocess.check_output(
-            ['git', 'clone', '-b', branch, repo, into], stderr=subprocess.STDOUT
-        )
-    except subprocess.CalledProcessError as err:
-        print(f"{CLR_ERR}The default branch is not 'master'{CLR_OFF}")
-        if branch == 'master':
-            subprocess.check_output(['git', 'clone', repo, into])
-            return
-        raise err
+    subprocess.check_output(
+        ['git', 'clone', '-b', branch, repo, into], stderr=subprocess.STDOUT
+    )
 
 
 @functools.lru_cache()
@@ -495,8 +485,7 @@ def check_melpa_pr(pr_url: str):
             return run_checks(recipe, elisp_dir, clone_address, pr_data)
     except subprocess.CalledProcessError as err:
         template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
-        print(f"{CLR_ERR}{err}: is {template} intact?{CLR_OFF}")
-        return_code(1)
+        _fail(f"{err}: is {template} intact?")
 
 
 def _recipe(pr_data_diff_url: str) -> str:
