@@ -48,6 +48,7 @@ VALID_LICENSES_GITHUB = {
     'GNU General Public License v2.0',
     'GNU General Public License v3.0',
     'GNU Lesser General Public License v3.0',
+    'ISC License',
     'MIT License',
     'The Unlicense',
 }
@@ -275,6 +276,7 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
 
 def _check_license_github_api(clone_address: str) -> bool:
     # TODO: gitlab also has a license API -- support it?
+    # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if not match:
         return False
@@ -302,6 +304,7 @@ def _check_license_file(elisp_dir: str) -> bool:
             with open(os.path.join(elisp_dir, license_)) as stream:
                 print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
+    _fail('- No LICENSE or COPYING file found in repository')
     return False
 
 
