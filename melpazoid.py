@@ -30,7 +30,7 @@ DEBUG = False  # eagerly load installed packages, etc.
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
 NO_COLOR = os.environ.get('NO_COLOR')
 CLR_OFF = '' if NO_COLOR else '\033[0m'
-CLR_ERR = '' if NO_COLOR else '\033[31m'
+CLR_ERROR = '' if NO_COLOR else '\033[31m'
 CLR_WARN = '' if NO_COLOR else '\033[33m'
 CLR_INFO = '' if NO_COLOR else '\033[32m'
 CLR_ULINE = '' if NO_COLOR else '\033[4m'
@@ -56,7 +56,7 @@ VALID_LICENSES_GITHUB = {
 
 def run_checks(
     recipe: str,  # e.g. of the form (shx :repo ...)
-    elisp_dir: str,  # where the package is
+    elisp_dir: str,  # where the package is on this machine
     clone_address: str = None,  # optional repo address
     pr_data: dict = None,  # optional data from the PR
 ):
@@ -96,7 +96,7 @@ def _note(message: str, color: str = None, highlight: str = None):
         print(f"{color}{message}{CLR_OFF}")
 
 
-def _fail(message: str, color: str = CLR_ERR, highlight: str = None):
+def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
     _note(message, color, highlight)
     return_code(1)
 
@@ -144,14 +144,14 @@ def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
     # TODO: this could possibly use the MELPA machinery instead
     files_inc: list = []
     files_exc: list = []
-    scope = None
+    exclude = False
     nesting = 0
     recipe_tokens = _tokenize_recipe(recipe)
     for token in recipe_tokens[recipe_tokens.index(':files') + 1 :]:
         if token == '(':
             nesting += 1
         elif token == ')':
-            scope = None
+            exclude = False
             nesting -= 1
             if not nesting:
                 break
@@ -160,8 +160,8 @@ def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
             files_inc += include
             files_exc += exclude
         elif token == ':exclude':
-            scope = token
-        elif scope == ':exclude':
+            exclude = True
+        elif exclude:
             files_exc += glob.glob(os.path.join(elisp_dir, token.strip('"')))
         else:
             files_inc += glob.glob(os.path.join(elisp_dir, token.strip('"')))
@@ -386,7 +386,7 @@ def print_details(
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except (IndexError, UnicodeDecodeError):
-                header = f"{CLR_ERR}Couldn't parse header{CLR_OFF}"
+                header = f"{CLR_ERROR}Couldn't parse header{CLR_OFF}"
         print(
             f"- {'📁 ' if os.path.isdir(recipe_file) else ''}"
             f"{CLR_ULINE}{recipe_file}{CLR_OFF}"
@@ -515,7 +515,10 @@ def _recipe(pr_data_diff_url: str) -> str:
 
 @functools.lru_cache()
 def _clone_address(pr_text: str) -> str:
-    """Figure out the clone address."""
+    """Figure out the clone address.
+    >>> _clone_address('... Direct link to the package repository ... http://xyz')
+    'http://xyz'
+    """
     url_list = pr_text.split('Direct link to the package repository')[-1].split()
     url = next(url for url in url_list if url.startswith('http'))
     # special handling for some sites:
