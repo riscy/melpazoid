@@ -39,7 +39,8 @@
         (melpazoid-insert "- No issues!")
       (goto-char (point-min)) (forward-line 2)
       (melpazoid-insert "```")
-      (melpazoid-insert (buffer-substring (point) (point-max)))
+      (melpazoid-insert
+       (melpazoid--newline-trim (buffer-substring (point) (point-max))))
       (melpazoid-insert "```")
       (setq melpazoid-error-p t)))
   (melpazoid-insert ""))
@@ -49,11 +50,8 @@
   (save-excursion
     (goto-char (point-min))
     (unless (re-search-forward "lexical-binding:[[:blank:]]*t" nil t)
-      (melpazoid-insert
-       (concat
-        "- Per CONTRIBUTING.org, consider"
-        " [using lexical binding](https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#fixing-typical-problems)"
-        " (you will need at least emacs 24)"))
+      (melpazoid-insert "- Per CONTRIBUTING.org, consider using lexical binding.")
+      (melpazoid-insert "  See: https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#fixing-typical-problems")
       (melpazoid-insert "- Lexical binding will be used in what follows"))))
 
 (defun melpazoid--remove-no-compile ()
@@ -87,7 +85,8 @@
       (melpazoid-insert "- No issues!")
     (with-current-buffer "*Warnings*"
       (melpazoid-insert "```")
-      (melpazoid-insert (buffer-substring (point-min) (point-max)))
+      (melpazoid-insert
+       (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
       (melpazoid-insert "```")
       (setq melpazoid-error-p t)))
   (melpazoid-insert ""))
@@ -104,7 +103,7 @@
     (ignore-errors (kill-buffer "*Package-Lint*"))
     (ignore-errors (package-lint-current-buffer))
     (with-current-buffer (get-buffer-create "*Package-Lint*")
-      (let ((output (melpazoid--string-trim (buffer-substring (point-min) (point-max)))))
+      (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
         (if (string= "No issues found." output)
             (melpazoid-insert "- No issues!")
           (melpazoid-insert "```")
@@ -225,18 +224,17 @@ then also scan comments for REGEXP."
 (defun melpazoid-insert (f-str &rest objects)
   "Insert F-STR in a way determined by whether we're in script mode.
 OBJECTS are objects to interpolate into the string using `format'."
-  (let* ((str (concat (melpazoid--string-trim f-str) "\n"))
+  (let* ((str (concat f-str "\n"))
          (str (apply #'format str objects)))
     (if noninteractive
         (send-string-to-terminal str)
       (with-current-buffer (get-buffer-create melpazoid-buffer)
         (insert str)))))
 
-(defun melpazoid--string-trim (str)
-  "Sanitize STR.  This is like `string-trim' without the 'require'.
-\(The 'require' can affect melpazoid's byte-compilation output.)"
-  (let* ((str (replace-regexp-in-string "[[:space:]]+$" "" str))
-         (str (replace-regexp-in-string "^[[:space:]]+" "" str)))
+(defun melpazoid--newline-trim (str)
+  "Sanitize STR by removing newlines."
+  (let* ((str (replace-regexp-in-string "[\n]+$" "" str))
+         (str (replace-regexp-in-string "^[\n]+" "" str)))
     str))
 
 ;;;###autoload

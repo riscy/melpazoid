@@ -95,8 +95,8 @@ def _note(message: str, color: str = None, highlight: str = None):
         print(f"{color}{message}{CLR_OFF}")
 
 
-def _fail(message: str, highlight: str = None):
-    _note(message, CLR_ERR, highlight)
+def _fail(message: str, color: str = CLR_ERR, highlight: str = None):
+    _note(message, color, highlight)
     return_code(1)
 
 
@@ -259,7 +259,7 @@ def _requirements(
 
 
 def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
-    print('\nLicense:')
+    _note('\n### License ###\n', CLR_INFO)
     repo_licensed = False
     if clone_address:
         repo_licensed = _check_license_github_api(clone_address)
@@ -267,15 +267,15 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
         repo_licensed = _check_license_file(elisp_dir)
     individual_files_licensed = _check_license_in_files(recipe_files)
     if not repo_licensed and not individual_files_licensed:
-        _fail('- Use a GPL-compatible license:', CLR_ERR)
+        _fail('- Use a GPL-compatible license.')
         print(
-            '  https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
+            '  See: https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
         )
 
 
 def _check_license_github_api(clone_address: str) -> bool:
     # TODO: gitlab also has a license API -- support it?
-    match = re.search(r'github.com/([^"]*)', clone_address)
+    match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if not match:
         return False
     repo_suffix = match.groups()[0].strip('/')
@@ -284,7 +284,7 @@ def _check_license_github_api(clone_address: str) -> bool:
         print(f"- GitHub API found `{license_.get('name')}`")
         return True
     if license_:
-        print(f"- {CLR_WARN}GitHub API found `{license_.get('name')}`{CLR_OFF}")
+        _note(f"- GitHub API found `{license_.get('name')}`", CLR_WARN)
         if license_.get('name') == 'Other':
             _fail('  - Use a GitHub-compatible format for your license file.')
             print('    See: https://github.com/licensee/licensee')
@@ -315,7 +315,7 @@ def _check_license_in_files(elisp_files: list) -> bool:
             _fail(f"- {basename} has no detectable license text")
             individual_files_licensed = False
         else:
-            _note(f"- {basename} has {license_} license text", CLR_INFO)
+            print(f"- {basename} has {license_} license text")
     return individual_files_licensed
 
 
@@ -339,9 +339,9 @@ def _check_license_in_file(elisp_file: str) -> str:
 
 def check_packaging(recipe_files: list, recipe: str):
     if ':branch "master"' in recipe:
-        _fail('- No need to specify `:branch "master"` in recipe', CLR_ERR)
+        _fail('- No need to specify `:branch "master"` in recipe')
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
-        _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url}')
+        _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
     # okay to have a -pkg.el file, but doing it incorrectly can break the build:
     for pkg_file in (el for el in recipe_files if el.endswith('-pkg.el')):
@@ -366,7 +366,7 @@ def check_packaging(recipe_files: list, recipe: str):
 def print_details(
     recipe: str, recipe_files: list, pr_data: dict = None, clone_address: str = None
 ):
-    print('\nDetails:')
+    _note('\n### Details ###\n', CLR_INFO)
     print(f"- `{recipe}`")
     if ':files' in recipe:
         _note('  - Try to simply use the default recipe if possible', CLR_WARN)
@@ -394,7 +394,7 @@ def print_details(
         # Check the maintainer
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
         if pr_data['user']['login'].lower() not in clone_address.lower():
-            print(f"  - {CLR_WARN}NOTE: Repo and recipe owner don't match{CLR_OFF}")
+            _note("  - NOTE: Repo and recipe owner don't match", CLR_WARN)
         if int(pr_data['changed_files']) != 1:
             _fail('  - Please only add one recipe per pull request')
 
@@ -414,7 +414,7 @@ def print_related_packages(recipe: str):
         if package_tokens & other_package_tokens
     ]
     if related_packages:
-        print('\nPossibly related packages:')
+        _note('\n### Similarly named packages ###\n', CLR_INFO)
         print('\n'.join(related_packages[:5]))
 
 
