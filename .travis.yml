@@ -14,12 +14,8 @@ env:
     RECIPE='(bifocal :repo "riscy/bifocal-mode" :fetcher github)'
 # If you already have a pull request open, specify as below:
   - MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749
-  - >-
-    MELPA_PR_URL=https://github.com/melpa/melpa/pull/5004
-    NO_ERROR=1
-  - >-
-    MELPA_PR_URL=https://github.com/melpa/melpa/pull/5050
-    NO_ERROR=1
+  - MELPA_PR_URL=https://github.com/melpa/melpa/pull/5004
+  - MELPA_PR_URL=https://github.com/melpa/melpa/pull/5050
 
 install:
   - pip install requests
