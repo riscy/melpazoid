@@ -109,9 +109,9 @@ def check_containerized_build(package_name):
     for output_line in output_lines:
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in output_line or ': error: ' in output_line:
-            _fail(output_line, highlight=r' ?[Ee]rror')
+            _fail(output_line, highlight=r' ?[Ee]rror:')
         elif ':Warning: ' in output_line or ': warning: ' in output_line:
-            _note(output_line, CLR_WARN, highlight=r' ?[Ww]arning')
+            _note(output_line, CLR_WARN, highlight=r' ?[Ww]arning:')
         elif output_line.startswith('### '):
             _note(output_line, CLR_INFO)
         else:

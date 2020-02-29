@@ -164,7 +164,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
   (melpazoid-misc "(string-equal major-mode" "Check major mode with eq, e.g.: `(eq major-mode 'dired-mode)`")
-  (melpazoid-misc "/tmp" "Use `temporary-file-directory` instead of /tmp in code")
+  (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
   (melpazoid-misc "(s-starts-with-p" "Using `string-prefix-p` may allow dropping the dependency on `s`")
   (melpazoid-misc "(s-ends-with-p" "Using `string-suffix-p` may allow dropping the dependency on `s`")
   (melpazoid-misc "Copyright.*Free Software Foundation" "Did you really do the paperwork to assign your copyright?")
