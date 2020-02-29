@@ -79,12 +79,14 @@ def run_checks(
 def return_code(return_code: int = None) -> int:
     """
     Return (and optionally set) the current return code.
-    If environment variable CI is set, always return 0.
+    If return_code matches env var EXPECT_ERROR, return 0 --
+    this is useful for running CI checks on melpazoid itself.
     """
     global _RETURN_CODE
     if return_code is not None:
         _RETURN_CODE = return_code
-    return 0 if os.environ.get('CI') else _RETURN_CODE
+    expect_error = int(os.environ.get('EXPECT_ERROR', 0))
+    return 0 if _RETURN_CODE == expect_error else _RETURN_CODE
 
 
 def _note(message: str, color: str = None, highlight: str = None):
@@ -98,7 +100,7 @@ def _note(message: str, color: str = None, highlight: str = None):
 
 def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
     _note(message, color, highlight)
-    return_code(1)
+    return_code(2)
 
 
 def check_containerized_build(package_name):
@@ -423,8 +425,6 @@ def print_related_packages(recipe: str):
 
 @functools.lru_cache()
 def _melpa_archive() -> dict:
-    if os.environ.get('CI'):
-        return {}  # no need for the archive during CI
     return {
         frozenset(package.split('-')): package
         for package in requests.get('http://melpa.org/archive.json').json()
