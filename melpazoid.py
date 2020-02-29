@@ -282,7 +282,7 @@ def _check_license_github_api(clone_address: str) -> bool:
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if not match:
         return False
-    repo_suffix = match.groups()[0].strip('/')
+    repo_suffix = match.groups()[0].rstrip('.git').strip('/')
     license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
     if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
         print(f"- GitHub API found `{license_.get('name')}`")
@@ -482,26 +482,29 @@ def check_melpa_pr(pr_url: str):
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
-    recipe: str = _recipe(pr_data['diff_url'])
-    clone_address: str = _clone_address(pr_data['body'])
+    name, recipe = _name_and_recipe(pr_data['diff_url'])
+    clone_address: str = _clone_address(name, recipe)
     try:
         with tempfile.TemporaryDirectory() as elisp_dir:
             _clone(clone_address, _branch(recipe), into=elisp_dir)
             return run_checks(recipe, elisp_dir, clone_address, pr_data)
     except subprocess.CalledProcessError as err:
         template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
-        _fail(f"{err}: is {template} intact?")
+        _note(f"{err}: this may not be a valid recipe pull request")
 
 
-def _recipe(pr_data_diff_url: str) -> str:
-    "Download the user's recipe."
+@functools.lru_cache()
+def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
+    """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
     with tempfile.TemporaryDirectory() as elisp_dir:
         try:
+            diff_text = requests.get(pr_data_diff_url).text
+            recipe_name = diff_text.split('\n')[0].split('/')[-1]
             diff_filename = os.path.join(elisp_dir, 'diff')
-            recipe_filename = os.path.join(elisp_dir, 'recipe')
+            recipe_filename = os.path.join(elisp_dir, recipe_name)
             with open(diff_filename, 'w') as diff_file:
-                diff_file.write(requests.get(pr_data_diff_url).text)
+                diff_file.write(diff_text)
             subprocess.check_output(
                 f"patch {recipe_filename} < {diff_filename}", shell=True
             )
@@ -510,21 +513,34 @@ def _recipe(pr_data_diff_url: str) -> str:
         except subprocess.CalledProcessError:
             print('Recipe read HACK failed.  Using default recipe')
             recipe = ''
-        return recipe.strip()
+        return recipe_name, recipe.strip()
 
 
-@functools.lru_cache()
-def _clone_address(pr_text: str) -> str:
-    """Figure out the clone address.
-    >>> _clone_address('... Direct link to the package repository ... http://xyz')
-    'http://xyz'
+def _clone_address(name: str, recipe: str) -> str:
     """
-    url_list = pr_text.split('Direct link to the package repository')[-1].split()
-    url = next(url for url in url_list if url.startswith('http'))
-    # special handling for some sites:
-    if '//launchpad.net' in url:
-        url = url.replace('//launchpad.net', '//git.launchpad.net')
-    return url
+    This is a HACK to get the clone address from the
+    filename/recipe pair using the builtin MELPA machinery.  As a
+    bonus, it validates the recipe.
+    >>> _clone_address('shx', '(shx :repo "riscy/shx-for-emacs" :fetcher github)')
+    'https://github.com/riscy/shx-for-emacs.git'
+    >>> _clone_address('pmdm', '(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
+    'https://hg.serna.eu/emacs/pmdm'
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, name), 'w') as recipe_file:
+            recipe_file.write(recipe)
+        with open(os.path.join(tmpdir, 'script.el'), 'w') as script:
+            script.write(
+                requests.get(
+                    'https://raw.githubusercontent.com/melpa/melpa/master/'
+                    'package-build/package-recipe.el'
+                ).text
+                + f"""(let ((package-build-recipes-dir "{tmpdir}"))
+                       (send-string-to-terminal
+                        (package-recipe--upstream-url
+                          (package-recipe-lookup "{name}"))))"""
+            )
+        return subprocess.check_output(['emacs', '--script', script.name]).decode()
 
 
 def check_melpa_pr_loop():
