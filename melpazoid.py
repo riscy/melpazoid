@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-For checking MELPA recipe pull-requests, building docker containers
-that run the checks against the package pointed to by the recipe, and
-for running a handful of other miscellaneous checks that are easier to
-write here than in elisp.
+Python module for checking MELPA recipes.
 
 Test this file:
   pytest --doctest-modules
@@ -65,6 +62,7 @@ def run_checks(
     """Entrypoint for running all checks."""
     return_code(0)
     if not validate_recipe(recipe):
+        _fail(f"Recipe '{recipe}' appears to be invalid")
         return
     files: list = _files_in_recipe(recipe, elisp_dir)
     subprocess.check_output(['rm', '-rf', '_elisp'])
@@ -94,6 +92,12 @@ def return_code(return_code: int = None) -> int:
 
 
 def validate_recipe(recipe: str) -> bool:
+    """
+    >>> validate_recipe('(abc :repo "xyz" :fetcher github)')
+    True
+    >>> validate_recipe('??')
+    False
+    """
     tokenized_recipe = _tokenize_lisp_list(recipe)
     valid = (
         tokenized_recipe[0] == '('
@@ -101,8 +105,6 @@ def validate_recipe(recipe: str) -> bool:
         and len([pp for pp in tokenized_recipe if pp == '('])
         == len([pp for pp in tokenized_recipe if pp == ')'])
     )
-    if not valid:
-        _fail(f"Recipe '{recipe}' appears to be invalid")
     return valid
 
 
@@ -197,7 +199,6 @@ def _apply_default_recipe(elisp_dir: str) -> Tuple[list, list]:
     return files_inc, files_exc
 
 
-@functools.lru_cache()
 def _package_name(recipe: str) -> str:
     """
     >>> _package_name('(shx :files ...)')
@@ -511,7 +512,6 @@ def _clone(repo: str, branch: str, into: str):
     )
 
 
-@functools.lru_cache()
 def _branch(recipe: str) -> str:
     """
     >>> _branch('(shx :branch "develop" ...)')
@@ -524,7 +524,7 @@ def _branch(recipe: str) -> str:
 
 
 def check_local_package(elisp_dir: str = None, package_name: str = None):
-    """Check a locally-hosted package."""
+    """Check a locally-hosted package (WIP)."""
     elisp_dir = elisp_dir or input('Path: ').strip()
     assert os.path.isdir(elisp_dir)
     package_name = package_name or input(f"Name of package at {elisp_dir}: ")
