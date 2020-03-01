@@ -25,6 +25,7 @@ import time
 from typing import Iterator, Tuple
 
 DEBUG = False  # eagerly load installed packages, etc.
+_RETURN_CODE = 0
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -139,21 +140,28 @@ def _tokenize_recipe(recipe: str) -> list:
     recipe = ' '.join(recipe.split())
     recipe = recipe.replace('(', ' ( ')
     recipe = recipe.replace(')', ' ) ')
-    return recipe.split()
+    tokenized_recipe: list = recipe.split()
+    assert (
+        tokenized_recipe[0] == '('
+        and tokenized_recipe[-1] == ')'
+        and len([pp for pp in tokenized_recipe if pp == '('])
+        == len([pp for pp in tokenized_recipe if pp == ')'])
+    ), f"Recipe {recipe} doesn't look right"
+    return tokenized_recipe
 
 
 def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
     # TODO: this could possibly use the MELPA machinery instead
     files_inc: list = []
     files_exc: list = []
-    exclude = False
+    excluding = False
     nesting = 0
     recipe_tokens = _tokenize_recipe(recipe)
     for token in recipe_tokens[recipe_tokens.index(':files') + 1 :]:
         if token == '(':
             nesting += 1
         elif token == ')':
-            exclude = False
+            excluding = False
             nesting -= 1
             if not nesting:
                 break
@@ -162,8 +170,8 @@ def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
             files_inc += include
             files_exc += exclude
         elif token == ':exclude':
-            exclude = True
-        elif exclude:
+            excluding = True
+        elif excluding:
             files_exc += glob.glob(os.path.join(elisp_dir, token.strip('"')))
         else:
             files_inc += glob.glob(os.path.join(elisp_dir, token.strip('"')))
@@ -517,7 +525,7 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
                 recipe = re.sub(r'\s+', ' ', recipe_file.read())
             return recipe_name, recipe.strip()
         except subprocess.CalledProcessError as err:
-            _note(err, CLR_WARN)
+            _note(str(err), CLR_WARN)
             return '', ''
 
 
