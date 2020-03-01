@@ -487,7 +487,7 @@ def yes_p(text: str) -> bool:
     return not keep.startswith('n')
 
 
-def check_remote_package(recipe: str = ''):
+def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
     name = _tokenize_lisp_list(recipe)[1]
     with tempfile.TemporaryDirectory() as elisp_dir:
@@ -543,7 +543,7 @@ def check_melpa_pr(pr_url: str):
 
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
     if 'changed_files' not in pr_data:
-        _note(f"{pr_url} does not appear to be a GitHub PR", CLR_ERROR)
+        _note(f"{pr_url} does not appear to be a MELPA PR", CLR_ERROR)
         return
     if int(pr_data['changed_files']) != 1:
         _note('Please only add one recipe per pull request', CLR_ERROR)
@@ -652,7 +652,11 @@ if __name__ == '__main__':
         check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME'])
         sys.exit(return_code())
     elif 'RECIPE' in os.environ:
-        check_remote_package(os.environ['RECIPE'])
+        check_recipe(os.environ['RECIPE'])
+        sys.exit(return_code())
+    elif 'RECIPE_FILE' in os.environ:
+        with open(os.environ['RECIPE_FILE'], 'r') as recipe_file:
+            check_recipe(recipe_file.read())
         sys.exit(return_code())
     else:
         check_melpa_pr_loop()
