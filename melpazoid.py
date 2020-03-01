@@ -506,21 +506,25 @@ def _clone(repo: str, branch: str, into: str):
         _fail(f"Unable to locate '{repo}'")
         raise RuntimeError
     subprocess.check_output(['mkdir', '-p', into])
+    if branch:
+        git_command = ['git', 'clone', '-b', branch, repo, into]
+    else:
+        git_command = ['git', 'clone', repo, into]
     # git clone prints to stderr, oddly enough:
-    subprocess.check_output(
-        ['git', 'clone', '-b', branch, repo, into], stderr=subprocess.STDOUT
-    )
+    subprocess.check_output(git_command, stderr=subprocess.STDOUT)
 
 
 def _branch(recipe: str) -> str:
     """
     >>> _branch('(shx :branch "develop" ...)')
     'develop'
+    >>> _branch('(shx ...)')
+    ''
     """
-    match = re.search(':branch "([^"]*)"', recipe)
-    if match:
-        return match.groups()[0]
-    return 'master'
+    tokenized_recipe = _tokenize_lisp_list(recipe)
+    if ':branch' not in tokenized_recipe:
+        return ''
+    return tokenized_recipe[tokenized_recipe.index(':branch') + 1].strip('"')
 
 
 def check_local_package(elisp_dir: str = None, package_name: str = None):
