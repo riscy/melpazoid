@@ -123,7 +123,7 @@ def check_containerized_build(package_name):
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
     files: list = subprocess.check_output(['find', elisp_dir]).decode().split()
-    recipe_tokens: list = _tokenize_recipe(recipe)
+    recipe_tokens: list = _tokenize_lisp_list(recipe)
     if ':files' in recipe_tokens:
         files_inc, files_exc = _apply_recipe(recipe, elisp_dir)
     else:
@@ -132,22 +132,22 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
 
 
 @functools.lru_cache()
-def _tokenize_recipe(recipe: str) -> list:
+def _tokenize_lisp_list(recipe: str) -> list:
     """
-    >>> _tokenize_recipe('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
+    >>> _tokenize_lisp_list('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
     ['(', 'shx', ':repo', '"riscy/shx-for-emacs"', ':fetcher', 'github', ')']
     """
     recipe = ' '.join(recipe.split())
     recipe = recipe.replace('(', ' ( ')
     recipe = recipe.replace(')', ' ) ')
-    tokenized_recipe: list = recipe.split()
-    assert (
-        tokenized_recipe[0] == '('
-        and tokenized_recipe[-1] == ')'
-        and len([pp for pp in tokenized_recipe if pp == '('])
-        == len([pp for pp in tokenized_recipe if pp == ')'])
-    ), f"Recipe {recipe} doesn't look right"
-    return tokenized_recipe
+    tokenized_lisp_list: list = recipe.split()
+    # assert (
+    #     tokenized_recipe[0] == '('
+    #     and tokenized_recipe[-1] == ')'
+    #     and len([pp for pp in tokenized_recipe if pp == '('])
+    #     == len([pp for pp in tokenized_recipe if pp == ')'])
+    # ), f"Recipe {recipe} doesn't look right"
+    return tokenized_lisp_list
 
 
 def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
@@ -156,7 +156,7 @@ def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
     files_exc: list = []
     excluding = False
     nesting = 0
-    recipe_tokens = _tokenize_recipe(recipe)
+    recipe_tokens = _tokenize_lisp_list(recipe)
     for token in recipe_tokens[recipe_tokens.index(':files') + 1 :]:
         if token == '(':
             nesting += 1
@@ -205,11 +205,16 @@ def _main_file(recipe_files: list, recipe: str) -> str:
     '_elisp/a.el'
     >>> _main_file(['a.el', 'b.el'], '(b :files ...)')
     'b.el'
+    >>> _main_file(['a.el', 'a-pkg.el'], '(a :files ...)')
+    'a-pkg.el'
     """
+    package_name = _package_name(recipe)
     try:
-        package_name = _package_name(recipe)
         return next(
-            el for el in recipe_files if os.path.basename(el) == f"{package_name}.el"
+            el
+            for el in sorted(recipe_files)
+            if os.path.basename(el) == f"{package_name}-pkg.el"
+            or os.path.basename(el) == f"{package_name}.el"
         )
     except StopIteration:
         return ''
@@ -252,21 +257,39 @@ def _requirements(
     for filename in recipe_files:
         if not os.path.isfile(filename):
             continue
-        try:
-            reqs.append(
-                subprocess.check_output(
-                    f"grep -i 'Package-Requires' {filename}", shell=True
-                )
-                .decode('utf-8')
-                .strip()
-            )
-        except subprocess.CalledProcessError:
-            pass
+        elif filename.endswith('-pkg.el'):
+            reqs.append(_reqs_from_pkg_el_file(filename))
+        elif filename.endswith('.el'):
+            reqs.append(_reqs_from_el_file(filename))
     reqs = sum([req.split('(')[1:] for req in reqs], [])
-    reqs = [req.replace(')', '').strip().lower() for req in reqs if req]
+    reqs = [req.replace(')', '').strip().lower() for req in reqs if req.strip()]
     if with_versions:
         return set(reqs)
     return {req.split('"')[0].strip() for req in reqs}
+
+
+def _reqs_from_pkg_el_file(filename: str) -> str:
+    # TODO: make this take file contents as an argument; add test
+    with open(filename, 'r') as pkg_el_file:
+        reqs = pkg_el_file.read()
+    reqs = ' '.join(_tokenize_lisp_list(reqs))
+    reqs = reqs[reqs.find('( (') :]
+    reqs = reqs[: reqs.find(') )') + 3]
+    return reqs
+
+
+def _reqs_from_el_file(filename: str) -> str:
+    # TODO: make this take file contents as an argument; don't use grep; add test
+    try:
+        return (
+            subprocess.check_output(
+                f"grep -i 'Package-Requires' {filename}", shell=True
+            )
+            .decode('utf-8')
+            .strip()
+        )
+    except subprocess.CalledProcessError:
+        return ''
 
 
 def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
@@ -285,12 +308,19 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
 
 
 def _check_license_github_api(clone_address: str) -> bool:
+    """
+    >>> _check_license_github_api('https://github.com/magit/magit.git')
+    - GitHub API found `GNU General Public License v3.0`
+    True
+    """
     # TODO: gitlab also has a license API -- support it?
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
+    if clone_address.endswith('.git'):
+        clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if not match:
         return False
-    repo_suffix = match.groups()[0].rstrip('.git').strip('/')
+    repo_suffix = match.groups()[0].rstrip('/')
     license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
     if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
         print(f"- GitHub API found `{license_.get('name')}`")
@@ -322,6 +352,8 @@ def _check_license_in_files(elisp_files: list) -> bool:
     """Check the elisp files themselves."""
     individual_files_licensed = True
     for elisp_file in elisp_files:
+        if not elisp_file.endswith('.el'):
+            continue
         license_ = _check_license_in_file(elisp_file)
         basename = os.path.basename(elisp_file)
         if not license_:
@@ -359,7 +391,9 @@ def check_packaging(recipe_files: list, recipe: str):
     # okay to have a -pkg.el file, but doing it incorrectly can break the build:
     for pkg_file in (el for el in recipe_files if el.endswith('-pkg.el')):
         pkg_file = os.path.basename(pkg_file)
-        _fail(f"- Avoid packaging {pkg_file} -- MELPA creates a `-pkg.el` file")
+        _note(
+            f"- Consider excluding {pkg_file}; MELPA creates one", CLR_WARN,
+        )
     # If it can't find a -pkg.el file, it looks in <your-package-name>.el.  If
     # you put your package info in your main file then we can use package-lint
     # to catch mistakes and enforce consistency.
@@ -373,7 +407,7 @@ def check_packaging(recipe_files: list, recipe: str):
     for el in recipe_files:
         el_requirements = set(_requirements([el]))
         if el_requirements and el_requirements != all_requirements:
-            _fail(f"- Package-Requires mismatch between .el files!")
+            _fail(f"- Package-Requires mismatch between {el} and another file!")
 
 
 def print_details(
@@ -382,7 +416,7 @@ def print_details(
     _note('\n### Details ###\n', CLR_INFO)
     print(f"- `{recipe}`")
     if ':files' in recipe:
-        _note('  - Try to simply use the default recipe if possible', CLR_WARN)
+        _note('  - Use the default recipe (especially for simple packages)', CLR_WARN)
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
         print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
@@ -396,7 +430,7 @@ def print_details(
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except (IndexError, UnicodeDecodeError):
-                header = f"{CLR_ERROR}Couldn't parse header{CLR_OFF}"
+                header = f"{CLR_WARN}Couldn't parse header{CLR_OFF}"
         print(
             f"- {'📁 ' if os.path.isdir(recipe_file) else ''}"
             f"{CLR_ULINE}{recipe_file}{CLR_OFF}"
@@ -447,7 +481,7 @@ def yes_p(text: str) -> bool:
 
 def check_remote_package(recipe: str = ''):
     """Check a remotely-hosted package."""
-    name = _tokenize_recipe(recipe)[1]
+    name = _tokenize_lisp_list(recipe)[1]
     with tempfile.TemporaryDirectory() as elisp_dir:
         clone_address = _clone_address(name, recipe)
         _clone(clone_address, _branch(recipe), into=elisp_dir)
