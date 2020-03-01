@@ -58,13 +58,13 @@
   "Warn about and remove `no-byte-compile' directive."
   (save-excursion
     (let ((melpazoid--misc-header-printed-p t))  ; HACK: don't print a header
-      (melpazoid-misc "no-byte-compile: t" "Don't set `no-byte-compile: t`" nil t))
+      (melpazoid-misc "no-byte-compile: t" "Don't set `no-byte-compile: t`." nil t))
     (when melpazoid-can-modify-buffers
       (goto-char (point-min))
       (while (re-search-forward "no-byte-compile:[\s\t]*t" nil t)
         (delete-char -1)
         (insert "nil")
-        (melpazoid-insert "- Byte-compiling is enabled in what follows")
+        (melpazoid-insert "  Byte-compiling is enabled in what follows")
         (save-buffer)))))
 
 (defun melpazoid--buffer-almost-empty-p ()
@@ -175,13 +175,13 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "This file is part of GNU Emacs." "This statement may not currently be accurate")
   (melpazoid-misc "lighter \"[^ \"]" "Minor mode lighters should start with a space")
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
-  (melpazoid-misc "(fmakunbound" "Use of `fmakunbound` in a package is an anti-pattern")
-  (melpazoid-misc "(setq major-mode" "Explicitly setting major-mode is an anti-pattern")
+  (melpazoid-misc "(fmakunbound" "Use of `fmakunbound` in a package is usually unnecessary")
+  (melpazoid-misc "(setq major-mode" "Directly setting major-mode is odd (if defining a mode, prefer define-derived-mode)")
   (melpazoid-misc "([^ ]*read-string \"[^\"]*[^ ]\"" "Many `*-read-string` prompts should end with a space")
   (melpazoid-misc "(define-derived-mode .*fundamental-mode" "It is unusual to derive from fundamental-mode; try special-mode")
   (melpazoid-misc ";;;###autoload\n(defcustom" "Don't autoload `defcustom`")
   (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
-  (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects")
+  (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects (ensure it works)")
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` instead of `;; Package-Version` (MELPA automatically adds `Package-Version`)")
   (melpazoid-misc "^(define-key" "This define-key could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")

@@ -373,7 +373,7 @@ def _check_license_in_files(elisp_files: list) -> bool:
 
 def _check_license_in_file(elisp_file: str) -> str:
     """Scan the elisp file for some recognized license text."""
-    # TODO: this function could be more comprehensive
+    # TODO: this function could be more comprehensive; don't use grep
     licenses = {
         'GPL': r'GNU.* General Public License',
         'ISC': r'Permission to use, copy, modify, and/or',
@@ -539,14 +539,14 @@ def check_melpa_pr(pr_url: str):
 
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
     if 'changed_files' not in pr_data:
-        _note('This does not appear to point to a GitHub PR', CLR_ERROR)
+        _note(f"{pr_url} does not appear to be a GitHub PR", CLR_ERROR)
         return
     if int(pr_data['changed_files']) != 1:
         _note('Please only add one recipe per pull request', CLR_ERROR)
         return
     name, recipe = _name_and_recipe(pr_data['diff_url'])
     if not name or not recipe:
-        _note('Unable to build this pull request.', CLR_ERROR)
+        _note(f"Unable to build the pull request at {pr_url}", CLR_ERROR)
         return
 
     clone_address: str = _clone_address(name, recipe)
