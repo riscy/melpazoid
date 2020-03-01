@@ -14,6 +14,7 @@ Use this file a script:
 from __future__ import print_function
 import functools
 import glob
+import io  # noqa: F401 -- used by doctests
 import os
 import random
 import re
@@ -22,7 +23,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Iterator, Tuple
+from typing import Iterator, TextIO, Tuple
 
 DEBUG = False  # eagerly load installed packages, etc.
 _RETURN_CODE = 0
@@ -122,9 +123,7 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
 def check_containerized_build(package_name):
     print('Building container... 🐳')
     output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
-    output = output.decode()
-    output_lines = output.strip().split('\n')
-    for output_line in output_lines:
+    for output_line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in output_line or ': error: ' in output_line:
             _fail(output_line, highlight=r' ?[Ee]rror:')
@@ -204,7 +203,7 @@ def _package_name(recipe: str) -> str:
     >>> _package_name('(shx :files ...)')
     'shx'
     """
-    return recipe.split()[0].strip('(') if recipe else ''
+    return _tokenize_lisp_list(recipe)[1] if recipe else ''
 
 
 def _main_file(recipe_files: list, recipe: str) -> str:
@@ -230,7 +229,6 @@ def _main_file(recipe_files: list, recipe: str) -> str:
 
 def _write_requirements(recipe_files: list, recipe: str):
     """Create a little elisp script that Docker will run as setup."""
-    # TODO: this could possibly use Cask instead
     with open('_requirements.el', 'w') as requirements_el:
         requirements_el.write(
             '''
@@ -266,9 +264,11 @@ def _requirements(
         if not os.path.isfile(filename):
             continue
         elif filename.endswith('-pkg.el'):
-            reqs.append(_reqs_from_pkg_el_file(filename))
+            with open(filename, 'r') as pkg_el:
+                reqs.append(_reqs_from_pkg_el(pkg_el))
         elif filename.endswith('.el'):
-            reqs.append(_reqs_from_el_file(filename))
+            with open(filename, 'r') as el_file:
+                reqs.append(_reqs_from_el_file(el_file))
     reqs = sum([req.split('(')[1:] for req in reqs], [])
     reqs = [req.replace(')', '').strip().lower() for req in reqs if req.strip()]
     if with_versions:
@@ -276,28 +276,27 @@ def _requirements(
     return {req.split('"')[0].strip() for req in reqs}
 
 
-def _reqs_from_pkg_el_file(filename: str) -> str:
-    # TODO: make this take file contents as an argument; add test
-    with open(filename, 'r') as pkg_el_file:
-        reqs = pkg_el_file.read()
+def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
+    """
+    >>> _reqs_from_pkg_el(io.StringIO('''(define-package "x" "1.2" "A pkg." '((emacs "31.5") (xyz "123.4"))'''))
+    '( ( emacs "31.5" ) ( xyz "123.4" ) )'
+    """
+    reqs = pkg_el.read()
     reqs = ' '.join(_tokenize_lisp_list(reqs))
     reqs = reqs[reqs.find('( (') :]
     reqs = reqs[: reqs.find(') )') + 3]
     return reqs
 
 
-def _reqs_from_el_file(filename: str) -> str:
-    # TODO: make this take file contents as an argument; don't use grep; add test
-    try:
-        return (
-            subprocess.check_output(
-                f"grep -i 'Package-Requires' {filename}", shell=True
-            )
-            .decode('utf-8')
-            .strip()
-        )
-    except subprocess.CalledProcessError:
-        return ''
+def _reqs_from_el_file(el_file: TextIO) -> str:
+    """
+    >>> _reqs_from_el_file(io.StringIO(';; x y z\\n ;; package-requires: ((emacs "24.4"))'))
+    ';; package-requires: ((emacs "24.4"))'
+    """
+    for line in el_file.readlines():
+        if re.match('[; ]*Package-Requires:', line, re.I):
+            return line.strip()
+    return ''
 
 
 def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
@@ -396,12 +395,7 @@ def check_packaging(recipe_files: list, recipe: str):
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
-    # okay to have a -pkg.el file, but doing it incorrectly can break the build:
-    for pkg_file in (el for el in recipe_files if el.endswith('-pkg.el')):
-        pkg_file = os.path.basename(pkg_file)
-        _note(
-            f"- Consider excluding {pkg_file}; MELPA creates one", CLR_WARN,
-        )
+    # okay to have a -pkg.el file, but doing it incorrectly can break the build.
     # If it can't find a -pkg.el file, it looks in <your-package-name>.el.  If
     # you put your package info in your main file then we can use package-lint
     # to catch mistakes and enforce consistency.
@@ -425,7 +419,7 @@ def print_details(
     _note('\n### Details ###\n', CLR_INFO)
     print(f"- `{recipe}`")
     if ':files' in recipe:
-        _note('  - Use the default recipe (especially for simple packages)', CLR_WARN)
+        _note('  - Prefer the default recipe, especially for small packages', CLR_WARN)
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
         print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
@@ -446,6 +440,8 @@ def print_details(
             f" ({_check_license_in_file(recipe_file) or 'unknown license'})"
             + (f": {header}" if header else "")
         )
+        if recipe_file.endswith('-pkg.el'):
+            _note(f"  - Consider excluding this file; MELPA will create one", CLR_WARN)
     if pr_data and clone_address:
         # Check the maintainer
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
