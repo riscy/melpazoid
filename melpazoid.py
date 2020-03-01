@@ -125,16 +125,16 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
 def check_containerized_build(package_name):
     print(f"Building container for {package_name}... 🐳")
     output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
-    for output_line in output.decode().strip().split('\n'):
+    for line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
-        if ':Error: ' in output_line or ': error: ' in output_line:
-            _fail(output_line, highlight=r' ?[Ee]rror:')
-        elif ':Warning: ' in output_line or ': warning: ' in output_line:
-            _note(output_line, CLR_WARN, highlight=r' ?[Ww]arning:')
-        elif output_line.startswith('### '):
-            _note(output_line, CLR_INFO)
-        else:
-            print(output_line)
+        if ':Error: ' in line or ': error: ' in line:
+            _fail(line, highlight=r' ?[Ee]rror:')
+        elif ':Warning: ' in line or ': warning: ' in line:
+            _note(line, CLR_WARN, highlight=r' ?[Ww]arning:')
+        elif line.startswith('### '):
+            _note(line, CLR_INFO)
+        elif not line.startswith('make[1]: Leaving directory'):
+            print(line)
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
