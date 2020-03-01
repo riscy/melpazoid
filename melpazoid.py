@@ -63,6 +63,8 @@ def run_checks(
 ):
     """Entrypoint for running all checks."""
     return_code(0)
+    if not validate_recipe(recipe):
+        return
     files: list = _files_in_recipe(recipe, elisp_dir)
     subprocess.check_output(['rm', '-rf', '_elisp'])
     os.makedirs('_elisp')
@@ -88,6 +90,19 @@ def return_code(return_code: int = None) -> int:
         _RETURN_CODE = return_code
     expect_error = int(os.environ.get('EXPECT_ERROR', 0))
     return 0 if _RETURN_CODE == expect_error else _RETURN_CODE
+
+
+def validate_recipe(recipe: str) -> bool:
+    tokenized_recipe = _tokenize_lisp_list(recipe)
+    valid = (
+        tokenized_recipe[0] == '('
+        and tokenized_recipe[-1] == ')'
+        and len([pp for pp in tokenized_recipe if pp == '('])
+        == len([pp for pp in tokenized_recipe if pp == ')'])
+    )
+    if not valid:
+        _fail(f"Recipe '{recipe}' appears to be invalid")
+    return valid
 
 
 def _note(message: str, color: str = None, highlight: str = None):
@@ -131,7 +146,6 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
     return list(set(files) & set(files_inc) - set(files_exc))
 
 
-@functools.lru_cache()
 def _tokenize_lisp_list(recipe: str) -> list:
     """
     >>> _tokenize_lisp_list('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
@@ -141,12 +155,6 @@ def _tokenize_lisp_list(recipe: str) -> list:
     recipe = recipe.replace('(', ' ( ')
     recipe = recipe.replace(')', ' ) ')
     tokenized_lisp_list: list = recipe.split()
-    # assert (
-    #     tokenized_recipe[0] == '('
-    #     and tokenized_recipe[-1] == ')'
-    #     and len([pp for pp in tokenized_recipe if pp == '('])
-    #     == len([pp for pp in tokenized_recipe if pp == ')'])
-    # ), f"Recipe {recipe} doesn't look right"
     return tokenized_lisp_list
 
 
