@@ -419,7 +419,7 @@ def print_details(
 ):
     _note('\n### Details ###\n', CLR_INFO)
     print(f"- `{recipe}`")
-    if ':files' in recipe:
+    if ':files' in recipe or ':branch' in recipe:
         _note('  - Prefer the default recipe, especially for small packages', CLR_WARN)
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
