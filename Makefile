@@ -16,4 +16,4 @@ term: image
 .PHONY: image
 image:
 	@docker build --build-arg PACKAGE_NAME --quiet \
-		--tag ${IMAGE_NAME} -f Dockerfile .
+		--tag ${IMAGE_NAME} -f docker/Dockerfile .
