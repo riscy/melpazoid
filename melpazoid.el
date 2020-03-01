@@ -214,7 +214,7 @@ then also scan comments for REGEXP."
                 (not (comment-only-p (point-at-bol) (point-at-eol))))
         ;; print a header unless it's already been printed:
         (unless melpazoid--misc-header-printed-p
-          (melpazoid-insert "Other static checks/suggestions:")
+          (melpazoid-insert "Experimental static checks/suggestions:")
           (setq melpazoid--misc-header-printed-p t))
         (melpazoid-insert "- %s#L%s: %s"
                           (file-name-nondirectory (buffer-file-name))

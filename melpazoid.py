@@ -407,7 +407,8 @@ def check_packaging(recipe_files: list, recipe: str):
     for el in recipe_files:
         el_requirements = set(_requirements([el]))
         if el_requirements and el_requirements != all_requirements:
-            _fail(f"- Package-Requires mismatch between {el} and another file!")
+            basename = os.path.basename(el)
+            _fail(f"- Package-Requires mismatch between {basename} and another file!")
 
 
 def print_details(
@@ -430,7 +431,7 @@ def print_details(
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except (IndexError, UnicodeDecodeError):
-                header = f"{CLR_WARN}Couldn't parse header{CLR_OFF}"
+                header = '(no elisp header)'
         print(
             f"- {'📁 ' if os.path.isdir(recipe_file) else ''}"
             f"{CLR_ULINE}{recipe_file}{CLR_OFF}"
