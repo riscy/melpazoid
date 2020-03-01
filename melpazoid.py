@@ -489,6 +489,7 @@ def yes_p(text: str) -> bool:
 
 def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
+    recipe = _normalize_recipe(recipe)
     name = _tokenize_lisp_list(recipe)[1]
     with tempfile.TemporaryDirectory() as elisp_dir:
         clone_address = _clone_address(name, recipe)
@@ -582,11 +583,19 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
                 f"patch {recipe_filename} < {diff_filename}", shell=True
             )
             with open(recipe_filename) as recipe_file:
-                recipe = re.sub(r'\s+', ' ', recipe_file.read())
+                recipe = _normalize_recipe(recipe_file.read())
             return recipe_name, recipe.strip()
         except subprocess.CalledProcessError as err:
             _note(str(err), CLR_WARN)
             return '', ''
+
+
+def _normalize_recipe(recipe: str):
+    """
+    >>> _normalize_recipe('  (shx  :repo     "something" ...)')
+    '(shx :repo "something" ...)'
+    """
+    return re.sub(r'\s+', ' ', recipe).strip()
 
 
 def _clone_address(name: str, recipe: str) -> str:
