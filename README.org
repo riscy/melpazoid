@@ -22,8 +22,8 @@ The checks are a combination of:
 5. some elisp checks (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.el][melpazoid.el]])
 
 1--4 are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those right.
-The license checker is currently very crude. The elisp checks are not foolproof,
-sometimes opinionated, and may raise false positives.
+The license checker (4) is currently very crude. The elisp checks (5) are not
+foolproof, sometimes opinionated, and may raise false positives.
 
 * Usage
   You can [[https://github.com/riscy/melpazoid#fork-it-and-let-ci-do-the-work][fork it and let CI do the work]], or [[https://github.com/riscy/melpazoid#use-it-locally][use it locally]].
@@ -38,37 +38,39 @@ sometimes opinionated, and may raise false positives.
 *** Test a recipe before you even open a pull request to MELPA
     Modify the ~env~ field and specify your clone URL and your recipe:
     #+begin_src yaml
-    env: >-
-      CLONE_URL=https://github.com/me/my-package-repo
-      RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
+    env:
+    - RECIPE='(my-package :repo "me/my-package-repo" :fetcher github)'
     #+end_src
     Note the apostrophes around the RECIPE.
 *** Test a MELPA pull request you've already opened
     Modify the ~env~ field and specify your open MELPA PR:
     #+begin_src yaml
-    env: >-
-      MELPA_PR_URL=https://github.com/melpa/melpa/pull/6713
+    env:
+    - MELPA_PR_URL=https://github.com/melpa/melpa/pull/6713
     #+end_src
 ** Use it locally
    You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. An image
    will be built with (hopefully) all of your requirements installed. By
    default, it will be run with no network access. The output scroll will report
    any discovered issues.
-
-*** Test a MELPA PR
+*** Test your recipe
+    #+begin_src bash
+    RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' make
+    #+end_src
+    Note the apostrophes around the RECIPE.
+*** Test an open MELPA PR
     #+begin_src bash
     MELPA_PR_URL=https://github.com/melpa/melpa/pull/6718 make
     #+end_src
-*** Test a remote package
-    #+begin_src bash
-    CLONE_URL=https://github.com/riscy/shx-for-emacs \
-        RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' \
-        make
-    #+end_src
-    Note the apostrophes around the RECIPE.
 *** Test a local package (work in progress)
     #+begin_src bash
     PKG_PATH=/path/to/package \
         PKG_NAME=package-name \
         make
+    #+end_src
+*** Run in an unending loop
+    This currently only works in macOS; it monitors the clipboard
+    for new MELPA PR's, then automatically runs the checks on them.
+    #+begin_src bash
+    make
     #+end_src
