@@ -400,8 +400,6 @@ def print_details(
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
         if pr_data['user']['login'].lower() not in clone_address.lower():
             _note("  - NOTE: Repo and recipe owner don't match", CLR_WARN)
-        if int(pr_data['changed_files']) != 1:
-            _fail('  - Please only add one recipe per pull request')
 
 
 def print_related_packages(recipe: str):
@@ -481,28 +479,33 @@ def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
+
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
+    if int(pr_data['changed_files']) != 1:
+        _fail('Please only add one recipe per pull request')
+        return
+
     name, recipe = _name_and_recipe(pr_data['diff_url'])
+    if not name or not recipe:
+        _fail('Unable to build this pull request.')
+        return
+
     clone_address: str = _clone_address(name, recipe)
-    try:
-        with tempfile.TemporaryDirectory() as elisp_dir:
-            _clone(clone_address, _branch(recipe), into=elisp_dir)
-            return run_checks(recipe, elisp_dir, clone_address, pr_data)
-    except subprocess.CalledProcessError as err:
-        template = 'https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md'
-        _note(f"{err}: this may not be a valid recipe pull request")
+    with tempfile.TemporaryDirectory() as elisp_dir:
+        _clone(clone_address, _branch(recipe), into=elisp_dir)
+        return run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
 @functools.lru_cache()
 def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
-    with tempfile.TemporaryDirectory() as elisp_dir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         try:
             diff_text = requests.get(pr_data_diff_url).text
             recipe_name = diff_text.split('\n')[0].split('/')[-1]
-            diff_filename = os.path.join(elisp_dir, 'diff')
-            recipe_filename = os.path.join(elisp_dir, recipe_name)
+            diff_filename = os.path.join(tmpdir, 'diff')
+            recipe_filename = os.path.join(tmpdir, recipe_name)
             with open(diff_filename, 'w') as diff_file:
                 diff_file.write(diff_text)
             subprocess.check_output(
@@ -510,10 +513,10 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
             )
             with open(recipe_filename) as recipe_file:
                 recipe = re.sub(r'\s+', ' ', recipe_file.read())
-        except subprocess.CalledProcessError:
-            print('Recipe read HACK failed.  Using default recipe')
-            recipe = ''
-        return recipe_name, recipe.strip()
+            return recipe_name, recipe.strip()
+        except subprocess.CalledProcessError as err:
+            _note(err, CLR_WARN)
+            return '', ''
 
 
 def _clone_address(name: str, recipe: str) -> str:
