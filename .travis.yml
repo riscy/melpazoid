@@ -10,6 +10,9 @@ env:
   - MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749
 # Use these existing to test (but allow for errors):
   - >-
+    MELPA_PR_URL=https://github.com/melpa/melpa/pull/3041
+    EXPECT_ERROR=2
+  - >-
     RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))'
     EXPECT_ERROR=2
   - >-
