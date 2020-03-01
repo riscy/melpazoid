@@ -70,7 +70,7 @@ def run_checks(
     subprocess.check_output(['rm', '-rf', '_elisp'])
     os.makedirs('_elisp')
     for ii, recipe_file in enumerate(files):
-        subprocess.check_output(['cp', recipe_file, '_elisp/'])
+        subprocess.check_output(['cp', '-r', recipe_file, '_elisp/'])
         files[ii] = os.path.join('_elisp', os.path.basename(recipe_file))
     _write_requirements(files, recipe)
     check_containerized_build(_package_name(recipe))
@@ -121,7 +121,7 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
 
 
 def check_containerized_build(package_name):
-    print('Building container... 🐳')
+    print(f"Building container for {package_name}... 🐳")
     output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
     for output_line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
@@ -426,6 +426,9 @@ def print_details(
     else:
         print('n/a')
     for recipe_file in recipe_files:
+        if os.path.isdir(recipe_file):
+            print(f"- {recipe_file}: (directory)")
+            continue
         with open(recipe_file) as stream:
             try:
                 header = stream.readline()
@@ -435,8 +438,7 @@ def print_details(
             except (IndexError, UnicodeDecodeError):
                 header = '(no elisp header)'
         print(
-            f"- {'📁 ' if os.path.isdir(recipe_file) else ''}"
-            f"{CLR_ULINE}{recipe_file}{CLR_OFF}"
+            f"- {CLR_ULINE}{recipe_file}{CLR_OFF}"
             f" ({_check_license_in_file(recipe_file) or 'unknown license'})"
             + (f": {header}" if header else "")
         )
@@ -494,8 +496,14 @@ def check_remote_package(recipe: str = ''):
 
 
 def _clone(repo: str, branch: str, into: str):
-    """Raises subprocess.CalledProcessError if git clone fails."""
+    """
+    Raises RuntimeError if repo doesn't exist, and
+    subprocess.CalledProcessError if git clone fails.
+    """
     print(f"Cloning {repo}")
+    if not requests.get(repo).ok:
+        _fail(f"Unable to locate '{repo}'")
+        raise RuntimeError
     subprocess.check_output(['mkdir', '-p', into])
     # git clone prints to stderr, oddly enough:
     subprocess.check_output(
@@ -530,13 +538,15 @@ def check_melpa_pr(pr_url: str):
     assert match
 
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
-    if int(pr_data['changed_files']) != 1:
-        _fail('Please only add one recipe per pull request')
+    if 'changed_files' not in pr_data:
+        _note('This does not appear to point to a GitHub PR', CLR_ERROR)
         return
-
+    if int(pr_data['changed_files']) != 1:
+        _note('Please only add one recipe per pull request', CLR_ERROR)
+        return
     name, recipe = _name_and_recipe(pr_data['diff_url'])
     if not name or not recipe:
-        _fail('Unable to build this pull request.')
+        _note('Unable to build this pull request.', CLR_ERROR)
         return
 
     clone_address: str = _clone_address(name, recipe)
@@ -552,6 +562,13 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
             diff_text = requests.get(pr_data_diff_url).text
+            if (
+                'new file mode' not in diff_text
+                or 'a/recipes' not in diff_text
+                or 'b/recipes' not in diff_text
+            ):
+                _note('This does not appear to add a new recipe', CLR_WARN)
+                return '', ''
             recipe_name = diff_text.split('\n')[0].split('/')[-1]
             diff_filename = os.path.join(tmpdir, 'diff')
             recipe_filename = os.path.join(tmpdir, recipe_name)

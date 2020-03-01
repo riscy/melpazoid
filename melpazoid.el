@@ -107,7 +107,10 @@
         (if (string= "No issues found." output)
             (melpazoid-insert "- No issues!")
           (melpazoid-insert "```")
-          (melpazoid-insert output)
+          (melpazoid-insert
+           (if (string= output "")
+               "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
+             output))
           (melpazoid-insert "```")
           (setq melpazoid-error-p t)))))
   (melpazoid-insert ""))
