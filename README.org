@@ -21,7 +21,10 @@ The checks are a combination of:
 4. a license checker (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.py][melpazoid.py]])
 5. some elisp checks (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.el][melpazoid.el]])
 
-1--4 are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those right.
+1--4 are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those right. In
+normal circumstances the build will exit with a failure if there is any
+byte-compile or package-lint `error` -- leeway is given for any `warning`.
+
 The license checker (4) is currently very crude. The elisp checks (5) are not
 foolproof, sometimes opinionated, and may raise false positives.
 
