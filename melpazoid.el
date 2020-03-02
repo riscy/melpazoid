@@ -78,7 +78,10 @@
 
 (defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
                                 melpazoid--promise-package-lint)
-  "List of checker which is called with 1 argument, return promise."
+  "List of checker which is called with 1 argument, return promise.
+Argument is alist contain below information.
+  - sandboxdir
+  - tmpfile"
   :type 'sexp
   :group 'melpazoid)
 
@@ -370,98 +373,107 @@ NOTE:
    (lambda (reason)
      (promise-reject `(fail-resolve-dependency ,reason)))))
 
-(defun melpazoid--promise-byte-compile (sandboxdir tmpfile)
-  "Byte-compile TMPFILE in SANDBOXDIR."
-  (promise-then
-   (promise:async-start
-    `(lambda ()
-       (let ((package-user-dir ,sandboxdir))
-         (require 'package)
-         (package-initialize)
+(defun melpazoid--promise-byte-compile (info)
+  "Byte-compile info"
+  (let-alist info
+    (let ((sandboxdir .sandboxdir)
+          (tmpfile    .tmpfile))
+      (promise-then
+       (promise:async-start
+        `(lambda ()
+           (let ((package-user-dir ,sandboxdir))
+             (require 'package)
+             (package-initialize)
 
-         ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-         (with-current-buffer (find-file-noselect ,tmpfile)
-           (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
-           (melpazoid--remove-no-compile)
-           (melpazoid--check-lexical-binding)
-           (let ((lexical-binding t))
-             (byte-compile-file filename))
-           (with-current-buffer (get-buffer-create "*Compile-Log*")
-             (if (<= (- (point-max) (point)) 3)
+             ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
+             (with-current-buffer (find-file-noselect ,tmpfile)
+               (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
+               (melpazoid--remove-no-compile)
+               (melpazoid--check-lexical-binding)
+               (let ((lexical-binding t))
+                 (byte-compile-file filename))
+               (with-current-buffer (get-buffer-create "*Compile-Log*")
+                 (if (<= (- (point-max) (point)) 3)
+                     (melpazoid-insert "- No issues!")
+                   (goto-char (point-min)) (forward-line 2)
+                   (melpazoid-insert "```")
+                   (melpazoid-insert
+                    (melpazoid--newline-trim (buffer-substring (point) (point-max))))
+                   (melpazoid-insert "```")
+                   (setq melpazoid-error-p t)))
+               (melpazoid-insert "")))))
+       (lambda (res)
+         res)
+       (lambda (reason)
+         (promise-reject `(fail-byte-compile ,reason)))))))
+
+(defun melpazoid--promise-checkdoc (info)
+  "Checkdoc with INFO."
+  (let-alist info
+    (let ((sandboxdir .sandboxdir)
+          (tmpfile    .tmpfile))
+      (promise-then
+       (promise:async-start
+        `(lambda ()
+           (let ((package-user-dir ,sandboxdir))
+             (require 'package)
+             (package-initialize)
+
+             (require 'checkdoc)
+             (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
+             (ignore-errors
+               (with-current-buffer (find-file-noselect ,tmpfile)
+                 (let ((sentence-end-double-space nil)  ; be a little more leniant
+                       (checkdoc-proper-noun-list nil)
+                       (checkdoc-common-verbs-wrong-voice nil))
+                   (checkdoc-current-buffer))))
+             (if (not (get-buffer "*Warnings*"))
                  (melpazoid-insert "- No issues!")
-               (goto-char (point-min)) (forward-line 2)
-               (melpazoid-insert "```")
+               (with-current-buffer "*Warnings*"
+                 (melpazoid-insert "```")
+                 (melpazoid-insert
+                  (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
+                 (melpazoid-insert "```")
+                 (setq melpazoid-error-p t)))
+             (melpazoid-insert ""))))))))
+
+(defun melpazoid--promise-package-lint (info)
+  "Package-lint with INFO."
+  (let-alist info
+    (let ((sandboxdir .sandboxdir)
+          (tmpfile    .tmpfile))
+      (promise-then
+       (promise:async-start
+        `(lambda ()
+           (let ((package-user-dir ,sandboxdir))
+             (require 'package)
+             (package-initialize)
+
+             (require package-lint)
+             (if (not (melpazoid--run-package-lint-p))
+                 (melpazoid-insert "(Skipping package-lint on this file)")
                (melpazoid-insert
-                (melpazoid--newline-trim (buffer-substring (point) (point-max))))
-               (melpazoid-insert "```")
-               (setq melpazoid-error-p t)))
-           (melpazoid-insert "")))))
-   (lambda (res)
-     res)
-   (lambda (reason)
-     (promise-reject `(fail-byte-compile ,reason)))))
-
-(defun melpazoid--promise-checkdoc (sandboxdir tmpfile)
-  "Checkdoc TMPFILE in SANDBOXDIR."
-  (promise-then
-   (promise:async-start
-    `(lambda ()
-       (let ((package-user-dir ,sandboxdir))
-         (require 'package)
-         (package-initialize)
-
-         (require 'checkdoc)
-         (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
-         (ignore-errors
-           (with-current-buffer (find-file-noselect ,tmpfile)
-             (let ((sentence-end-double-space nil)  ; be a little more leniant
-                   (checkdoc-proper-noun-list nil)
-                   (checkdoc-common-verbs-wrong-voice nil))
-               (checkdoc-current-buffer))))
-         (if (not (get-buffer "*Warnings*"))
-             (melpazoid-insert "- No issues!")
-           (with-current-buffer "*Warnings*"
-             (melpazoid-insert "```")
-             (melpazoid-insert
-              (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
-             (melpazoid-insert "```")
-             (setq melpazoid-error-p t)))
-         (melpazoid-insert ""))))))
-
-(defun melpazoid--promise-package-lint (sandboxdir tmpfile)
-  "Checkdoc TMPFILE in SANDBOXDIR."
-  (promise-then
-   (promise:async-start
-    `(lambda ()
-       (let ((package-user-dir ,sandboxdir))
-         (require 'package)
-         (package-initialize)
-
-         (require package-lint)
-         (if (not (melpazoid--run-package-lint-p))
-            (melpazoid-insert "(Skipping package-lint on this file)")
-          (melpazoid-insert
-           "package-lint-current-buffer (using version %s):"
-           (pkg-info-format-version (pkg-info-package-version "package-lint")))
-          (ignore-errors
-            (with-current-buffer (find-file-noselect ,tmpfile)
-              (package-lint-current-buffer)))
-          (with-current-buffer (get-buffer-create "*Package-Lint*")
-            (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-              (if (string= "No issues found." output)
-                  (melpazoid-insert "- No issues!")
-                (melpazoid-insert "```")
-                (melpazoid-insert
-                 (if (string= output "")
-                     "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-                   output))
-                (melpazoid-insert "```")
-                (setq melpazoid-error-p t))))))
-       (melpazoid-insert "")))
-   (lambda (res)
-     res)
-   (lambda (reason)
-     (promise-reject `(fail-checkdoc ,reason)))))
+                "package-lint-current-buffer (using version %s):"
+                (pkg-info-format-version (pkg-info-package-version "package-lint")))
+               (ignore-errors
+                 (with-current-buffer (find-file-noselect ,tmpfile)
+                   (package-lint-current-buffer)))
+               (with-current-buffer (get-buffer-create "*Package-Lint*")
+                 (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
+                   (if (string= "No issues found." output)
+                       (melpazoid-insert "- No issues!")
+                     (melpazoid-insert "```")
+                     (melpazoid-insert
+                      (if (string= output "")
+                          "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
+                        output))
+                     (melpazoid-insert "```")
+                     (setq melpazoid-error-p t))))))
+           (melpazoid-insert "")))
+       (lambda (res)
+         res)
+       (lambda (reason)
+         (promise-reject `(fail-checkdoc ,reason)))))))
 
 (async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
@@ -490,12 +502,14 @@ If the argument is omitted, the current directory is assumed."
                 (await (melpazoid--promise-resolve-dependency sandboxdir reqs))
                 (dolist (source sources)
                   (await
-                   (let ((tmpfile (expand-file-name (file-name-nondirectory source) builddir)))
+                   (let* ((tmpfile (expand-file-name (file-name-nondirectory source) builddir))
+                          (info `((sandboxdir . ,sandboxdir)
+                                  (tmpfile    . ,tmpfile))))
                      (copy-file source tmpfile 'overwrite)
                      (promise-all
                       (list
-                       (melpazoid--promise-byte-compile sandboxdir tmpfile)
-                       (melpazoid--promise-package-lint sandboxdir tmpfile))))))
+                       (melpazoid--promise-byte-compile info)
+                       (melpazoid--promise-package-lint info))))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
