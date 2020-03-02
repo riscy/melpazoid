@@ -382,6 +382,7 @@ If the argument is omitted, the current directory is assumed."
           (let* ((pkg (pop contents))
                  (recipe (pop contents)))
             (let-alist recipe
+              (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
               (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
                 (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
                 (save-window-excursion
