@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'package)
+
 (defvar checkdoc-version)
 (declare-function pkg-info-format-version "ext:pkg-info.el" t t)
 (declare-function pkg-info-package-version "ext:pkg-info.el" t t)
