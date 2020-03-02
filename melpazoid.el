@@ -425,7 +425,9 @@ NOTE:
           "package-lint-current-buffer (using version %s):"
           (pkg-info-format-version (pkg-info-package-version "package-lint")))
          (ignore-errors (kill-buffer "*Package-Lint*"))
-         (ignore-errors (package-lint-current-buffer))
+         (ignore-errors
+           (with-current-buffer (find-file-noselect ,tmpfile)
+             (package-lint-current-buffer)))
          (with-current-buffer (get-buffer-create "*Package-Lint*")
            (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
              (if (string= "No issues found." output)
