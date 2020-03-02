@@ -88,6 +88,16 @@ See `package-build-expand-file-specs' from MELPA package-build."
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
 
+(defun package-build--config-file-list (rcp)
+  (let ((file-list (oref rcp files)))
+    (cond
+     ((null file-list)
+      package-build-default-files-spec)
+     ((eq :defaults (car file-list))
+      (append package-build-default-files-spec (cdr file-list)))
+     (t
+      file-list))))
+
 (defun melpazoid--expand-source-file-list (recipe dir)
   "Resolve source file from RECIPE in DIR.
 See `package-build--expand-source-file-list' from MELPA package-build."
