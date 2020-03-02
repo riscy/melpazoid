@@ -420,8 +420,7 @@ NOTE:
 
            ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
            (copy-file ,source ,sourcecopy)
-           (let ((version (format "%s.%s" emacs-major-version emacs-minor-version)))
-             (melpazoid-insert "byte-compile-file (using Emacs %s):" version))
+           (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
            (melpazoid--remove-no-compile)
            (ignore-errors (kill-buffer "*Compile-Log*"))
            (cl-letf (((symbol-function 'message) #'ignore))
