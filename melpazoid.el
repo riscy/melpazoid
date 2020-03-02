@@ -88,10 +88,10 @@ See `package-build-expand-file-specs' from MELPA package-build."
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
 
-(defun melpazoid--config-file-list (rcp)
-  "Build full source file specification from RCP.
+(defun melpazoid--config-file-list (recipe)
+  "Build full source file specification from RECIPE.
 See `package-build--config-file-list' from MELPA package-build."
-  (let ((file-list (oref rcp files)))
+  (let ((file-list (oref recipe files)))
     (cond
      ((null file-list)
       melpazoid-default-files-spec)
