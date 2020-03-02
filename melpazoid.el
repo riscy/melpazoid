@@ -1,11 +1,13 @@
 ;;; melpazoid.el --- A MELPA review tool  -*- lexical-binding: t; -*-
 
-;; Authors: Chris Rayner (dchrisrayner@gmail.com)
+;; Copyright (C) 2019-2020  Chris Rayner <dchrisrayner@gmail.com>
+
+;; Author: Chris Rayner <dchrisrayner@gmail.com>
 ;; Created: June 9 2019
-;; Keywords: tools, convenience
+;; Keywords: tools convenience
 ;; URL: https://github.com/riscy/melpazoid
 ;; Package-Requires: ((emacs "25.1"))
-;; Version: 0.0.0
+;; Version: 0.0.1
 
 ;;; Commentary:
 
