@@ -155,7 +155,7 @@ See `package-build--expand-source-file-list' from MELPA package-build."
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
   ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-  (let ((version (caddr (split-string (emacs-version)))))
+  (let ((version (format "%s.%s" emacs-major-version emacs-minor-version)))
     (melpazoid-insert "byte-compile-file (using Emacs %s):" version))
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
