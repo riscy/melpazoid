@@ -151,6 +151,7 @@ See `package-build--expand-source-file-list' from MELPA package-build."
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-can-modify-buffers t "Whether melpazoid can modify buffers.")
 (defvar melpazoid-error-p nil)
+(defvar melpazoid-dependency-packages '(package-lint))
 
 (defun melpazoid--check-lexical-binding ()
   "Warn about lack of lexical binding."
@@ -470,7 +471,8 @@ If the argument is omitted, the current directory is assumed."
                      (builddir (expand-file-name "build" sandboxdir))
                      (sources (melpazoid--expand-source-file-list .recipe rootdir))
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
-                                   (melpazoid--get-dependency-from-melpazoid-file .development))))
+                                   (melpazoid--get-dependency-from-melpazoid-file .development)
+                                   melpazoid-dependency-packages)))
                 (await (melpazoid--promise-resolve-dependency sandboxdir reqs))
                 (dolist (source sources)
                   (await
