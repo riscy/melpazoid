@@ -89,13 +89,13 @@ See `package-build-expand-file-specs' from MELPA package-build."
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
 
-(defun melpazoid--expand-source-file-list (rcp)
-  "Resolve source file from RCP.
+(defun melpazoid--expand-source-file-list (recipe)
+  "Resolve source file from RECIPE.
 See `package-build--expand-source-file-list' from MELPA package-build."
   (mapcar 'car
           (melpazoid--expand-file-specs
-           (package-recipe--working-tree rcp)
-           (melpazoid--config-file-list rcp))))
+           (package-recipe--working-tree recipe)
+           (melpazoid--config-file-list recipe))))
 
 
 ;;; functions
