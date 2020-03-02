@@ -467,12 +467,18 @@ If the argument is omitted, the current directory is assumed."
                                   (expand-file-name
                                    (symbol-name pkg)
                                    (expand-file-name ".melpazoid" dir))))
+                     (builddir (expand-file-name "build" sandboxdir))
                      (sources (melpazoid--expand-source-file-list .recipe rootdir))
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
                                    (melpazoid--get-dependency-from-melpazoid-file .development))))
                 (await (melpazoid--promise-resolve-dependency sandboxdir reqs))
-                (await (promise-all
-                        (mapcar (apply-partially #'melpazoid--promise-byte-compile sandboxdir) sources)))
+                (dolist (source sources)
+                  (await
+                   (let ((tmpfile (expand-file-name (file-name-nondirectory source) builddir)))
+                     (copy-file source tmpfile 'overwrite)
+                     (promise-all
+                      (list
+                       (melpazoid--promise-byte-compile sandboxdir tmpfile))))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
