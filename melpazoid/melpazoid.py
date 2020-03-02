@@ -149,10 +149,16 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
 
 def _tokenize_lisp_list(recipe: str) -> list:
     """
-    >>> _tokenize_lisp_list('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
-    ['(', 'shx', ':repo', '"riscy/shx-for-emacs"', ':fetcher', 'github', ')']
+    >>> _tokenize_lisp_list('(shx :repo "riscy/xyz" :fetcher github) ; comment')
+    ['(', 'shx', ':repo', '"riscy/xyz"', ':fetcher', 'github', ')']
     """
-    recipe = ' '.join(recipe.split())
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = os.path.join(tmpdir, 'recipe')
+        with open(filename, 'w') as recipe_file:
+            recipe_file.write(
+                f'''(send-string-to-terminal (format "%S" '{recipe}\n))'''
+            )
+        recipe = subprocess.check_output(['emacs', '--script', filename]).decode()
     recipe = recipe.replace('(', ' ( ')
     recipe = recipe.replace(')', ' ) ')
     tokenized_lisp_list: list = recipe.split()
@@ -279,7 +285,7 @@ def _requirements(
 
 def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     """
-    >>> _reqs_from_pkg_el(io.StringIO('''(define-package "x" "1.2" "A pkg." '((emacs "31.5") (xyz "123.4"))'''))
+    >>> _reqs_from_pkg_el(io.StringIO('''(define-package "x" "1.2" "A pkg." '((emacs "31.5") (xyz "123.4")))'''))
     '( ( emacs "31.5" ) ( xyz "123.4" ) )'
     """
     reqs = pkg_el.read()
