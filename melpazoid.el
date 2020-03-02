@@ -7,7 +7,7 @@
 ;; Created: June 9 2019
 ;; Keywords: tools convenience
 ;; URL: https://github.com/riscy/melpazoid
-;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (async-await "1.0"))
+;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (async-await "1.0") (f "0.20"))
 ;; Version: 0.0.1
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -35,6 +35,7 @@
 (require 'pkg-info)
 (require 'package-lint)
 (require 'async-await)
+(require 'f)
 
 
 ;;; package-build functions
