@@ -423,7 +423,6 @@ NOTE:
            (with-current-buffer (find-file-noselect ,sourcecopy)
              (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
              (melpazoid--remove-no-compile)
-             (ignore-errors (kill-buffer "*Compile-Log*"))
              (melpazoid--check-lexical-binding)
              (let ((lexical-binding t)) (byte-compile-file filename))
              (with-current-buffer (get-buffer-create "*Compile-Log*")
