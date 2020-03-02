@@ -346,7 +346,8 @@ OBJECTS are objects to interpolate into the string using `format'."
   "Specifies the DIR where the Melpazoid file located.
 If the argument is omitted, the current directory is assumed."
   (interactive)
-  (let ((file (locate-dominating-file (or dir default-directory) "Melpazoid")))
+  (let* ((file (locate-dominating-file (or dir default-directory) "Melpazoid"))
+         (rootdir (file-name-directory file)))
     (if (not file)
         (error "File of 'Melpazoid' is missing")
       (let-alist (eval (read (with-temp-buffer (insert-file-contents file))))
