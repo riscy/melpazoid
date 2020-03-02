@@ -89,6 +89,8 @@ See `package-build-expand-file-specs' from MELPA package-build."
     lst))
 
 (defun package-build--config-file-list (rcp)
+  "Build full source file specification from RCP.
+See `package-build--config-file-list' from MELPA package-build."
   (let ((file-list (oref rcp files)))
     (cond
      ((null file-list)
