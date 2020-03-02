@@ -284,15 +284,5 @@ OBJECTS are objects to interpolate into the string using `format'."
     (pop-to-buffer melpazoid-buffer)
     (goto-char (point-min))))
 
-(when noninteractive
-  ;; Check every elisp file in `default-directory' (except melpazoid.el)
-  (add-to-list 'load-path ".")
-  (let ((filename nil) (filenames (directory-files ".")))
-    (while filenames
-      (setq filename (car filenames) filenames (cdr filenames))
-      (and (not (string= (file-name-base filename) "melpazoid"))
-           (string= (file-name-extension filename) "el")
-           (melpazoid filename)))))
-
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
