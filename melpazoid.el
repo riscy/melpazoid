@@ -346,18 +346,20 @@ OBJECTS are objects to interpolate into the string using `format'."
   "Specifies the DIR where the Melpazoid file located.
 If the argument is omitted, the current directory is assumed."
   (interactive)
-  (let ((filename (or filename (buffer-file-name (current-buffer)))))
-    (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
-    (save-window-excursion
-      (set-buffer (find-file filename))
-      (melpazoid-byte-compile filename)
-      (melpazoid-checkdoc filename)
-      ;; (melpazoid--check-declare)
-      (melpazoid-package-lint)
-      (melpazoid-check-sharp-quotes)
-      (melpazoid-check-misc))
-    (pop-to-buffer melpazoid-buffer)
-    (goto-char (point-min))))
+  (let ((file (locate-dominating-file (or dir default-directory) "Melpazoid")))
+    (if (not file)
+        (error "File of 'Melpazoid' is missing")
+      (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
+      (save-window-excursion
+        (set-buffer (find-file filename))
+        (melpazoid-byte-compile filename)
+        (melpazoid-checkdoc filename)
+        ;; (melpazoid--check-declare)
+        (melpazoid-package-lint)
+        (melpazoid-check-sharp-quotes)
+        (melpazoid-check-misc))
+      (pop-to-buffer melpazoid-buffer)
+      (goto-char (point-min)))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
