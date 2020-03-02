@@ -419,25 +419,29 @@ NOTE:
   (promise-then
    (promise:async-start
     `(lambda ()
-       (if (not (melpazoid--run-package-lint-p))
-           (melpazoid-insert "(Skipping package-lint on this file)")
-         (melpazoid-insert
-          "package-lint-current-buffer (using version %s):"
-          (pkg-info-format-version (pkg-info-package-version "package-lint")))
-         (ignore-errors
-           (with-current-buffer (find-file-noselect ,tmpfile)
-             (package-lint-current-buffer)))
-         (with-current-buffer (get-buffer-create "*Package-Lint*")
-           (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-             (if (string= "No issues found." output)
-                 (melpazoid-insert "- No issues!")
-               (melpazoid-insert "```")
-               (melpazoid-insert
-                (if (string= output "")
-                    "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-                  output))
-               (melpazoid-insert "```")
-               (setq melpazoid-error-p t)))))
+       (let ((package-user-dir ,sandboxdir))
+         (require 'package)
+         (package-initialize)
+
+         (if (not (melpazoid--run-package-lint-p))
+            (melpazoid-insert "(Skipping package-lint on this file)")
+          (melpazoid-insert
+           "package-lint-current-buffer (using version %s):"
+           (pkg-info-format-version (pkg-info-package-version "package-lint")))
+          (ignore-errors
+            (with-current-buffer (find-file-noselect ,tmpfile)
+              (package-lint-current-buffer)))
+          (with-current-buffer (get-buffer-create "*Package-Lint*")
+            (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
+              (if (string= "No issues found." output)
+                  (melpazoid-insert "- No issues!")
+                (melpazoid-insert "```")
+                (melpazoid-insert
+                 (if (string= output "")
+                     "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
+                   output))
+                (melpazoid-insert "```")
+                (setq melpazoid-error-p t))))))
        (melpazoid-insert "")))
    (lambda (res)
      res)
