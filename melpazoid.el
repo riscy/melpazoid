@@ -7,7 +7,7 @@
 ;; Created: June 9 2019
 ;; Keywords: tools convenience
 ;; URL: https://github.com/riscy/melpazoid
-;; Package-Requires: ((emacs "25.1") (package-lint "0.12"))
+;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (async-await "1.0"))
 ;; Version: 0.0.1
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -34,6 +34,7 @@
 (require 'checkdoc)
 (require 'pkg-info)
 (require 'package-lint)
+(require 'async-await)
 
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
