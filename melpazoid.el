@@ -403,11 +403,12 @@ NOTE:
          (require 'checkdoc)
          (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
          (ignore-errors (kill-buffer "*Warnings*"))
-         (let ((sentence-end-double-space nil)  ; be a little more leniant
-               (checkdoc-proper-noun-list nil)
-               (checkdoc-common-verbs-wrong-voice nil))
-           (cl-letf (((symbol-function 'message) #'ignore))
-             (ignore-errors (checkdoc-file filename))))
+         (ignore-errors
+           (with-current-buffer (find-file-noselect ,tmpfile)
+             (let ((sentence-end-double-space nil)  ; be a little more leniant
+                   (checkdoc-proper-noun-list nil)
+                   (checkdoc-common-verbs-wrong-voice nil))
+               (checkdoc-current-buffer))))
          (if (not (get-buffer "*Warnings*"))
              (melpazoid-insert "- No issues!")
            (with-current-buffer "*Warnings*"
