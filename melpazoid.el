@@ -257,6 +257,15 @@ OBJECTS are objects to interpolate into the string using `format'."
          (str (replace-regexp-in-string "^[\n]+" "" str)))
     str))
 
+(defun melpazoid--reset-state ()
+  "Reset melpazoid's current state variables."
+  (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+  (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
+  (package-initialize)
+  (setq melpazoid--misc-header-printed-p nil)
+  (setq melpazoid-error-p nil)
+  (ignore-errors (kill-buffer melpazoid-buffer)))
+
 ;;;###autoload
 (defun melpazoid (&optional filename)
   "Check current buffer, or FILENAME's buffer if given."
@@ -274,15 +283,6 @@ OBJECTS are objects to interpolate into the string using `format'."
       (melpazoid-check-misc))
     (pop-to-buffer melpazoid-buffer)
     (goto-char (point-min))))
-
-(defun melpazoid--reset-state ()
-  "Reset melpazoid's current state variables."
-  (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-  (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
-  (package-initialize)
-  (setq melpazoid--misc-header-printed-p nil)
-  (setq melpazoid-error-p nil)
-  (ignore-errors (kill-buffer melpazoid-buffer)))
 
 (when noninteractive
   ;; Check every elisp file in `default-directory' (except melpazoid.el)
