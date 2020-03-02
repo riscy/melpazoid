@@ -174,10 +174,6 @@ See `package-build--expand-source-file-list' from MELPA package-build."
         (melpazoid-insert "  Byte-compiling is enabled in what follows")
         (save-buffer)))))
 
-(defun melpazoid--buffer-almost-empty-p ()
-  "Return non-nil if current buffer is 'almost' empty."
-  (<= (- (point-max) (point)) 3))
-
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
@@ -427,7 +423,7 @@ NOTE:
              (let ((lexical-binding t))
                (byte-compile-file filename))
              (with-current-buffer (get-buffer-create "*Compile-Log*")
-               (if (melpazoid--buffer-almost-empty-p)
+               (if (<= (- (point-max) (point)) 3)
                    (melpazoid-insert "- No issues!")
                  (goto-char (point-min)) (forward-line 2)
                  (melpazoid-insert "```")
