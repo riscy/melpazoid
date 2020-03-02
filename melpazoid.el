@@ -414,6 +414,11 @@ If the argument is omitted, the current directory is assumed."
                                (symbol-name pkg)
                                (expand-file-name ".melpazoid" dir)))))
             (let-alist recipe
+              (async (melpazoid--promise-resolve-dependency
+                      rootdir sandboxdir
+                      (append (melpazoid--get-dependency-from-elisp-files
+                               (melpazoid--expand-source-file-list .recipe rootdir))
+                              (melpazoid--get-dependency-from-melpazoid-file .development))))
               (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
               (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
                 (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
