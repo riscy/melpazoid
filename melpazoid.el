@@ -374,19 +374,15 @@ Currently, ignore any args for development."
 
 ;;; promise functions
 
-(defun melpazoid--promise-resolve-dependency (dir dependency)
-  "Fetch and build dependency from DEPENDENCY in DIR/.melpazoid/VERSION.
+(defun melpazoid--promise-resolve-dependency (_rootdir sandboxdir dependency)
+  "Fetch and build dependency from DEPENDENCY in SANDBOXDIR.
 DEPENDENCY is pkg symbol of list.
 NOTE:
   - Version specification is ignored for now."
   (promise-then
    (promise:async-start
     `(lambda ()
-       (let ((package-user-dir ,(expand-file-name
-                                 (format "%s.%s"
-                                         emacs-major-version
-                                         emacs-minor-version)
-                                 (expand-file-name ".melpazoid" dir)))
+       (let ((package-user-dir ,sandboxdir)
              (package-archives ,package-archives))
          (require 'package)
          (package-initialize)
@@ -409,7 +405,14 @@ If the argument is omitted, the current directory is assumed."
       (let ((contents (eval (read (with-temp-buffer (insert-file-contents file))))))
         (while contents
           (let* ((pkg (pop contents))
-                 (recipe (pop contents)))
+                 (recipe (pop contents))
+                 (sandboxdir (expand-file-name
+                              (format "%s.%s"
+                                      emacs-major-version
+                                      emacs-minor-version)
+                              (expand-file-name
+                               (symbol-name pkg)
+                               (expand-file-name ".melpazoid" dir)))))
             (let-alist recipe
               (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
               (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
