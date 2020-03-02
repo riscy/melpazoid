@@ -342,6 +342,32 @@ OBJECTS are objects to interpolate into the string using `format'."
   (setq melpazoid-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
+
+;;; promise functions
+
+(defun melpazoid--promise-resolve-dependency (dir dependency)
+  "Fetch and build dependency from DEPENDENCY in DIR/.melpazoid/VERSION.
+DEPENDENCY is pkg symbol of list.
+NOTE:
+  - Version specification is ignored for now."
+  (promise-then
+   (promise:async-start
+    `(lambda ()
+       (let ((package-user-dir ,(expand-file-name
+                                 (format "%s.%s"
+                                         emacs-major-version
+                                         emacs-minor-version)
+                                 (expand-file-name ".melpazoid" dir)))
+             (package-archives ,package-archives))
+         (require 'package)
+         (package-initialize)
+         (dolist (pkg ,dependency)
+           (package-install pkg)))))
+   (lambda (res)
+     res)
+   (lambda (reason)
+     (promise-reject `(fail-resolve-dependency ,reason)))))
+
 ;;;###autoload
 (async-defun melpazoid (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
