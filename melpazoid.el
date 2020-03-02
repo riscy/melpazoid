@@ -405,20 +405,19 @@ If the argument is omitted, the current directory is assumed."
           (let* ((pkg (pop contents))
                  (spec (pop contents)))
             (let-alist spec
-              (let ((sandboxdir (expand-file-name
-                                 (format "%s.%s"
-                                         emacs-major-version
-                                         emacs-minor-version)
-                                 (expand-file-name
-                                  (symbol-name pkg)
-                                  (expand-file-name ".melpazoid" dir)))))
-                (async (melpazoid--promise-resolve-dependency
-                        rootdir sandboxdir
-                        (append (melpazoid--get-dependency-from-elisp-files
-                                 (melpazoid--expand-source-file-list .recipe rootdir))
-                                (melpazoid--get-dependency-from-melpazoid-file .development))))
+              (let* ((sandboxdir (expand-file-name
+                                  (format "%s.%s"
+                                          emacs-major-version
+                                          emacs-minor-version)
+                                  (expand-file-name
+                                   (symbol-name pkg)
+                                   (expand-file-name ".melpazoid" dir))))
+                     (sources (melpazoid--expand-source-file-list .recipe rootdir))
+                     (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
+                                   (melpazoid--get-dependency-from-melpazoid-file .development))))
+                (async (melpazoid--promise-resolve-dependency rootdir sandboxdir reqs))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
-                (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
+                (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
                   (save-window-excursion
                     (set-buffer (find-file filename))
