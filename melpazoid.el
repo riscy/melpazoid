@@ -403,33 +403,33 @@ If the argument is omitted, the current directory is assumed."
       (let ((contents (eval (read (with-temp-buffer (insert-file-contents file))))))
         (while contents
           (let* ((pkg (pop contents))
-                 (spec (pop contents))
-                 (sandboxdir (expand-file-name
-                              (format "%s.%s"
-                                      emacs-major-version
-                                      emacs-minor-version)
-                              (expand-file-name
-                               (symbol-name pkg)
-                               (expand-file-name ".melpazoid" dir)))))
+                 (spec (pop contents)))
             (let-alist spec
-              (async (melpazoid--promise-resolve-dependency
-                      rootdir sandboxdir
-                      (append (melpazoid--get-dependency-from-elisp-files
-                               (melpazoid--expand-source-file-list .recipe rootdir))
-                              (melpazoid--get-dependency-from-melpazoid-file .development))))
-              (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
-              (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
-                (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
-                (save-window-excursion
-                  (set-buffer (find-file filename))
-                  (melpazoid-byte-compile filename)
-                  (melpazoid-checkdoc filename)
-                  ;; (melpazoid--check-declare)
-                  (melpazoid-package-lint)
-                  (melpazoid-check-sharp-quotes)
-                  (melpazoid-check-misc))
-                (pop-to-buffer melpazoid-buffer)
-                (goto-char (point-min))))))))))
+              (let ((sandboxdir (expand-file-name
+                                 (format "%s.%s"
+                                         emacs-major-version
+                                         emacs-minor-version)
+                                 (expand-file-name
+                                  (symbol-name pkg)
+                                  (expand-file-name ".melpazoid" dir)))))
+                (async (melpazoid--promise-resolve-dependency
+                        rootdir sandboxdir
+                        (append (melpazoid--get-dependency-from-elisp-files
+                                 (melpazoid--expand-source-file-list .recipe rootdir))
+                                (melpazoid--get-dependency-from-melpazoid-file .development))))
+                (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
+                (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
+                  (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
+                  (save-window-excursion
+                    (set-buffer (find-file filename))
+                    (melpazoid-byte-compile filename)
+                    (melpazoid-checkdoc filename)
+                    ;; (melpazoid--check-declare)
+                    (melpazoid-package-lint)
+                    (melpazoid-check-sharp-quotes)
+                    (melpazoid-check-misc))
+                  (pop-to-buffer melpazoid-buffer)
+                  (goto-char (point-min)))))))))))
 
 ;;;###autoload
 (defun melpazoid (&optional dir)
