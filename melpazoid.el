@@ -487,8 +487,8 @@ If the argument is omitted, the current directory is assumed."
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
                   (save-window-excursion
                     (set-buffer (find-file filename))
-                    (melpazoid-byte-compile filename)
-                    (melpazoid-checkdoc filename)
+                    ;; (melpazoid-byte-compile filename)
+                    ;; (melpazoid-checkdoc filename)
                     ;; (melpazoid--check-declare)
                     (melpazoid-package-lint)
                     (melpazoid-check-sharp-quotes)
