@@ -342,6 +342,16 @@ OBJECTS are objects to interpolate into the string using `format'."
   (setq melpazoid-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
+(defun melpazoid--get-dependency-from-elisp-files (files)
+  "Get package dependency from Package-Require header from FILES."
+  (let (ret)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (when-let (package-desc (ignore-errors (package-buffer-info)))
+          (push (package-desc-reqs package-desc) ret))))
+    (mapcan 'identity ret)))
+
 
 ;;; promise functions
 
