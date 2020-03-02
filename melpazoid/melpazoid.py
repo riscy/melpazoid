@@ -391,8 +391,6 @@ def _check_license_in_file(elisp_file: str) -> str:
 
 
 def check_packaging(recipe_files: list, recipe: str):
-    if ':branch "master"' in recipe:
-        _fail('- No need to specify `:branch "master"` in recipe')
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
@@ -418,7 +416,6 @@ def print_details(
     recipe: str, recipe_files: list, pr_data: dict = None, clone_address: str = None
 ):
     _note('\n### Details ###\n', CLR_INFO)
-    print(f"- `{recipe}`")
     if ':files' in recipe or ':branch' in recipe:
         _note('  - Prefer the default recipe, especially for small packages', CLR_WARN)
     print('- Package-Requires: ', end='')
@@ -489,7 +486,6 @@ def yes_p(text: str) -> bool:
 
 def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
-    recipe = _normalize_recipe(recipe)
     name = _tokenize_lisp_list(recipe)[1]
     scm = _source_code_manager(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
@@ -598,19 +594,11 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
                 f"patch {recipe_filename} < {diff_filename}", shell=True
             )
             with open(recipe_filename) as recipe_file:
-                recipe = _normalize_recipe(recipe_file.read())
+                recipe = recipe_file.read()
             return recipe_name, recipe.strip()
         except subprocess.CalledProcessError as err:
             _note(str(err), CLR_WARN)
             return '', ''
-
-
-def _normalize_recipe(recipe: str):
-    """
-    >>> _normalize_recipe('  (shx  :repo     "something" ...)')
-    '(shx :repo "something" ...)'
-    """
-    return re.sub(r'\s+', ' ', recipe).strip()
 
 
 def _clone_address(name: str, recipe: str) -> str:
