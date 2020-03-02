@@ -343,7 +343,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 ;;;###autoload
-(defun melpazoid (&optional dir)
+(async-defun melpazoid (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
 If the argument is omitted, the current directory is assumed."
   (interactive)
