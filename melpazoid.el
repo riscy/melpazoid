@@ -414,10 +414,10 @@ NOTE:
    (lambda (reason)
      (promise-reject `(fail-byte-compile ,reason)))))
 
-(defun melpazoid--promise-checkdoc (sandboxdir source)
-  "Checkdoc SOURCE in SANDBOXDIR."
+(defun melpazoid--promise-checkdoc (sandboxdir tmpfile)
+  "Checkdoc TMPFILE in SANDBOXDIR."
   (let* ((builddir (expand-file-name "build" sandboxdir))
-         (sourcecopy (expand-file-name (file-name-nondirectory source) builddir)))
+         (sourcecopy (expand-file-name (file-name-nondirectory tmpfile) builddir)))
     (promise-then
      (promise:async-start
       `(lambda ()
