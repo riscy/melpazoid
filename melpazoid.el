@@ -7,7 +7,7 @@
 ;; Created: June 9 2019
 ;; Keywords: tools convenience
 ;; URL: https://github.com/riscy/melpazoid
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((emacs "25.1") (package-lint "0.12"))
 ;; Version: 0.0.1
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -31,11 +31,10 @@
 ;;; Code:
 
 (require 'package)
+(require 'checkdoc)
+(require 'pkg-info)
+(require 'package-lint)
 
-(defvar checkdoc-version)
-(declare-function pkg-info-format-version "ext:pkg-info.el" t t)
-(declare-function pkg-info-package-version "ext:pkg-info.el" t t)
-(declare-function package-lint-current-buffer "ext:package-lint.el" t t)
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-can-modify-buffers t "Whether melpazoid can modify buffers.")
