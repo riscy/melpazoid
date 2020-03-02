@@ -76,6 +76,11 @@
   "A MELPA review tool."
   :group 'tool)
 
+(defcustom melpazoid-max-process 2
+  "Maximum number of concurrent process."
+  :type 'number
+  :group 'melpazoid)
+
 (defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
                                 melpazoid--promise-package-lint)
   "List of checker which is called with 1 argument, return promise.
@@ -507,7 +512,7 @@ If the argument is omitted, the current directory is assumed."
                                   (tmpfile    . ,tmpfile))))
                      (copy-file source tmpfile 'overwrite)
                      (promise-concurrent-no-reject-immidiately
-                         2 (length melpazoid-checkers)
+                         melpazoid-max-process (length melpazoid-checkers)
                        (lambda (index)
                          (funcall (nth index melpazoid-checkers) info))))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
