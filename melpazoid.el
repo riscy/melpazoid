@@ -409,35 +409,38 @@ NOTE:
 
 (defun melpazoid--promise-byte-compile (sandboxdir source)
   "Byte-compile SOURCE in SANDBOXDIR."
-  (promise-then
-   (promise:async-start
-    `(lambda ()
-       (let ((package-user-dir ,sandboxdir))
-         (require 'package)
-         (package-initialize)
+  (let* ((builddir (expand-file-name "build" sandboxdir))
+         (sourcecopy (expand-file-name (file-name-nondirectory source) builddir)))
+    (promise-then
+     (promise:async-start
+      `(lambda ()
+         (let ((package-user-dir ,sandboxdir))
+           (require 'package)
+           (package-initialize)
 
-         ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-         (let ((version (format "%s.%s" emacs-major-version emacs-minor-version)))
-           (melpazoid-insert "byte-compile-file (using Emacs %s):" version))
-         (melpazoid--remove-no-compile)
-         (ignore-errors (kill-buffer "*Compile-Log*"))
-         (cl-letf (((symbol-function 'message) #'ignore))
-           (melpazoid--check-lexical-binding)
-           (let ((lexical-binding t)) (byte-compile-file filename)))
-         (with-current-buffer (get-buffer-create "*Compile-Log*")
-           (if (melpazoid--buffer-almost-empty-p)
-               (melpazoid-insert "- No issues!")
-             (goto-char (point-min)) (forward-line 2)
-             (melpazoid-insert "```")
-             (melpazoid-insert
-              (melpazoid--newline-trim (buffer-substring (point) (point-max))))
-             (melpazoid-insert "```")
-             (setq melpazoid-error-p t)))
-         (melpazoid-insert ""))))
-   (lambda (res)
-     res)
-   (lambda (reason)
-     (promise-reject `(fail-byte-compile ,reason)))))
+           ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
+           (copy-file ,source ,sourcecopy)
+           (let ((version (format "%s.%s" emacs-major-version emacs-minor-version)))
+             (melpazoid-insert "byte-compile-file (using Emacs %s):" version))
+           (melpazoid--remove-no-compile)
+           (ignore-errors (kill-buffer "*Compile-Log*"))
+           (cl-letf (((symbol-function 'message) #'ignore))
+             (melpazoid--check-lexical-binding)
+             (let ((lexical-binding t)) (byte-compile-file filename)))
+           (with-current-buffer (get-buffer-create "*Compile-Log*")
+             (if (melpazoid--buffer-almost-empty-p)
+                 (melpazoid-insert "- No issues!")
+               (goto-char (point-min)) (forward-line 2)
+               (melpazoid-insert "```")
+               (melpazoid-insert
+                (melpazoid--newline-trim (buffer-substring (point) (point-max))))
+               (melpazoid-insert "```")
+               (setq melpazoid-error-p t)))
+           (melpazoid-insert ""))))
+     (lambda (res)
+       res)
+     (lambda (reason)
+       (promise-reject `(fail-byte-compile ,reason))))))
 
 (async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
