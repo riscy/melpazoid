@@ -1,2 +1,3 @@
 '(melpazoid
-  ((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid"))))
+  ((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid"))
+   (development . (buttercup))))
