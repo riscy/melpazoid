@@ -506,10 +506,10 @@ If the argument is omitted, the current directory is assumed."
                           (info `((sandboxdir . ,sandboxdir)
                                   (tmpfile    . ,tmpfile))))
                      (copy-file source tmpfile 'overwrite)
-                     (promise-all
-                      (list
-                       (melpazoid--promise-byte-compile info)
-                       (melpazoid--promise-package-lint info))))))
+                     (promise-concurrent-no-reject-immidiately
+                         2 (length melpazoid-checkers)
+                       (lambda (index)
+                         (funcall (nth index melpazoid-checkers) info))))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
