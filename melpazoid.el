@@ -385,37 +385,34 @@ NOTE:
 
 (defun melpazoid--promise-byte-compile (sandboxdir tmpfile)
   "Byte-compile TMPFILE in SANDBOXDIR."
-  (let* ((builddir (expand-file-name "build" sandboxdir))
-         (sourcecopy (expand-file-name (file-name-nondirectory tmpfile) builddir)))
-    (promise-then
-     (promise:async-start
-      `(lambda ()
-         (let ((package-user-dir ,sandboxdir))
-           (require 'package)
-           (package-initialize)
+  (promise-then
+   (promise:async-start
+    `(lambda ()
+       (let ((package-user-dir ,sandboxdir))
+         (require 'package)
+         (package-initialize)
 
-           ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-           (copy-file ,tmpfile ,sourcecopy)
-           (with-current-buffer (find-file-noselect ,sourcecopy)
-             (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
-             (melpazoid--remove-no-compile)
-             (melpazoid--check-lexical-binding)
-             (let ((lexical-binding t))
-               (byte-compile-file filename))
-             (with-current-buffer (get-buffer-create "*Compile-Log*")
-               (if (<= (- (point-max) (point)) 3)
-                   (melpazoid-insert "- No issues!")
-                 (goto-char (point-min)) (forward-line 2)
-                 (melpazoid-insert "```")
-                 (melpazoid-insert
-                  (melpazoid--newline-trim (buffer-substring (point) (point-max))))
-                 (melpazoid-insert "```")
-                 (setq melpazoid-error-p t)))
-             (melpazoid-insert "")))))
-     (lambda (res)
-       res)
-     (lambda (reason)
-       (promise-reject `(fail-byte-compile ,reason))))))
+         ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
+         (with-current-buffer (find-file-noselect ,tmpfile)
+           (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
+           (melpazoid--remove-no-compile)
+           (melpazoid--check-lexical-binding)
+           (let ((lexical-binding t))
+             (byte-compile-file filename))
+           (with-current-buffer (get-buffer-create "*Compile-Log*")
+             (if (<= (- (point-max) (point)) 3)
+                 (melpazoid-insert "- No issues!")
+               (goto-char (point-min)) (forward-line 2)
+               (melpazoid-insert "```")
+               (melpazoid-insert
+                (melpazoid--newline-trim (buffer-substring (point) (point-max))))
+               (melpazoid-insert "```")
+               (setq melpazoid-error-p t)))
+           (melpazoid-insert "")))))
+   (lambda (res)
+     res)
+   (lambda (reason)
+     (promise-reject `(fail-byte-compile ,reason)))))
 
 (defun melpazoid--promise-checkdoc (sandboxdir source)
   "Checkdoc SOURCE in SANDBOXDIR."
