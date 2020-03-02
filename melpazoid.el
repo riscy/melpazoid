@@ -77,7 +77,6 @@ See `package-build-expand-file-specs' from MELPA package-build."
                           t)))
               (nconc
                lst (mapcar (lambda (f)
-                             (let ((destname)))
                              (cons f
                                    (concat prefix
                                            (replace-regexp-in-string
