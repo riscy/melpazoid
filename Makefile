@@ -3,7 +3,7 @@ PACKAGE_NAME ?= NONE
 
 .PHONY: run
 run:
-	python melpazoid.py
+	python melpazoid/melpazoid.py
 
 .PHONY: term
 test: image

@@ -23,9 +23,10 @@ env:
     EXPECT_ERROR=2
 
 install:
-  - pip install requests mypy
+  - pip install .
+  - pip install mypy
   - pytest --doctest-modules
-  - mypy .
+  - mypy --ignore-missing-imports .
 
 script:
-  - python melpazoid.py
+  - python melpazoid/melpazoid.py
