@@ -39,20 +39,24 @@
 
 ;;; package-build functions
 
-(defconst package-build-default-files-spec
+(defconst melpazoid-default-files-spec
   '("*.el" "*.el.in" "dir"
     "*.info" "*.texi" "*.texinfo"
     "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
     (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
-  "Default value for :files attribute in recipes.")
+  "Default value for :files attribute in recipes.
 
-(defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
+See `package-build-default-files-spec' from MELPA package-build.")
+
+(defun melpazoid-expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
 The result is a list of (SOURCE . DEST), where SOURCE is a source
 file path and DEST is the relative path to which it should be copied.
 
 If the resulting list is empty, an error will be reported.  Pass t
-for ALLOW-EMPTY to prevent this error."
+for ALLOW-EMPTY to prevent this error.
+
+See `package-build-expand-file-specs' from MELPA package-build."
   (let ((default-directory dir)
         (prefix (if subdir (format "%s/" subdir) ""))
         (lst))
@@ -61,12 +65,12 @@ for ALLOW-EMPTY to prevent this error."
             (if (consp entry)
                 (if (eq :exclude (car entry))
                     (cl-nset-difference lst
-                                        (package-build-expand-file-specs
+                                        (melpazoid-expand-file-specs
                                          dir (cdr entry) nil t)
                                         :key 'car
                                         :test 'equal)
                   (nconc lst
-                         (package-build-expand-file-specs
+                         (melpazoid-expand-file-specs
                           dir
                           (cdr entry)
                           (concat prefix (car entry))
@@ -85,11 +89,13 @@ for ALLOW-EMPTY to prevent this error."
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
 
-(defun package-build--expand-source-file-list (rcp)
+(defun melpazoid--expand-source-file-list (rcp)
+  "
+See `package-build--expand-source-file-list' from MELPA package-build."
   (mapcar 'car
-          (package-build-expand-file-specs
+          (melpazoid-expand-file-specs
            (package-recipe--working-tree rcp)
-           (package-build--config-file-list rcp))))
+           (melpazoid--config-file-list rcp))))
 
 
 ;;; functions
