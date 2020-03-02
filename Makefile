@@ -5,7 +5,7 @@ PACKAGE_NAME ?= NONE
 run:
 	python melpazoid/melpazoid.py
 
-.PHONY: term
+.PHONY: test
 test: image
 	@docker run -it --rm --network none ${IMAGE_NAME}
 
