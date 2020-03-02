@@ -28,6 +28,41 @@
 ;; A MELPA review tool to run the MELPA checklist in addition
 ;; to some other checks that might point to other issues.
 
+;; Melpazoid generate and manage .melpazoid directory
+;; It support multi package / multi Emacs version.
+;; A template .malpazoid directory is like below structure.
+
+;; leaf (rootdir)
+;;   ├── .melpazoid
+;;   │   ├── leaf
+;;   │   │   ├── 26.3 (sandboxdir)
+;;   │   │   │   ├── elpa
+;;   │   │   │   ├── build
+;;   │   │   │   │   └── leaf.elc
+;;   │   │   │   └── dist
+;;   │   │   │       ├── leaf-1.3.tar
+;;   │   │   │       ├── leaf-1.3.readme
+;;   │   │   │       └── leaf-1.3.entry
+;;   │   │   └── 27.0 (sandboxdir)
+;;   │   │       ├── elpa
+;;   │   │       ├── build
+;;   │   │       └── dist
+;;   │   └── leaf-keywords
+;;   │       ├── 26.3 (sandboxdir)
+;;   │       │   ├── elpa
+;;   │       │   ├── build
+;;   │       │   └── dist
+;;   │       └── 27.0 (sandboxdir)
+;;   │           ├── elpa
+;;   │           ├── build
+;;   │           └── dist
+;;   ├── Melpazoid
+;;   │
+;;   ... (any toplevel files are fine)
+;;   │
+;;   ├── leaf.el
+;;   └── leaf-keywords.el
+
 ;;; Code:
 
 (require 'package)
