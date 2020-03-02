@@ -405,7 +405,7 @@ If the argument is omitted, the current directory is assumed."
       (let ((contents (eval (read (with-temp-buffer (insert-file-contents file))))))
         (while contents
           (let* ((pkg (pop contents))
-                 (recipe (pop contents))
+                 (spec (pop contents))
                  (sandboxdir (expand-file-name
                               (format "%s.%s"
                                       emacs-major-version
@@ -413,7 +413,7 @@ If the argument is omitted, the current directory is assumed."
                               (expand-file-name
                                (symbol-name pkg)
                                (expand-file-name ".melpazoid" dir)))))
-            (let-alist recipe
+            (let-alist spec
               (async (melpazoid--promise-resolve-dependency
                       rootdir sandboxdir
                       (append (melpazoid--get-dependency-from-elisp-files
