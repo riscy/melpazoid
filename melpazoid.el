@@ -450,7 +450,7 @@ If the argument is omitted, the current directory is assumed."
                      (sources (melpazoid--expand-source-file-list .recipe rootdir))
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
                                    (melpazoid--get-dependency-from-melpazoid-file .development))))
-                (async (melpazoid--promise-resolve-dependency rootdir sandboxdir reqs))
+                (await (melpazoid--promise-resolve-dependency rootdir sandboxdir reqs))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
