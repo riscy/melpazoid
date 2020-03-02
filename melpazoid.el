@@ -415,7 +415,7 @@ NOTE:
    (lambda (reason)
      (promise-reject `(fail-byte-compile ,reason)))))
 
-(defun melpazoid--promise-checkdoc (sandboxdir tmpfile)
+(defun melpazoid--promise-package-lint (sandboxdir tmpfile)
   "Checkdoc TMPFILE in SANDBOXDIR."
   (promise-then
    (promise:async-start
@@ -424,6 +424,7 @@ NOTE:
          (require 'package)
          (package-initialize)
 
+         (require package-lint)
          (if (not (melpazoid--run-package-lint-p))
             (melpazoid-insert "(Skipping package-lint on this file)")
           (melpazoid-insert
@@ -481,7 +482,7 @@ If the argument is omitted, the current directory is assumed."
                      (promise-all
                       (list
                        (melpazoid--promise-byte-compile sandboxdir tmpfile)
-                       (melpazoid--promise-checkdoc sandboxdir tmpfile))))))
+                       (melpazoid--promise-package-lint sandboxdir tmpfile))))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
