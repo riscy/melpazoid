@@ -343,14 +343,23 @@ OBJECTS are objects to interpolate into the string using `format'."
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 (defun melpazoid--get-dependency-from-elisp-files (files)
-  "Get package dependency from Package-Require header from FILES."
+  "Get package dependency from Package-Require header from FILES.
+Duplicate requires are resolved by more restrictive."
   (let (ret)
-    (dolist (file files)
-      (with-temp-buffer
-        (insert-file-contents file)
-        (when-let (package-desc (ignore-errors (package-buffer-info)))
-          (push (package-desc-reqs package-desc) ret))))
-    (mapcan 'identity ret)))
+    (dolist (req (let (ret)
+                   (dolist (file files)
+                     (with-temp-buffer
+                       (insert-file-contents file)
+                       (when-let (package-desc (ignore-errors (package-buffer-info)))
+                         (push (package-desc-reqs package-desc) ret))))
+                   (mapcan 'identity ret)))
+      (let ((sym (car  req))
+            (ver (cadr req)))
+        (if (assq sym ret)
+            (when (version-list-< (car (alist-get sym ret)) ver)
+              (setf (alist-get sym ret) (list ver)))
+          (push req ret))))
+    (nreverse ret)))
 
 
 ;;; promise functions
