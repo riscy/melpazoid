@@ -428,6 +428,20 @@ NOTE:
    (lambda (reason)
      (promise-reject `(fail-resolve-dependency ,reason)))))
 
+(defun melpazoid--promise-byte-compile (sandboxdir source)
+  "Byte-compile SOURCE in SANDBOXDIR."
+  (promise-then
+   (promise:async-start
+    `(lambda ()
+       (let ((package-user-dir ,sandboxdir))
+         (require 'package)
+         (package-initialize)
+         (byte-compile-file ,source))))
+   (lambda (res)
+     res)
+   (lambda (reason)
+     (promise-reject `(fail-byte-compile ,reason)))))
+
 (async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
 If the argument is omitted, the current directory is assumed."
@@ -451,6 +465,8 @@ If the argument is omitted, the current directory is assumed."
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
                                    (melpazoid--get-dependency-from-melpazoid-file .development))))
                 (await (melpazoid--promise-resolve-dependency sandboxdir reqs))
+                (await (promise-all
+                        (mapcar (apply-partially #'melpazoid--promise-byte-compile sandboxdir) sources)))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
