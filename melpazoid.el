@@ -48,7 +48,7 @@
 
 See `package-build-default-files-spec' from MELPA package-build.")
 
-(defun melpazoid-expand-file-specs (dir specs &optional subdir allow-empty)
+(defun melpazoid--expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
 The result is a list of (SOURCE . DEST), where SOURCE is a source
 file path and DEST is the relative path to which it should be copied.
@@ -65,12 +65,12 @@ See `package-build-expand-file-specs' from MELPA package-build."
             (if (consp entry)
                 (if (eq :exclude (car entry))
                     (cl-nset-difference lst
-                                        (melpazoid-expand-file-specs
+                                        (melpazoid--expand-file-specs
                                          dir (cdr entry) nil t)
                                         :key 'car
                                         :test 'equal)
                   (nconc lst
-                         (melpazoid-expand-file-specs
+                         (melpazoid--expand-file-specs
                           dir
                           (cdr entry)
                           (concat prefix (car entry))
@@ -93,7 +93,7 @@ See `package-build-expand-file-specs' from MELPA package-build."
   "Resolve source file from RCP.
 See `package-build--expand-source-file-list' from MELPA package-build."
   (mapcar 'car
-          (melpazoid-expand-file-specs
+          (melpazoid--expand-file-specs
            (package-recipe--working-tree rcp)
            (melpazoid--config-file-list rcp))))
 
