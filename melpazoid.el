@@ -175,30 +175,6 @@ See `package-build--expand-source-file-list' from MELPA package-build."
         (melpazoid-insert "  Byte-compiling is enabled in what follows")
         (save-buffer)))))
 
-(defun melpazoid-package-lint ()
-  "Wrapper for running `package-lint' against the current buffer."
-  (require 'package-lint)    ; to retain cleaner byte-compilation in script mode
-  (require 'pkg-info)        ; to retain cleaner byte-compilation in script mode
-  (if (not (melpazoid--run-package-lint-p))
-      (melpazoid-insert "(Skipping package-lint on this file)")
-    (melpazoid-insert
-     "package-lint-current-buffer (using version %s):"
-     (pkg-info-format-version (pkg-info-package-version "package-lint")))
-    (ignore-errors (kill-buffer "*Package-Lint*"))
-    (ignore-errors (package-lint-current-buffer))
-    (with-current-buffer (get-buffer-create "*Package-Lint*")
-      (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-        (if (string= "No issues found." output)
-            (melpazoid-insert "- No issues!")
-          (melpazoid-insert "```")
-          (melpazoid-insert
-           (if (string= output "")
-               "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-             output))
-          (melpazoid-insert "```")
-          (setq melpazoid-error-p t)))))
-  (melpazoid-insert ""))
-
 (defun melpazoid--run-package-lint-p ()
   "Return non-nil if buffer's file is not the package's 'main' file."
   (or (not (getenv "PACKAGE_NAME"))
@@ -414,6 +390,33 @@ NOTE:
      res)
    (lambda (reason)
      (promise-reject `(fail-byte-compile ,reason)))))
+
+(defun melpazoid--promise-checkdoc (sandboxdir tmpfile)
+  "Checkdoc TMPFILE in SANDBOXDIR."
+  (promise-then
+   (promise:async-start
+    `(lambda ()
+       (let ((package-user-dir ,sandboxdir))
+         (require 'package)
+         (package-initialize)
+
+         (require 'checkdoc)
+         (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
+         (ignore-errors (kill-buffer "*Warnings*"))
+         (let ((sentence-end-double-space nil)  ; be a little more leniant
+               (checkdoc-proper-noun-list nil)
+               (checkdoc-common-verbs-wrong-voice nil))
+           (cl-letf (((symbol-function 'message) #'ignore))
+             (ignore-errors (checkdoc-file filename))))
+         (if (not (get-buffer "*Warnings*"))
+             (melpazoid-insert "- No issues!")
+           (with-current-buffer "*Warnings*"
+             (melpazoid-insert "```")
+             (melpazoid-insert
+              (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
+             (melpazoid-insert "```")
+             (setq melpazoid-error-p t)))
+         (melpazoid-insert ""))))))
 
 (defun melpazoid--promise-package-lint (sandboxdir tmpfile)
   "Checkdoc TMPFILE in SANDBOXDIR."
