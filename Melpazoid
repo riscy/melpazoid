@@ -1,1 +1,2 @@
-'((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid")))
+'(melpazoid
+  ((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid"))))
