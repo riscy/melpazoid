@@ -416,34 +416,32 @@ NOTE:
 
 (defun melpazoid--promise-checkdoc (sandboxdir tmpfile)
   "Checkdoc TMPFILE in SANDBOXDIR."
-  (let* ((builddir (expand-file-name "build" sandboxdir))
-         (sourcecopy (expand-file-name (file-name-nondirectory tmpfile) builddir)))
-    (promise-then
-     (promise:async-start
-      `(lambda ()
-         (if (not (melpazoid--run-package-lint-p))
-             (melpazoid-insert "(Skipping package-lint on this file)")
-           (melpazoid-insert
-            "package-lint-current-buffer (using version %s):"
-            (pkg-info-format-version (pkg-info-package-version "package-lint")))
-           (ignore-errors (kill-buffer "*Package-Lint*"))
-           (ignore-errors (package-lint-current-buffer))
-           (with-current-buffer (get-buffer-create "*Package-Lint*")
-             (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-               (if (string= "No issues found." output)
-                   (melpazoid-insert "- No issues!")
-                 (melpazoid-insert "```")
-                 (melpazoid-insert
-                  (if (string= output "")
-                      "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-                    output))
-                 (melpazoid-insert "```")
-                 (setq melpazoid-error-p t)))))
-         (melpazoid-insert "")))
-     (lambda (res)
-       res)
-     (lambda (reason)
-       (promise-reject `(fail-checkdoc ,reason))))))
+  (promise-then
+   (promise:async-start
+    `(lambda ()
+       (if (not (melpazoid--run-package-lint-p))
+           (melpazoid-insert "(Skipping package-lint on this file)")
+         (melpazoid-insert
+          "package-lint-current-buffer (using version %s):"
+          (pkg-info-format-version (pkg-info-package-version "package-lint")))
+         (ignore-errors (kill-buffer "*Package-Lint*"))
+         (ignore-errors (package-lint-current-buffer))
+         (with-current-buffer (get-buffer-create "*Package-Lint*")
+           (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
+             (if (string= "No issues found." output)
+                 (melpazoid-insert "- No issues!")
+               (melpazoid-insert "```")
+               (melpazoid-insert
+                (if (string= output "")
+                    "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
+                  output))
+               (melpazoid-insert "```")
+               (setq melpazoid-error-p t)))))
+       (melpazoid-insert "")))
+   (lambda (res)
+     res)
+   (lambda (reason)
+     (promise-reject `(fail-checkdoc ,reason)))))
 
 (async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
