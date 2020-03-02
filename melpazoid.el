@@ -409,7 +409,7 @@ Currently, ignore any args for development."
 
 ;;; promise functions
 
-(defun melpazoid--promise-resolve-dependency (_rootdir sandboxdir dependency)
+(defun melpazoid--promise-resolve-dependency (sandboxdir dependency)
   "Fetch and build dependency from DEPENDENCY in SANDBOXDIR.
 DEPENDENCY is pkg symbol of list.
 NOTE:
@@ -450,7 +450,7 @@ If the argument is omitted, the current directory is assumed."
                      (sources (melpazoid--expand-source-file-list .recipe rootdir))
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
                                    (melpazoid--get-dependency-from-melpazoid-file .development))))
-                (await (melpazoid--promise-resolve-dependency rootdir sandboxdir reqs))
+                (await (melpazoid--promise-resolve-dependency sandboxdir reqs))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
