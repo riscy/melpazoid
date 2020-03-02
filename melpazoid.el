@@ -480,7 +480,8 @@ If the argument is omitted, the current directory is assumed."
                      (copy-file source tmpfile 'overwrite)
                      (promise-all
                       (list
-                       (melpazoid--promise-byte-compile sandboxdir tmpfile))))))
+                       (melpazoid--promise-byte-compile sandboxdir tmpfile)
+                       (melpazoid--promise-checkdoc sandboxdir tmpfile))))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
