@@ -36,6 +36,64 @@
 (require 'package-lint)
 (require 'async-await)
 
+
+;;; package-build functions
+
+(defconst package-build-default-files-spec
+  '("*.el" "*.el.in" "dir"
+    "*.info" "*.texi" "*.texinfo"
+    "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
+    (:exclude ".dir-locals.el" "test.el" "tests.el" "*-test.el" "*-tests.el"))
+  "Default value for :files attribute in recipes.")
+
+(defun package-build-expand-file-specs (dir specs &optional subdir allow-empty)
+  "In DIR, expand SPECS, optionally under SUBDIR.
+The result is a list of (SOURCE . DEST), where SOURCE is a source
+file path and DEST is the relative path to which it should be copied.
+
+If the resulting list is empty, an error will be reported.  Pass t
+for ALLOW-EMPTY to prevent this error."
+  (let ((default-directory dir)
+        (prefix (if subdir (format "%s/" subdir) ""))
+        (lst))
+    (dolist (entry specs lst)
+      (setq lst
+            (if (consp entry)
+                (if (eq :exclude (car entry))
+                    (cl-nset-difference lst
+                                        (package-build-expand-file-specs
+                                         dir (cdr entry) nil t)
+                                        :key 'car
+                                        :test 'equal)
+                  (nconc lst
+                         (package-build-expand-file-specs
+                          dir
+                          (cdr entry)
+                          (concat prefix (car entry))
+                          t)))
+              (nconc
+               lst (mapcar (lambda (f)
+                             (let ((destname)))
+                             (cons f
+                                   (concat prefix
+                                           (replace-regexp-in-string
+                                            "\\.el\\.in\\'"
+                                            ".el"
+                                            (file-name-nondirectory f)))))
+                           (file-expand-wildcards entry))))))
+    (when (and (null lst) (not allow-empty))
+      (error "No matching file(s) found in %s: %s" dir specs))
+    lst))
+
+(defun package-build--expand-source-file-list (rcp)
+  (mapcar 'car
+          (package-build-expand-file-specs
+           (package-recipe--working-tree rcp)
+           (package-build--config-file-list rcp))))
+
+
+;;; functions
+
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-can-modify-buffers t "Whether melpazoid can modify buffers.")
@@ -267,8 +325,9 @@ OBJECTS are objects to interpolate into the string using `format'."
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 ;;;###autoload
-(defun melpazoid (&optional filename)
-  "Check current buffer, or FILENAME's buffer if given."
+(defun melpazoid (&optional dir)
+  "Specifies the DIR where the Melpazoid file located.
+If the argument is omitted, the current directory is assumed."
   (interactive)
   (melpazoid--reset-state)
   (let ((filename (or filename (buffer-file-name (current-buffer)))))
