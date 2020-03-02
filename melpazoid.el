@@ -364,9 +364,9 @@ Currently, ignore any args for development."
 
 ;;; promise functions
 
-(defun melpazoid--promise-resolve-dependency (sandboxdir dependency)
-  "Fetch and build dependency from DEPENDENCY in SANDBOXDIR.
-DEPENDENCY is pkg symbol of list.
+(defun melpazoid--promise-resolve-dependency (sandboxdir deps)
+  "Fetch and build dependency in SANDBOXDIR.
+DEPS is pkg symbol of list.
 NOTE:
   - Version specification is ignored for now."
   (promise-then
@@ -376,7 +376,7 @@ NOTE:
              (package-archives ,package-archives))
          (require 'package)
          (package-initialize)
-         (dolist (pkg ,dependency)
+         (dolist (pkg ,deps)
            (package-install pkg)))))
    (lambda (res)
      res)
