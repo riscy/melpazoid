@@ -361,6 +361,16 @@ Duplicate requires are resolved by more restrictive."
           (push req ret))))
     (nreverse ret)))
 
+(defun melpazoid--get-dependency-from-melpazoid-file (development)
+  "Get development package dependency from Melpazoid DEVELOPMENT.
+Currently, ignore any args for development."
+  (let (ret)
+    (dolist (req development)
+      (if (listp req)
+          (push `(,(car req) (0 0 1)) ret)
+        (push `(,req (0 0 1)) ret)))
+    (nreverse ret)))
+
 
 ;;; promise functions
 
