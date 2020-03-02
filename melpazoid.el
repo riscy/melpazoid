@@ -377,19 +377,23 @@ If the argument is omitted, the current directory is assumed."
          (rootdir (file-name-directory file)))
     (if (not file)
         (error "File of 'Melpazoid' is missing")
-      (let-alist (eval (read (with-temp-buffer (insert-file-contents file))))
-        (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
-          (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
-          (save-window-excursion
-            (set-buffer (find-file filename))
-            (melpazoid-byte-compile filename)
-            (melpazoid-checkdoc filename)
-            ;; (melpazoid--check-declare)
-            (melpazoid-package-lint)
-            (melpazoid-check-sharp-quotes)
-            (melpazoid-check-misc))
-          (pop-to-buffer melpazoid-buffer)
-          (goto-char (point-min)))))))
+      (let ((contents (eval (read (with-temp-buffer (insert-file-contents file))))))
+        (while contents
+          (let* ((pkg (pop contents))
+                 (recipe (pop contents)))
+            (let-alist recipe
+              (dolist (filename (melpazoid--expand-source-file-list .recipe rootdir))
+                (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
+                (save-window-excursion
+                  (set-buffer (find-file filename))
+                  (melpazoid-byte-compile filename)
+                  (melpazoid-checkdoc filename)
+                  ;; (melpazoid--check-declare)
+                  (melpazoid-package-lint)
+                  (melpazoid-check-sharp-quotes)
+                  (melpazoid-check-misc))
+                (pop-to-buffer melpazoid-buffer)
+                (goto-char (point-min))))))))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
