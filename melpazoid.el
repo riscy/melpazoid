@@ -402,7 +402,6 @@ NOTE:
 
          (require 'checkdoc)
          (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
-         (ignore-errors (kill-buffer "*Warnings*"))
          (ignore-errors
            (with-current-buffer (find-file-noselect ,tmpfile)
              (let ((sentence-end-double-space nil)  ; be a little more leniant
