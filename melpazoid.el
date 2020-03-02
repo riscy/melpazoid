@@ -1,6 +1,7 @@
 ;;; melpazoid.el --- A MELPA review tool  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2019-2020  Chris Rayner <dchrisrayner@gmail.com>
+;; Copyright (C) 2020       Naoya Yamashita <conao3@gmail.com>
 
 ;; Author: Chris Rayner <dchrisrayner@gmail.com>
 ;; Created: June 9 2019
