@@ -72,6 +72,16 @@
 (require 'async-await)
 (require 'f)
 
+(defgroup melpazoid nil
+  "A MELPA review tool."
+  :group 'tool)
+
+(defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
+                                melpazoid--promise-package-lint)
+  "List of checker which is called with 1 argument, return promise."
+  :type 'sexp
+  :group 'melpazoid)
+
 
 ;;; package-build functions
 
