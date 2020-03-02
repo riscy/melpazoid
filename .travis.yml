@@ -21,8 +21,11 @@ env:
   - >-
     MELPA_PR_URL=https://github.com/melpa/melpa/pull/5050
     EXPECT_ERROR=2
-
+  - >-
+    RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")'
+    EXPECT_ERROR=2
 install:
+  - hg || true
   - pip install .
   - pip install mypy
   - pytest --doctest-modules

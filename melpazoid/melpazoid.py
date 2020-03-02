@@ -491,13 +491,14 @@ def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
     recipe = _normalize_recipe(recipe)
     name = _tokenize_lisp_list(recipe)[1]
+    scm = _source_code_manager(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         clone_address = _clone_address(name, recipe)
-        _clone(clone_address, _branch(recipe), into=elisp_dir)
+        _clone(clone_address, _branch(recipe), into=elisp_dir, scm=scm)
         run_checks(recipe, elisp_dir, clone_address)
 
 
-def _clone(repo: str, branch: str, into: str):
+def _clone(repo: str, branch: str, into: str, scm: str = 'git'):
     """
     Raises RuntimeError if repo doesn't exist, and
     subprocess.CalledProcessError if git clone fails.
@@ -508,11 +509,25 @@ def _clone(repo: str, branch: str, into: str):
         raise RuntimeError
     subprocess.check_output(['mkdir', '-p', into])
     if branch:
-        git_command = ['git', 'clone', '-b', branch, repo, into]
+        git_command = [scm, 'clone', '-b', branch, repo, into]
     else:
-        git_command = ['git', 'clone', repo, into]
+        git_command = [scm, 'clone', repo, into]
     # git clone prints to stderr, oddly enough:
     subprocess.check_output(git_command, stderr=subprocess.STDOUT)
+
+
+def _source_code_manager(recipe: str) -> str:
+    """
+    >>>
+    _source_code_manager('(kanban :fetcher hg :url ...)')
+    'hg'
+    _source_code_manager('(kanban :fetcher gitlab :url ...)')
+    'git'
+    """
+    tokenized_recipe = _tokenize_lisp_list(recipe)
+    if tokenized_recipe[tokenized_recipe.index(':fetcher') + 1] == 'hg':
+        return 'hg'
+    return 'git'
 
 
 def _branch(recipe: str) -> str:
