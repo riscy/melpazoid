@@ -424,7 +424,6 @@ NOTE:
          (melpazoid-insert
           "package-lint-current-buffer (using version %s):"
           (pkg-info-format-version (pkg-info-package-version "package-lint")))
-         (ignore-errors (kill-buffer "*Package-Lint*"))
          (ignore-errors
            (with-current-buffer (find-file-noselect ,tmpfile)
              (package-lint-current-buffer)))
