@@ -383,10 +383,10 @@ NOTE:
    (lambda (reason)
      (promise-reject `(fail-resolve-dependency ,reason)))))
 
-(defun melpazoid--promise-byte-compile (sandboxdir source)
-  "Byte-compile SOURCE in SANDBOXDIR."
+(defun melpazoid--promise-byte-compile (sandboxdir tmpfile)
+  "Byte-compile TMPFILE in SANDBOXDIR."
   (let* ((builddir (expand-file-name "build" sandboxdir))
-         (sourcecopy (expand-file-name (file-name-nondirectory source) builddir)))
+         (sourcecopy (expand-file-name (file-name-nondirectory tmpfile) builddir)))
     (promise-then
      (promise:async-start
       `(lambda ()
@@ -395,7 +395,7 @@ NOTE:
            (package-initialize)
 
            ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-           (copy-file ,source ,sourcecopy)
+           (copy-file ,tmpfile ,sourcecopy)
            (with-current-buffer (find-file-noselect ,sourcecopy)
              (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
              (melpazoid--remove-no-compile)
