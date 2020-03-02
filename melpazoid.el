@@ -393,11 +393,9 @@ NOTE:
    (lambda (reason)
      (promise-reject `(fail-resolve-dependency ,reason)))))
 
-;;;###autoload
-(async-defun melpazoid (&optional dir)
+(async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
 If the argument is omitted, the current directory is assumed."
-  (interactive)
   (let* ((file (locate-dominating-file (or dir default-directory) "Melpazoid"))
          (rootdir (file-name-directory file)))
     (if (not file)
@@ -432,6 +430,13 @@ If the argument is omitted, the current directory is assumed."
                   (melpazoid-check-misc))
                 (pop-to-buffer melpazoid-buffer)
                 (goto-char (point-min))))))))))
+
+;;;###autoload
+(defun melpazoid (&optional dir)
+  "Specifies the DIR where the Melpazoid file located.
+If the argument is omitted, the current directory is assumed."
+  (interactive)
+  (melpazoid-run dir))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
