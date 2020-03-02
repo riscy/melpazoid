@@ -90,7 +90,7 @@ See `package-build-expand-file-specs' from MELPA package-build."
     lst))
 
 (defun melpazoid--expand-source-file-list (rcp)
-  "
+  "Resolve source file from RCP.
 See `package-build--expand-source-file-list' from MELPA package-build."
   (mapcar 'car
           (melpazoid-expand-file-specs
