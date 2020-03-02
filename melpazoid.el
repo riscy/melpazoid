@@ -91,7 +91,7 @@ See `package-build-expand-file-specs' from MELPA package-build."
 (defun melpazoid--config-file-list (recipe)
   "Build full source file specification from RECIPE.
 See `package-build--config-file-list' from MELPA package-build."
-  (let ((file-list (oref recipe files)))
+  (let ((file-list (plist-get (cdr recipe) :files)))
     (cond
      ((null file-list)
       melpazoid-default-files-spec)
