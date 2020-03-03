@@ -7,7 +7,7 @@
 ;; Created: June 9 2019
 ;; Keywords: tools convenience
 ;; URL: https://github.com/riscy/melpazoid
-;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (async-await "1.0") (f "0.20"))
+;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (f "0.20"))
 ;; Version: 0.0.1
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -69,25 +69,19 @@
 (require 'checkdoc)
 (require 'pkg-info)
 (require 'package-lint)
-(require 'async-await)
 (require 'f)
 
 (defgroup melpazoid nil
   "A MELPA review tool."
   :group 'tool)
 
-(defcustom melpazoid-max-process 2
-  "Maximum number of concurrent process."
-  :type 'number
-  :group 'melpazoid)
-
-(defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
-                                melpazoid--promise-checkdoc
-                                melpazoid--promise-package-lint
-                                ;; melpazoid--promise-check-declare
-                                melpazoid--promise-check-sharp-quotes
+(defcustom melpazoid-checkers '(melpazoid--byte-compile
+                                melpazoid--checkdoc
+                                melpazoid--package-lint
+                                ;; melpazoid--check-declare
+                                melpazoid--check-sharp-quotes
                                 melpazoid--check-misc)
-  "List of checker which is called with 1 argument, return promise.
+  "List of checker which is called with 1 argument.
 Argument is alist contain below information.
   - sandboxdir
   - elpadir
@@ -283,236 +277,191 @@ Currently, ignore any args for development."
     (nreverse ret)))
 
 
-;;; promise functions
+;;; checker functions
 
-(defun melpazoid--promise-resolve-dependency (sandboxdir deps)
+(defun melpazoid--resolve-dependency (sandboxdir deps)
   "Fetch and build dependency in SANDBOXDIR.
 DEPS is pkg symbol of list.
 NOTE:
   - Version specification is ignored for now."
-  (promise-then
-   (promise:async-start
-    `(lambda ()
-       (let ((package-user-dir ,sandboxdir)
-             (package-archives ,package-archives))
-         (require 'package)
-         (package-initialize)
-         (dolist (pkg ,deps)
-           (unless (package-installed-p pkg)
-             (package-install pkg))))))
-   (lambda (res)
-     res)
-   (lambda (reason)
-     (promise-reject `(fail-resolve-dependency ,reason)))))
+  (let ((package-user-dir ,sandboxdir)
+        (package-archives ,package-archives))
+    (require 'package)
+    (package-initialize)
+    (dolist (pkg ,deps)
+      (unless (package-installed-p pkg)
+        (package-install pkg)))))
 
-(defun melpazoid--promise-byte-compile (info)
+(defun melpazoid--byte-compile (info)
   "Byte-compile INFO."
   (let-alist info
     (let ((sandboxdir .sandboxdir)
           (tmpfile    .tmpfile))
-      (promise-then
-       (promise:async-start
-        `(lambda ()
-           (let ((package-user-dir ,sandboxdir))
-             (require 'package)
-             (package-initialize)
+      (let ((package-user-dir ,sandboxdir))
+        (require 'package)
+        (package-initialize)
 
-             ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-             (with-current-buffer (find-file-noselect ,tmpfile)
-               (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
-               (melpazoid--remove-no-compile)
-               (melpazoid--check-lexical-binding)
-               (let ((lexical-binding t))
-                 (byte-compile-file filename))
-               (with-current-buffer (get-buffer-create "*Compile-Log*")
-                 (if (<= (- (point-max) (point)) 3)
-                     (melpazoid-insert "- No issues!")
-                   (goto-char (point-min)) (forward-line 2)
-                   (melpazoid-insert "```")
-                   (melpazoid-insert
-                    (melpazoid--newline-trim (buffer-substring (point) (point-max))))
-                   (melpazoid-insert "```")
-                   (setq melpazoid-error-p t)))
-               (melpazoid-insert "")))))
-       (lambda (res)
-         res)
-       (lambda (reason)
-         (promise-reject `(fail-byte-compile ,reason)))))))
+        ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
+        (with-current-buffer (find-file-noselect ,tmpfile)
+          (melpazoid-insert "byte-compile-file (using Emacs %s.%s):" emacs-major-version emacs-minor-version)
+          (melpazoid--remove-no-compile)
+          (melpazoid--check-lexical-binding)
+          (let ((lexical-binding t))
+            (byte-compile-file filename))
+          (with-current-buffer (get-buffer-create "*Compile-Log*")
+            (if (<= (- (point-max) (point)) 3)
+                (melpazoid-insert "- No issues!")
+              (goto-char (point-min)) (forward-line 2)
+              (melpazoid-insert "```")
+              (melpazoid-insert
+               (melpazoid--newline-trim (buffer-substring (point) (point-max))))
+              (melpazoid-insert "```")
+              (setq melpazoid-error-p t)))
+          (melpazoid-insert ""))))))
 
-(defun melpazoid--promise-checkdoc (info)
+(defun melpazoid--checkdoc (info)
   "Checkdoc with INFO."
   (let-alist info
     (let ((sandboxdir .sandboxdir)
           (tmpfile    .tmpfile))
-      (promise-then
-       (promise:async-start
-        `(lambda ()
-           (let ((package-user-dir ,sandboxdir))
-             (require 'package)
-             (package-initialize)
+      (let ((package-user-dir ,sandboxdir))
+        (require 'package)
+        (package-initialize)
 
-             (require 'checkdoc)
-             (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
-             (ignore-errors
-               (with-current-buffer (find-file-noselect ,tmpfile)
-                 (let ((sentence-end-double-space nil)  ; be a little more leniant
-                       (checkdoc-proper-noun-list nil)
-                       (checkdoc-common-verbs-wrong-voice nil))
-                   (checkdoc-current-buffer))))
-             (if (not (get-buffer "*Warnings*"))
-                 (melpazoid-insert "- No issues!")
-               (with-current-buffer "*Warnings*"
-                 (melpazoid-insert "```")
-                 (melpazoid-insert
-                  (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
-                 (melpazoid-insert "```")
-                 (setq melpazoid-error-p t)))
-             (melpazoid-insert ""))))))))
+        (require 'checkdoc)
+        (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
+        (ignore-errors
+          (with-current-buffer (find-file-noselect ,tmpfile)
+            (let ((sentence-end-double-space nil)  ; be a little more leniant
+                  (checkdoc-proper-noun-list nil)
+                  (checkdoc-common-verbs-wrong-voice nil))
+              (checkdoc-current-buffer))))
+        (if (not (get-buffer "*Warnings*"))
+            (melpazoid-insert "- No issues!")
+          (with-current-buffer "*Warnings*"
+            (melpazoid-insert "```")
+            (melpazoid-insert
+             (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
+            (melpazoid-insert "```")
+            (setq melpazoid-error-p t)))
+        (melpazoid-insert "")))))
 
-(defun melpazoid--promise-package-lint (info)
+(defun melpazoid--package-lint (info)
   "Package-lint with INFO."
   (let-alist info
     (let ((sandboxdir .sandboxdir)
           (tmpfile    .tmpfile))
-      (promise-then
-       (promise:async-start
-        `(lambda ()
-           (let ((package-user-dir ,sandboxdir))
-             (require 'package)
-             (package-initialize)
+      (let ((package-user-dir ,sandboxdir))
+        (require 'package)
+        (package-initialize)
 
-             (require package-lint)
-             (if (not (melpazoid--run-package-lint-p))
-                 (melpazoid-insert "(Skipping package-lint on this file)")
-               (melpazoid-insert
-                "package-lint-current-buffer (using version %s):"
-                (pkg-info-format-version (pkg-info-package-version "package-lint")))
-               (ignore-errors
-                 (with-current-buffer (find-file-noselect ,tmpfile)
-                   (package-lint-current-buffer)))
-               (with-current-buffer (get-buffer-create "*Package-Lint*")
-                 (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-                   (if (string= "No issues found." output)
-                       (melpazoid-insert "- No issues!")
-                     (melpazoid-insert "```")
-                     (melpazoid-insert
-                      (if (string= output "")
-                          "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-                        output))
-                     (melpazoid-insert "```")
-                     (setq melpazoid-error-p t))))))
-           (melpazoid-insert "")))
-       (lambda (res)
-         res)
-       (lambda (reason)
-         (promise-reject `(fail-checkdoc ,reason)))))))
+        (require 'package-lint)
+        (if (not (melpazoid--run-package-lint-p))
+            (melpazoid-insert "(Skipping package-lint on this file)")
+          (melpazoid-insert
+           "package-lint-current-buffer (using version %s):"
+           (pkg-info-format-version (pkg-info-package-version "package-lint")))
+          (ignore-errors
+            (with-current-buffer (find-file-noselect ,tmpfile)
+              (package-lint-current-buffer)))
+          (with-current-buffer (get-buffer-create "*Package-Lint*")
+            (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
+              (if (string= "No issues found." output)
+                  (melpazoid-insert "- No issues!")
+                (melpazoid-insert "```")
+                (melpazoid-insert
+                 (if (string= output "")
+                     "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
+                   output))
+                (melpazoid-insert "```")
+                (setq melpazoid-error-p t)))))))))
 
-(defun melpazoid--promise-check-declare (info)
+(defun melpazoid--check-declare (info)
   "Check `declare-defun' with INFO."
   (let-alist info
     (let ((tmpfile .tmpfile))
-      (promise-then
-       (promise:async-start
-        `(lambda ()
-           (with-current-buffer (find-file-noselect ,tmpfile)
-             (melpazoid-insert "check-declare-file (optional):")
-             (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
-             (check-declare-file (buffer-file-name (current-buffer)))
-             (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
-               (if (melpazoid--buffer-almost-empty-p)
-                   (melpazoid-insert "- No issues!")
-                 (melpazoid-insert "```")
-                 (melpazoid-insert (buffer-substring (point-min) (point-max)))
-                 (melpazoid-insert "```")
-                 (setq melpazoid-error-p t)))
-             (melpazoid-insert ""))))
-       (lambda (res)
-         res)
-       (lambda (reason)
-         (promise-reject `(fail-check-declare ,reason)))))))
+      (with-current-buffer (find-file-noselect ,tmpfile)
+        (melpazoid-insert "check-declare-file (optional):")
+        (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
+        (check-declare-file (buffer-file-name (current-buffer)))
+        (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
+          (if (melpazoid--buffer-almost-empty-p)
+              (melpazoid-insert "- No issues!")
+            (melpazoid-insert "```")
+            (melpazoid-insert (buffer-substring (point-min) (point-max)))
+            (melpazoid-insert "```")
+            (setq melpazoid-error-p t)))
+        (melpazoid-insert "")))))
 
-(defun melpazoid--promise-check-sharp-quotes (info)
+(defun melpazoid--check-sharp-quotes (info)
   "Check sharp-quotes with INFO."
   (let-alist info
     (let ((tmpfile .tmpfile))
-      (promise-then
-       (promise:async-start
-        `(lambda ()
-           (with-current-buffer (find-file-noselect ,tmpfile)
-             (melpazoid-misc "#'(lambda" "There is no need to quote lambdas (neither #' nor ')")
-             (melpazoid-misc "[^#]'(lambda" "Don't quote lambdas; this prevents them from being compiled")
-             (let ((msg "It's safer to sharp-quote function names; use `#'`"))
-               (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
-               (melpazoid-misc "(apply-partially '[^,]" msg)
-               (melpazoid-misc "(apply '[^,]" msg)
-               (melpazoid-misc "(seq-mapcat '[^,]" msg)
-               (melpazoid-misc "(seq-map '[^,]" msg)
-               (melpazoid-misc "(seq-mapn '[^,]" msg)
-               (melpazoid-misc "(mapconcat '[^,]" msg)
-               (melpazoid-misc "(functionp '[^,]" msg)
-               (melpazoid-misc "(mapcar '[^,]" msg)
-               (melpazoid-misc "(funcall '[^,]" msg)
-               (melpazoid-misc "(cl-assoc-if '[^,]" msg)
-               (melpazoid-misc "(call-interactively '" msg)
-               (melpazoid-misc "(callf '[^,]" msg)
-               (melpazoid-misc "(run-at-time[^(#]*[^#]'" msg)
-               (melpazoid-misc "(seq-find '" msg)
-               (melpazoid-misc "(add-hook '[^[:space:]]+ '" msg)
-               (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
-               (melpazoid-misc "(advice-add [^#)]*)" msg)
-               (melpazoid-misc "(defalias [^#()]*)" msg)
-               (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))))
-       (lambda (res)
-         res)
-       (lambda (reason)
-         (promise-reject `(fail-sharp-quotes ,reason)))))))
+      (with-current-buffer (find-file-noselect ,tmpfile)
+        (melpazoid-misc "#'(lambda" "There is no need to quote lambdas (neither #' nor ')")
+        (melpazoid-misc "[^#]'(lambda" "Don't quote lambdas; this prevents them from being compiled")
+        (let ((msg "It's safer to sharp-quote function names; use `#'`"))
+          (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
+          (melpazoid-misc "(apply-partially '[^,]" msg)
+          (melpazoid-misc "(apply '[^,]" msg)
+          (melpazoid-misc "(seq-mapcat '[^,]" msg)
+          (melpazoid-misc "(seq-map '[^,]" msg)
+          (melpazoid-misc "(seq-mapn '[^,]" msg)
+          (melpazoid-misc "(mapconcat '[^,]" msg)
+          (melpazoid-misc "(functionp '[^,]" msg)
+          (melpazoid-misc "(mapcar '[^,]" msg)
+          (melpazoid-misc "(funcall '[^,]" msg)
+          (melpazoid-misc "(cl-assoc-if '[^,]" msg)
+          (melpazoid-misc "(call-interactively '" msg)
+          (melpazoid-misc "(callf '[^,]" msg)
+          (melpazoid-misc "(run-at-time[^(#]*[^#]'" msg)
+          (melpazoid-misc "(seq-find '" msg)
+          (melpazoid-misc "(add-hook '[^[:space:]]+ '" msg)
+          (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
+          (melpazoid-misc "(advice-add [^#)]*)" msg)
+          (melpazoid-misc "(defalias [^#()]*)" msg)
+          (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg))))))
 
 (defun melpazoid--check-misc (info)
   "Check misc with INFO."
   (let-alist info
     (let ((tmpfile .tmpfile))
-      (promise-then
-       (promise:async-start
-        `(lambda ()
-           (with-current-buffer (find-file-noselect ,tmpfile)
-             (melpazoid-misc "(string-equal major-mode" "Check major mode with eq, e.g.: `(eq major-mode 'dired-mode)`")
-             (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
-             (melpazoid-misc "(s-starts-with-p" "Using `string-prefix-p` may allow dropping the dependency on `s`")
-             (melpazoid-misc "(s-ends-with-p" "Using `string-suffix-p` may allow dropping the dependency on `s`")
-             (melpazoid-misc "Copyright.*Free Software Foundation" "Did you really do the paperwork to assign your copyright?")
-             (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
-             (melpazoid-misc "This file is part of GNU Emacs." "This statement may not currently be accurate")
-             (melpazoid-misc "lighter \"[^ \"]" "Minor mode lighters should start with a space")
-             (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
-             (melpazoid-misc "(fmakunbound" "Use of `fmakunbound` in a package is usually unnecessary")
-             (melpazoid-misc "(setq major-mode" "Directly setting major-mode is odd (if defining a mode, prefer define-derived-mode)")
-             (melpazoid-misc "([^ ]*read-string \"[^\"]*[^ ]\"" "Many `*-read-string` prompts should end with a space")
-             (melpazoid-misc "(define-derived-mode .*fundamental-mode" "It is unusual to derive from fundamental-mode; try special-mode")
-             (melpazoid-misc ";;;###autoload\n(defcustom" "Don't autoload `defcustom`")
-             (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
-             (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects (ensure it works)")
-             (melpazoid-misc ";; Package-Version" "Prefer `;; Version` instead of `;; Package-Version` (MELPA automatically adds `Package-Version`)")
-             (melpazoid-misc "^(define-key" "This define-key could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
-             (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
-             (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private")
-             (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s built-in NOERROR argument")
-             (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s built-in NOERROR argument")
-             (melpazoid-misc "(user-error (format" "No `format` required; messages are already f-strings")
-             (melpazoid-misc "(message (concat" "No `concat` required; messages are already f-strings")
-             (melpazoid-misc "(message (format" "No `format` required; messages are already f-strings")
-             (melpazoid-misc "^ ;[^;]" "Single-line comments should (usually) begin with `;;`")
-             (melpazoid-misc "(unless (null " "Consider `when ...` instead of `unless (not ...)`")
-             (melpazoid-misc "(unless (not " "Consider `when ...` instead of `unless (null ...)`")
-             (melpazoid-misc "(when (not " "Consider `unless ...` instead of `when (not ...)`")
-             (melpazoid-misc "(when (null " "Consider `unless ...` instead of `when (null ...)`")
-             (melpazoid-misc "http://" "Prefer `https` over `http` (if possible)" nil t)
-             (melpazoid-misc "(eq[^()]*\\<nil\\>.*)" "You can use `not` or `null`"))))
-       (lambda (res)
-         res)
-       (lambda (reason)
-         (promise-reject `(fail-check-misc ,reason)))))))
+      (with-current-buffer (find-file-noselect ,tmpfile)
+        (melpazoid-misc "(string-equal major-mode" "Check major mode with eq, e.g.: `(eq major-mode 'dired-mode)`")
+        (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
+        (melpazoid-misc "(s-starts-with-p" "Using `string-prefix-p` may allow dropping the dependency on `s`")
+        (melpazoid-misc "(s-ends-with-p" "Using `string-suffix-p` may allow dropping the dependency on `s`")
+        (melpazoid-misc "Copyright.*Free Software Foundation" "Did you really do the paperwork to assign your copyright?")
+        (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
+        (melpazoid-misc "This file is part of GNU Emacs." "This statement may not currently be accurate")
+        (melpazoid-misc "lighter \"[^ \"]" "Minor mode lighters should start with a space")
+        (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
+        (melpazoid-misc "(fmakunbound" "Use of `fmakunbound` in a package is usually unnecessary")
+        (melpazoid-misc "(setq major-mode" "Directly setting major-mode is odd (if defining a mode, prefer define-derived-mode)")
+        (melpazoid-misc "([^ ]*read-string \"[^\"]*[^ ]\"" "Many `*-read-string` prompts should end with a space")
+        (melpazoid-misc "(define-derived-mode .*fundamental-mode" "It is unusual to derive from fundamental-mode; try special-mode")
+        (melpazoid-misc ";;;###autoload\n(defcustom" "Don't autoload `defcustom`")
+        (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
+        (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects (ensure it works)")
+        (melpazoid-misc ";; Package-Version" "Prefer `;; Version` instead of `;; Package-Version` (MELPA automatically adds `Package-Version`)")
+        (melpazoid-misc "^(define-key" "This define-key could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
+        (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
+        (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private")
+        (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s built-in NOERROR argument")
+        (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s built-in NOERROR argument")
+        (melpazoid-misc "(user-error (format" "No `format` required; messages are already f-strings")
+        (melpazoid-misc "(message (concat" "No `concat` required; messages are already f-strings")
+        (melpazoid-misc "(message (format" "No `format` required; messages are already f-strings")
+        (melpazoid-misc "^ ;[^;]" "Single-line comments should (usually) begin with `;;`")
+        (melpazoid-misc "(unless (null " "Consider `when ...` instead of `unless (not ...)`")
+        (melpazoid-misc "(unless (not " "Consider `when ...` instead of `unless (null ...)`")
+        (melpazoid-misc "(when (not " "Consider `unless ...` instead of `when (not ...)`")
+        (melpazoid-misc "(when (null " "Consider `unless ...` instead of `when (null ...)`")
+        (melpazoid-misc "http://" "Prefer `https` over `http` (if possible)" nil t)
+        (melpazoid-misc "(eq[^()]*\\<nil\\>.*)" "You can use `not` or `null`")))))
 
-(async-defun melpazoid-run (&optional dir)
+;;;###autoload
+(defun melpazoid (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
 If the argument is omitted, the current directory is assumed."
   (let* ((file (locate-dominating-file (or dir default-directory) "Melpazoid"))
@@ -536,20 +485,17 @@ If the argument is omitted, the current directory is assumed."
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
                                    (melpazoid--get-dependency-from-melpazoid-file .development)
                                    melpazoid-dependency-packages)))
-                (await (melpazoid--promise-resolve-dependency sandboxdir reqs))
+                (melpazoid--resolve-dependency sandboxdir reqs)
                 (dolist (source sources)
-                  (await
-                   (let* ((tmpfile (expand-file-name (file-name-nondirectory source) builddir))
-                          (info `((sandboxdir . ,sandboxdir)
-                                  (elpadir    . ,(expand-file-name "elpa" sandboxdir))
-                                  (builddir   . ,(expand-file-name "build" sandboxdir))
-                                  (distdir    . ,(expand-file-name "dist" sandboxdir))
-                                  (tmpfile    . ,tmpfile))))
-                     (copy-file source tmpfile 'overwrite)
-                     (promise-concurrent-no-reject-immidiately
-                         melpazoid-max-process (length melpazoid-checkers)
-                       (lambda (index)
-                         (funcall (nth index melpazoid-checkers) info))))))
+                  (let* ((tmpfile (expand-file-name (file-name-nondirectory source) builddir))
+                         (info `((sandboxdir . ,sandboxdir)
+                                 (elpadir    . ,(expand-file-name "elpa" sandboxdir))
+                                 (builddir   . ,(expand-file-name "build" sandboxdir))
+                                 (distdir    . ,(expand-file-name "dist" sandboxdir))
+                                 (tmpfile    . ,tmpfile))))
+                    (copy-file source tmpfile 'overwrite)
+                    (dolist (checker melpazoid-checkers)
+                      (funcall checker info))))
                 (melpazoid-insert "\n## %s ##\n" (symbol-name pkg))
                 (dolist (filename sources)
                   (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
@@ -563,13 +509,6 @@ If the argument is omitted, the current directory is assumed."
                     (melpazoid-check-misc))
                   (pop-to-buffer melpazoid-buffer)
                   (goto-char (point-min)))))))))))
-
-;;;###autoload
-(defun melpazoid (&optional dir)
-  "Specifies the DIR where the Melpazoid file located.
-If the argument is omitted, the current directory is assumed."
-  (interactive)
-  (melpazoid-run dir))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
