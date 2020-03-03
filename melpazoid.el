@@ -85,7 +85,8 @@
                                 melpazoid--promise-checkdoc
                                 melpazoid--promise-package-lint
                                 ;; melpazoid--promise-check-declare
-                                melpazoid--promise-sharp-quotes)
+                                melpazoid--promise-sharp-quotes
+                                melpazoid--check-misc)
   "List of checker which is called with 1 argument, return promise.
 Argument is alist contain below information.
   - sandboxdir
@@ -465,6 +466,51 @@ NOTE:
          res)
        (lambda (reason)
          (promise-reject `(fail-sharp-quotes ,reason)))))))
+
+(defun melpazoid--check-misc (info)
+  "Check misc with INFO."
+  (let-alist info
+    (let ((tmpfile .tmpfile))
+      (promise-then
+       (promise:async-start
+        `(lambda ()
+           (with-current-buffer (find-file-noselect ,tmpfile)
+             (melpazoid-misc "(string-equal major-mode" "Check major mode with eq, e.g.: `(eq major-mode 'dired-mode)`")
+             (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
+             (melpazoid-misc "(s-starts-with-p" "Using `string-prefix-p` may allow dropping the dependency on `s`")
+             (melpazoid-misc "(s-ends-with-p" "Using `string-suffix-p` may allow dropping the dependency on `s`")
+             (melpazoid-misc "Copyright.*Free Software Foundation" "Did you really do the paperwork to assign your copyright?")
+             (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
+             (melpazoid-misc "This file is part of GNU Emacs." "This statement may not currently be accurate")
+             (melpazoid-misc "lighter \"[^ \"]" "Minor mode lighters should start with a space")
+             (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
+             (melpazoid-misc "(fmakunbound" "Use of `fmakunbound` in a package is usually unnecessary")
+             (melpazoid-misc "(setq major-mode" "Directly setting major-mode is odd (if defining a mode, prefer define-derived-mode)")
+             (melpazoid-misc "([^ ]*read-string \"[^\"]*[^ ]\"" "Many `*-read-string` prompts should end with a space")
+             (melpazoid-misc "(define-derived-mode .*fundamental-mode" "It is unusual to derive from fundamental-mode; try special-mode")
+             (melpazoid-misc ";;;###autoload\n(defcustom" "Don't autoload `defcustom`")
+             (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
+             (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects (ensure it works)")
+             (melpazoid-misc ";; Package-Version" "Prefer `;; Version` instead of `;; Package-Version` (MELPA automatically adds `Package-Version`)")
+             (melpazoid-misc "^(define-key" "This define-key could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
+             (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
+             (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private")
+             (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s built-in NOERROR argument")
+             (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s built-in NOERROR argument")
+             (melpazoid-misc "(user-error (format" "No `format` required; messages are already f-strings")
+             (melpazoid-misc "(message (concat" "No `concat` required; messages are already f-strings")
+             (melpazoid-misc "(message (format" "No `format` required; messages are already f-strings")
+             (melpazoid-misc "^ ;[^;]" "Single-line comments should (usually) begin with `;;`")
+             (melpazoid-misc "(unless (null " "Consider `when ...` instead of `unless (not ...)`")
+             (melpazoid-misc "(unless (not " "Consider `when ...` instead of `unless (null ...)`")
+             (melpazoid-misc "(when (not " "Consider `unless ...` instead of `when (not ...)`")
+             (melpazoid-misc "(when (null " "Consider `unless ...` instead of `when (null ...)`")
+             (melpazoid-misc "http://" "Prefer `https` over `http` (if possible)" nil t)
+             (melpazoid-misc "(eq[^()]*\\<nil\\>.*)" "You can use `not` or `null`"))))
+       (lambda (res)
+         res)
+       (lambda (reason)
+         (promise-reject `(fail-check-misc ,reason)))))))
 
 (async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
