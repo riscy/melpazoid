@@ -85,7 +85,7 @@
                                 melpazoid--promise-checkdoc
                                 melpazoid--promise-package-lint
                                 ;; melpazoid--promise-check-declare
-                                melpazoid--promise-sharp-quotes
+                                melpazoid--promise-check-sharp-quotes
                                 melpazoid--check-misc)
   "List of checker which is called with 1 argument, return promise.
 Argument is alist contain below information.
@@ -431,7 +431,7 @@ NOTE:
        (lambda (reason)
          (promise-reject `(fail-check-declare ,reason)))))))
 
-(defun melpazoid--promise-sharp-quotes (info)
+(defun melpazoid--promise-check-sharp-quotes (info)
   "Check sharp-quotes with INFO."
   (let-alist info
     (let ((tmpfile .tmpfile))
