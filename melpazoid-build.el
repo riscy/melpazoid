@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(defconst melpazoid-default-files-spec
+(defconst melpazoid-build-default-files-spec
   '("*.el" "*.el.in" "dir"
     "*.info" "*.texi" "*.texinfo"
     "doc/dir" "doc/*.info" "doc/*.texi" "doc/*.texinfo"
@@ -33,7 +33,7 @@
 
 See `package-build-default-files-spec' from MELPA package-build.")
 
-(defun melpazoid--expand-file-specs (dir specs &optional subdir allow-empty)
+(defun melpazoid-build--expand-file-specs (dir specs &optional subdir allow-empty)
   "In DIR, expand SPECS, optionally under SUBDIR.
 The result is a list of (SOURCE . DEST), where SOURCE is a source
 file path and DEST is the relative path to which it should be copied.
@@ -50,12 +50,12 @@ See `package-build-expand-file-specs' from MELPA package-build."
             (if (consp entry)
                 (if (eq :exclude (car entry))
                     (cl-nset-difference lst
-                                        (melpazoid--expand-file-specs
+                                        (melpazoid-build--expand-file-specs
                                          dir (cdr entry) nil t)
                                         :key 'car
                                         :test 'equal)
                   (nconc lst
-                         (melpazoid--expand-file-specs
+                         (melpazoid-build--expand-file-specs
                           dir
                           (cdr entry)
                           (concat prefix (car entry))
@@ -73,27 +73,27 @@ See `package-build-expand-file-specs' from MELPA package-build."
       (error "No matching file(s) found in %s: %s" dir specs))
     lst))
 
-(defun melpazoid--config-file-list (recipe)
+(defun melpazoid-build--config-file-list (recipe)
   "Build full source file specification from RECIPE.
 See `package-build--config-file-list' from MELPA package-build."
   (let ((file-list (plist-get (cdr recipe) :files)))
     (cond
      ((null file-list)
-      melpazoid-default-files-spec)
+      melpazoid-build-default-files-spec)
      ((eq :defaults (car file-list))
-      (append melpazoid-default-files-spec (cdr file-list)))
+      (append melpazoid-build-default-files-spec (cdr file-list)))
      (t
       file-list))))
 
-(defun melpazoid--expand-source-file-list (recipe dir)
+(defun melpazoid-build--expand-source-file-list (recipe dir)
   "Resolve source file from RECIPE in DIR.
 See `package-build--expand-source-file-list' from MELPA package-build."
   (mapcar 'car
-          (melpazoid--expand-file-specs
+          (melpazoid-build--expand-file-specs
            dir
-           (melpazoid--config-file-list recipe))))
+           (melpazoid-build--config-file-list recipe))))
 
-(defun melpazoid--get-dependency-from-elisp-files (files)
+(defun melpazoid-build--get-dependency-from-elisp-files (files)
   "Get package dependency from Package-Require header from FILES.
 Duplicate requires are resolved by more restrictive."
   (let (ret)
@@ -112,7 +112,7 @@ Duplicate requires are resolved by more restrictive."
           (push req ret))))
     (nreverse ret)))
 
-(defun melpazoid--get-dependency-from-melpazoid-file (development)
+(defun melpazoid-build--get-dependency-from-melpazoid-file (development)
   "Get development package dependency from Melpazoid DEVELOPMENT.
 Currently, ignore any args for development."
   (let (ret)
@@ -122,7 +122,7 @@ Currently, ignore any args for development."
         (push `(,req (0 0 1)) ret)))
     (nreverse ret)))
 
-(defun melpazoid--resolve-dependency (sandboxdir deps)
+(defun melpazoid-build--resolve-dependency (sandboxdir deps)
   "Fetch and build dependency in SANDBOXDIR.
 DEPS is pkg symbol of list.
 NOTE:
