@@ -83,7 +83,8 @@
 
 (defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
                                 melpazoid--promise-checkdoc
-                                melpazoid--promise-package-lint)
+                                melpazoid--promise-package-lint
+                                melpazoid--promise-sharp-quotes)
   "List of checker which is called with 1 argument, return promise.
 Argument is alist contain below information.
   - sandboxdir
@@ -219,32 +220,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
       (melpazoid-insert "```")
       (setq melpazoid-error-p t)))
   (melpazoid-insert ""))
-
-(defun melpazoid-check-sharp-quotes ()
-  "Check for missing sharp quotes."
-  (melpazoid-misc "#'(lambda" "There is no need to quote lambdas (neither #' nor ')")
-  (melpazoid-misc "[^#]'(lambda" "Don't quote lambdas; this prevents them from being compiled")
-  (let ((msg "It's safer to sharp-quote function names; use `#'`"))
-    (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
-    (melpazoid-misc "(apply-partially '[^,]" msg)
-    (melpazoid-misc "(apply '[^,]" msg)
-    (melpazoid-misc "(seq-mapcat '[^,]" msg)
-    (melpazoid-misc "(seq-map '[^,]" msg)
-    (melpazoid-misc "(seq-mapn '[^,]" msg)
-    (melpazoid-misc "(mapconcat '[^,]" msg)
-    (melpazoid-misc "(functionp '[^,]" msg)
-    (melpazoid-misc "(mapcar '[^,]" msg)
-    (melpazoid-misc "(funcall '[^,]" msg)
-    (melpazoid-misc "(cl-assoc-if '[^,]" msg)
-    (melpazoid-misc "(call-interactively '" msg)
-    (melpazoid-misc "(callf '[^,]" msg)
-    (melpazoid-misc "(run-at-time[^(#]*[^#]'" msg)
-    (melpazoid-misc "(seq-find '" msg)
-    (melpazoid-misc "(add-hook '[^[:space:]]+ '" msg)
-    (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
-    (melpazoid-misc "(advice-add [^#)]*)" msg)
-    (melpazoid-misc "(defalias [^#()]*)" msg)
-    (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
@@ -484,6 +459,42 @@ NOTE:
          res)
        (lambda (reason)
          (promise-reject `(fail-checkdoc ,reason)))))))
+
+(defun melpazoid--promise-sharp-quotes (info)
+  "Check sharp-quotes with INFO."
+  (let-alist info
+    (let ((tmpfile .tmpfile))
+      (promise-then
+       (promise:async-start
+        `(lambda ()
+           (with-current-buffer (find-file-noselect ,tmpfile)
+             (melpazoid-misc "#'(lambda" "There is no need to quote lambdas (neither #' nor ')")
+             (melpazoid-misc "[^#]'(lambda" "Don't quote lambdas; this prevents them from being compiled")
+             (let ((msg "It's safer to sharp-quote function names; use `#'`"))
+               (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
+               (melpazoid-misc "(apply-partially '[^,]" msg)
+               (melpazoid-misc "(apply '[^,]" msg)
+               (melpazoid-misc "(seq-mapcat '[^,]" msg)
+               (melpazoid-misc "(seq-map '[^,]" msg)
+               (melpazoid-misc "(seq-mapn '[^,]" msg)
+               (melpazoid-misc "(mapconcat '[^,]" msg)
+               (melpazoid-misc "(functionp '[^,]" msg)
+               (melpazoid-misc "(mapcar '[^,]" msg)
+               (melpazoid-misc "(funcall '[^,]" msg)
+               (melpazoid-misc "(cl-assoc-if '[^,]" msg)
+               (melpazoid-misc "(call-interactively '" msg)
+               (melpazoid-misc "(callf '[^,]" msg)
+               (melpazoid-misc "(run-at-time[^(#]*[^#]'" msg)
+               (melpazoid-misc "(seq-find '" msg)
+               (melpazoid-misc "(add-hook '[^[:space:]]+ '" msg)
+               (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
+               (melpazoid-misc "(advice-add [^#)]*)" msg)
+               (melpazoid-misc "(defalias [^#()]*)" msg)
+               (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))))
+       (lambda (res)
+         res)
+       (lambda (reason)
+         (promise-reject `(fail-sharp-quotes ,reason)))))))
 
 (async-defun melpazoid-run (&optional dir)
   "Specifies the DIR where the Melpazoid file located.
