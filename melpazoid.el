@@ -93,10 +93,14 @@ Argument is alist contain below information.
   :type 'sexp
   :group 'melpazoid)
 
+(defcustom melpazoid-buffer "*Melpazoid*"
+  "Name of the `melpazoid' buffer."
+  :type 'string
+  :group 'melpazoid)
+
 
 ;;; functions
 
-(defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-can-modify-buffers t "Whether melpazoid can modify buffers.")
 (defvar melpazoid-error-p nil)
