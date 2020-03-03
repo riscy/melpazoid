@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
+
 (defun melpazoid-checker--check-lexical-binding ()
   "Warn about lack of lexical binding."
   (save-excursion

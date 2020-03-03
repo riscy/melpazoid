@@ -101,7 +101,6 @@ Argument is alist contain below information.
 
 ;;; functions
 
-(defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-error-p nil)
 (defvar melpazoid-dependency-packages '(package-lint))
 
