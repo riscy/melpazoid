@@ -99,17 +99,10 @@ See `package-build--expand-source-file-list' from MELPA package-build."
            dir
            (melpazoid-build--config-file-list recipe))))
 
-(defun melpazoid-build--get-dependency-from-elisp-files (files)
-  "Get package dependency from Package-Require header from FILES.
-Duplicate requires are resolved by more restrictive."
+(defun melpazoid-build--resolve-duplicate-reqs (reqs)
+  "Resolve duplicate REQS."
   (let (ret)
-    (dolist (req (let (ret)
-                   (dolist (file files)
-                     (with-temp-buffer
-                       (insert-file-contents file)
-                       (when-let (package-desc (ignore-errors (package-buffer-info)))
-                         (push (package-desc-reqs package-desc) ret))))
-                   (mapcan 'identity ret)))
+    (dolist (req reqs)
       (let ((sym (car  req))
             (ver (cadr req)))
         (if (assq sym ret)
@@ -117,6 +110,17 @@ Duplicate requires are resolved by more restrictive."
               (setf (alist-get sym ret) (list ver)))
           (push req ret))))
     (nreverse ret)))
+
+(defun melpazoid-build--get-dependency-from-elisp-files (files)
+  "Get package dependency from Package-Require header from FILES.
+Duplicate requires are resolved by more restrictive."
+  (let (ret)
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (when-let (package-desc (ignore-errors (package-buffer-info)))
+          (push (package-desc-reqs package-desc) ret))))
+    (mapcan 'identity ret)))
 
 (defun melpazoid-build--get-dependency-from-melpazoid-file (development)
   "Get development package dependency from Melpazoid DEVELOPMENT.
