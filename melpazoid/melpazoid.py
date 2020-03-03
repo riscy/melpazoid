@@ -566,12 +566,12 @@ def check_melpa_pr(pr_url: str):
     if int(pr_data['changed_files']) != 1:
         _note('Please only add one recipe per pull request', CLR_ERROR)
         return
-    name, recipe = _name_and_recipe(pr_data['diff_url'])
-    if not name or not recipe:
+    filename, recipe = _name_and_recipe(pr_data['diff_url'])
+    if not filename or not recipe:
         _note(f"Unable to build the pull request at {pr_url}", CLR_ERROR)
         return
 
-    clone_address: str = _clone_address(name, recipe)
+    clone_address: str = _clone_address(filename, recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         _clone(clone_address, _branch(recipe), into=elisp_dir)
         return run_checks(recipe, elisp_dir, clone_address, pr_data)
@@ -607,7 +607,7 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
             return '', ''
 
 
-def _clone_address(name: str, recipe: str) -> str:
+def _clone_address(filename: str, recipe: str) -> str:
     """
     This is a HACK to get the clone address from the
     filename/recipe pair using the builtin MELPA machinery.  As a
@@ -618,7 +618,7 @@ def _clone_address(name: str, recipe: str) -> str:
     'https://hg.serna.eu/emacs/pmdm'
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, name), 'w') as recipe_file:
+        with open(os.path.join(tmpdir, filename), 'w') as recipe_file:
             recipe_file.write(recipe)
         with open(os.path.join(tmpdir, 'script.el'), 'w') as script:
             script.write(
@@ -629,7 +629,7 @@ def _clone_address(name: str, recipe: str) -> str:
                 + f"""(let ((package-build-recipes-dir "{tmpdir}"))
                        (send-string-to-terminal
                         (package-recipe--upstream-url
-                          (package-recipe-lookup "{name}"))))"""
+                          (package-recipe-lookup "{filename}"))))"""
             )
         return subprocess.check_output(['emacs', '--script', script.name]).decode()
 
