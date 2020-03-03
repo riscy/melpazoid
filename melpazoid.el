@@ -71,7 +71,7 @@
 (require 'package-lint)
 (require 'f)
 (require 'melpazoid-build)
-(require 'melpazoid-checkers)
+(require 'melpazoid-checker)
 
 (defgroup melpazoid nil
   "A MELPA review tool."
