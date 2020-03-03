@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
+(defvar melpazoid-checker--header-printed-p nil "Whether misc-header was printed.")
 
 (defun melpazoid-checker--check-lexical-binding ()
   "Warn about lack of lexical binding."
@@ -38,7 +38,7 @@
 (defun melpazoid-checker--remove-no-compile ()
   "Warn about and remove `no-byte-compile' directive."
   (save-excursion
-    (let ((melpazoid--misc-header-printed-p t))  ; HACK: don't print a header
+    (let ((melpazoid-checker--header-printed-p t))  ; HACK: don't print a header
       (melpazoid-misc "no-byte-compile: t" "Don't set `no-byte-compile: t`." nil t))
     (goto-char (point-min))
     (while (re-search-forward "no-byte-compile:[\s\t]*t" nil t)
@@ -67,9 +67,9 @@ then also scan comments for REGEXP."
       (when (or include-comments
                 (not (comment-only-p (point-at-bol) (point-at-eol))))
         ;; print a header unless it's already been printed:
-        (unless melpazoid--misc-header-printed-p
+        (unless melpazoid-checker--header-printed-p
           (melpazoid-insert "Experimental static checks/suggestions:")
-          (setq melpazoid--misc-header-printed-p t))
+          (setq melpazoid-checker--header-printed-p t))
         (melpazoid-insert "- %s#L%s: %s"
                           (file-name-nondirectory (buffer-file-name))
                           (line-number-at-pos)
@@ -96,7 +96,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
   (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
   (package-initialize)
-  (setq melpazoid--misc-header-printed-p nil)
+  (setq melpazoid-checker--header-printed-p nil)
   (setq melpazoid-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
