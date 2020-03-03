@@ -495,9 +495,10 @@ If the argument is omitted, the current directory is assumed."
                     ;; (melpazoid-byte-compile filename)
                     ;; (melpazoid-checkdoc filename)
                     ;; (melpazoid--check-declare)
-                    (melpazoid-package-lint)
-                    (melpazoid-check-sharp-quotes)
-                    (melpazoid-check-misc))
+                    ;; (melpazoid-package-lint)
+                    ;; (melpazoid-check-sharp-quotes)
+                    ;; (melpazoid-check-misc)
+                    )
                   (pop-to-buffer melpazoid-buffer)
                   (goto-char (point-min)))))))))))
 
