@@ -1,4 +1,4 @@
-;;; melpazoid-checkers.el --- Checkers for melpazoid  -*- lexical-binding: t; -*-
+;;; melpazoid-checker.el --- Checkers for melpazoid  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020  Naoya Yamashita
 
@@ -258,5 +258,5 @@ OBJECTS are objects to interpolate into the string using `format'."
       (melpazoid-misc "http://" "Prefer `https` over `http` (if possible)" nil t)
       (melpazoid-misc "(eq[^()]*\\<nil\\>.*)" "You can use `not` or `null`"))))
 
-(provide 'melpazoid-checkers)
-;;; melpazoid-checkers.el ends here
+(provide 'melpazoid-checker)
+;;; melpazoid-checker.el ends here
