@@ -1,9 +1,12 @@
-;;; melpazoid-async.el --- Checkers for melpazoid  -*- lexical-binding: t; -*-
+;;; melpazoid-async.el --- Async running melpazoid  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020  Naoya Yamashita
 
 ;; Author: Naoya Yamashita <conao3@gmail.com>
 ;; Keywords: convenience
+;; URL: https://github.com/riscy/melpazoid
+;; Package-Requires: ((emacs "25.1") (async-await "1.0") (async "1.9.4"))
+;; Version: 0.0.1
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,7 +23,7 @@
 
 ;;; Commentary:
 
-;;
+;; Async running melpazoid.
 
 ;;; Code:
 
