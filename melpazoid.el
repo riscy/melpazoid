@@ -86,6 +86,9 @@
   "List of checker which is called with 1 argument, return promise.
 Argument is alist contain below information.
   - sandboxdir
+  - elpadir
+  - builddir
+  - distdir
   - tmpfile"
   :type 'sexp
   :group 'melpazoid)
@@ -509,6 +512,9 @@ If the argument is omitted, the current directory is assumed."
                   (await
                    (let* ((tmpfile (expand-file-name (file-name-nondirectory source) builddir))
                           (info `((sandboxdir . ,sandboxdir)
+                                  (elpadir    . ,(expand-file-name "elpa" sandboxdir))
+                                  (builddir   . ,(expand-file-name "build" sandboxdir))
+                                  (distdir    . ,(expand-file-name "dist" sandboxdir))
                                   (tmpfile    . ,tmpfile))))
                      (copy-file source tmpfile 'overwrite)
                      (promise-concurrent-no-reject-immidiately
