@@ -101,8 +101,6 @@ Argument is alist contain below information.
 
 ;;; functions
 
-(defvar melpazoid-dependency-packages '(package-lint))
-
 
 ;;;###autoload
 (defun melpazoid (&optional dir)
