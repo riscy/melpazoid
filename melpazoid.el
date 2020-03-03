@@ -77,12 +77,12 @@
   "A MELPA review tool."
   :group 'tool)
 
-(defcustom melpazoid-checkers '(melpazoid--byte-compile
-                                melpazoid--checkdoc
-                                melpazoid--package-lint
-                                ;; melpazoid--check-declare
-                                melpazoid--check-sharp-quotes
-                                melpazoid--check-misc)
+(defcustom melpazoid-checkers '(melpazoid-checker--byte-compile
+                                melpazoid-checker--checkdoc
+                                melpazoid-checker--package-lint
+                                ;; melpazoid-checker--declare
+                                melpazoid-checker--sharp-quotes
+                                melpazoid-checker--misc)
   "List of checker which is called with 1 argument.
 Argument is alist contain below information.
   - sandboxdir

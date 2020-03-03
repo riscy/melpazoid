@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(defun melpazoid--check-lexical-binding ()
+(defun melpazoid-checker--check-lexical-binding ()
   "Warn about lack of lexical binding."
   (save-excursion
     (goto-char (point-min))
@@ -33,7 +33,7 @@
       (melpazoid-insert "  See: https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#fixing-typical-problems")
       (melpazoid-insert "- Lexical binding will be used in what follows"))))
 
-(defun melpazoid--remove-no-compile ()
+(defun melpazoid-checker--remove-no-compile ()
   "Warn about and remove `no-byte-compile' directive."
   (save-excursion
     (let ((melpazoid--misc-header-printed-p t))  ; HACK: don't print a header
@@ -46,14 +46,14 @@
         (melpazoid-insert "  Byte-compiling is enabled in what follows")
         (save-buffer)))))
 
-(defun melpazoid--run-package-lint-p ()
+(defun melpazoid-checker--run-package-lint-p ()
   "Return non-nil if buffer's file is not the package's 'main' file."
   (or (not (getenv "PACKAGE_NAME"))
       ;; TODO: can we use buffer-file-name instead of (buffer-file-name)?
       (string= (getenv "PACKAGE_NAME") (file-name-base (buffer-file-name)))
       (zerop (length (getenv "PACKAGE_NAME")))))
 
-(defun melpazoid-misc (regexp msg &optional no-smart-space include-comments)
+(defun melpazoid-checker-misc (regexp msg &optional no-smart-space include-comments)
   "If a search for REGEXP passes, report MSG as a misc check.
 If NO-SMART-SPACE is nil, use smart spaces -- i.e. replace all
 SPC characters in REGEXP with [[:space:]]+.  If INCLUDE-COMMENTS
@@ -74,7 +74,7 @@ then also scan comments for REGEXP."
                           (line-number-at-pos)
                           msg)))))
 
-(defun melpazoid-insert (f-str &rest objects)
+(defun melpazoid-checker-insert (f-str &rest objects)
   "Insert F-STR in a way determined by whether we're in script mode.
 OBJECTS are objects to interpolate into the string using `format'."
   (let* ((str (concat f-str "\n"))
@@ -84,13 +84,13 @@ OBJECTS are objects to interpolate into the string using `format'."
       (with-current-buffer (get-buffer-create melpazoid-buffer)
         (insert str)))))
 
-(defun melpazoid--newline-trim (str)
+(defun melpazoid-checker--newline-trim (str)
   "Sanitize STR by removing newlines."
   (let* ((str (replace-regexp-in-string "[\n]+$" "" str))
          (str (replace-regexp-in-string "^[\n]+" "" str)))
     str))
 
-(defun melpazoid--reset-state ()
+(defun melpazoid-checker--reset-state ()
   "Reset melpazoid's current state variables."
   (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
   (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
@@ -99,7 +99,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   (setq melpazoid-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
-(defun melpazoid--byte-compile (info)
+(defun melpazoid-checker--byte-compile (info)
   "Byte-compile INFO."
   (let-alist info
     (let ((package-user-dir .sandboxdir))
@@ -124,7 +124,7 @@ OBJECTS are objects to interpolate into the string using `format'."
             (setq melpazoid-error-p t)))
         (melpazoid-insert "")))))
 
-(defun melpazoid--checkdoc (info)
+(defun melpazoid-checker--checkdoc (info)
   "Checkdoc with INFO."
   (let-alist info
     (let ((package-user-dir .sandboxdir))
@@ -149,7 +149,7 @@ OBJECTS are objects to interpolate into the string using `format'."
           (setq melpazoid-error-p t)))
       (melpazoid-insert ""))))
 
-(defun melpazoid--package-lint (info)
+(defun melpazoid-checker--package-lint (info)
   "Package-lint with INFO."
   (let-alist info
     (let ((package-user-dir .sandboxdir))
@@ -157,7 +157,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       (package-initialize)
 
       (require 'package-lint)
-      (if (not (melpazoid--run-package-lint-p))
+      (if (not (melpazoid-checker--run-package-lint-p))
           (melpazoid-insert "(Skipping package-lint on this file)")
         (melpazoid-insert
          "package-lint-current-buffer (using version %s):"
@@ -177,7 +177,7 @@ OBJECTS are objects to interpolate into the string using `format'."
               (melpazoid-insert "```")
               (setq melpazoid-error-p t))))))))
 
-(defun melpazoid--check-declare (info)
+(defun melpazoid-checker--declare (info)
   "Check `declare-defun' with INFO."
   (let-alist info
     (with-current-buffer (find-file-noselect .tmpfile)
@@ -193,7 +193,7 @@ OBJECTS are objects to interpolate into the string using `format'."
           (setq melpazoid-error-p t)))
       (melpazoid-insert ""))))
 
-(defun melpazoid--check-sharp-quotes (info)
+(defun melpazoid-checker--sharp-quotes (info)
   "Check sharp-quotes with INFO."
   (let-alist info
     (with-current-buffer (find-file-noselect .tmpfile)
@@ -221,7 +221,7 @@ OBJECTS are objects to interpolate into the string using `format'."
         (melpazoid-misc "(defalias [^#()]*)" msg)
         (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))))
 
-(defun melpazoid--check-misc (info)
+(defun melpazoid-checker--misc (info)
   "Check misc with INFO."
   (let-alist info
     (with-current-buffer (find-file-noselect .tmpfile)
