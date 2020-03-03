@@ -84,6 +84,7 @@
 (defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
                                 melpazoid--promise-checkdoc
                                 melpazoid--promise-package-lint
+                                ;; melpazoid--promise-check-declare
                                 melpazoid--promise-sharp-quotes)
   "List of checker which is called with 1 argument, return promise.
 Argument is alist contain below information.
@@ -204,61 +205,6 @@ See `package-build--expand-source-file-list' from MELPA package-build."
       ;; TODO: can we use buffer-file-name instead of (buffer-file-name)?
       (string= (getenv "PACKAGE_NAME") (file-name-base (buffer-file-name)))
       (zerop (length (getenv "PACKAGE_NAME")))))
-
-(defun melpazoid-check-declare ()
-  "Wrapper for `melpazoid' check-declare.
-NOTE: this sometimes backfires when running checks automatically inside
-a Docker container, e.g. kellyk/emacs does not include the .el files."
-  (melpazoid-insert "check-declare-file (optional):")
-  (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
-  (check-declare-file (buffer-file-name (current-buffer)))
-  (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
-    (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-insert "- No issues!")
-      (melpazoid-insert "```")
-      (melpazoid-insert (buffer-substring (point-min) (point-max)))
-      (melpazoid-insert "```")
-      (setq melpazoid-error-p t)))
-  (melpazoid-insert ""))
-
-(defun melpazoid-check-misc ()
-  "Miscellaneous checker."
-  (melpazoid-misc "(string-equal major-mode" "Check major mode with eq, e.g.: `(eq major-mode 'dired-mode)`")
-  (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
-  (melpazoid-misc "(s-starts-with-p" "Using `string-prefix-p` may allow dropping the dependency on `s`")
-  (melpazoid-misc "(s-ends-with-p" "Using `string-suffix-p` may allow dropping the dependency on `s`")
-  (melpazoid-misc "Copyright.*Free Software Foundation" "Did you really do the paperwork to assign your copyright?")
-  (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
-  (melpazoid-misc "This file is part of GNU Emacs." "This statement may not currently be accurate")
-  (melpazoid-misc "lighter \"[^ \"]" "Minor mode lighters should start with a space")
-  (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
-  (melpazoid-misc "(fmakunbound" "Use of `fmakunbound` in a package is usually unnecessary")
-  (melpazoid-misc "(setq major-mode" "Directly setting major-mode is odd (if defining a mode, prefer define-derived-mode)")
-  (melpazoid-misc "([^ ]*read-string \"[^\"]*[^ ]\"" "Many `*-read-string` prompts should end with a space")
-  (melpazoid-misc "(define-derived-mode .*fundamental-mode" "It is unusual to derive from fundamental-mode; try special-mode")
-  (melpazoid-misc ";;;###autoload\n(defcustom" "Don't autoload `defcustom`")
-  (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
-  (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects (ensure it works)")
-  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` instead of `;; Package-Version` (MELPA automatically adds `Package-Version`)")
-  (melpazoid-misc "^(define-key" "This define-key could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
-  (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
-  (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private")
-  (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s built-in NOERROR argument")
-  (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s built-in NOERROR argument")
-  (melpazoid-misc "(user-error (format" "No `format` required; messages are already f-strings")
-  (melpazoid-misc "(message (concat" "No `concat` required; messages are already f-strings")
-  (melpazoid-misc "(message (format" "No `format` required; messages are already f-strings")
-  (melpazoid-misc "^ ;[^;]" "Single-line comments should (usually) begin with `;;`")
-  (melpazoid-misc "(unless (null " "Consider `when ...` instead of `unless (not ...)`")
-  (melpazoid-misc "(unless (not " "Consider `when ...` instead of `unless (null ...)`")
-  (melpazoid-misc "(when (not " "Consider `unless ...` instead of `when (not ...)`")
-  (melpazoid-misc "(when (null " "Consider `unless ...` instead of `when (null ...)`")
-  (melpazoid-misc "http://" "Prefer `https` over `http` (if possible)" nil t)
-  (melpazoid-misc "(eq[^()]*\\<nil\\>.*)" "You can use `not` or `null`")
-  ;; (melpazoid-misc "'()" "Consider using `nil` instead of `'()`")
-  ;; (melpazoid-misc (concat ":group '" (file-name-base (buffer-file-name))) "This :group is unnecessary (it is set implicitly)")
-  ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
-  )
 
 (defun melpazoid-misc (regexp msg &optional no-smart-space include-comments)
   "If a search for REGEXP passes, report MSG as a misc check.
@@ -459,6 +405,30 @@ NOTE:
          res)
        (lambda (reason)
          (promise-reject `(fail-checkdoc ,reason)))))))
+
+(defun melpazoid--promise-check-declare (info)
+  "Check `declare-defun' with INFO."
+  (let-alist info
+    (let ((tmpfile .tmpfile))
+      (promise-then
+       (promise:async-start
+        `(lambda ()
+           (with-current-buffer (find-file-noselect ,tmpfile)
+             (melpazoid-insert "check-declare-file (optional):")
+             (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
+             (check-declare-file (buffer-file-name (current-buffer)))
+             (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
+               (if (melpazoid--buffer-almost-empty-p)
+                   (melpazoid-insert "- No issues!")
+                 (melpazoid-insert "```")
+                 (melpazoid-insert (buffer-substring (point-min) (point-max)))
+                 (melpazoid-insert "```")
+                 (setq melpazoid-error-p t)))
+             (melpazoid-insert ""))))
+       (lambda (res)
+         res)
+       (lambda (reason)
+         (promise-reject `(fail-check-declare ,reason)))))))
 
 (defun melpazoid--promise-sharp-quotes (info)
   "Check sharp-quotes with INFO."
