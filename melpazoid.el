@@ -82,6 +82,7 @@
   :group 'melpazoid)
 
 (defcustom melpazoid-checkers '(melpazoid--promise-byte-compile
+                                melpazoid--promise-checkdoc
                                 melpazoid--promise-package-lint)
   "List of checker which is called with 1 argument, return promise.
 Argument is alist contain below information.
