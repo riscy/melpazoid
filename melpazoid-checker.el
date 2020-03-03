@@ -38,13 +38,12 @@
   (save-excursion
     (let ((melpazoid--misc-header-printed-p t))  ; HACK: don't print a header
       (melpazoid-misc "no-byte-compile: t" "Don't set `no-byte-compile: t`." nil t))
-    (when melpazoid-can-modify-buffers
-      (goto-char (point-min))
-      (while (re-search-forward "no-byte-compile:[\s\t]*t" nil t)
-        (delete-char -1)
-        (insert "nil")
-        (melpazoid-insert "  Byte-compiling is enabled in what follows")
-        (save-buffer)))))
+    (goto-char (point-min))
+    (while (re-search-forward "no-byte-compile:[\s\t]*t" nil t)
+      (delete-char -1)
+      (insert "nil")
+      (melpazoid-insert "  Byte-compiling is enabled in what follows")
+      (save-buffer))))
 
 (defun melpazoid-checker--run-package-lint-p ()
   "Return non-nil if buffer's file is not the package's 'main' file."
