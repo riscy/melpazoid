@@ -30,6 +30,9 @@
 
 (defvar melpazoid-build-dependency-packages '(package-lint))
 
+
+;;; MELPA package-build functions
+
 (defconst melpazoid-build-default-files-spec
   '("*.el" "*.el.in" "dir"
     "*.info" "*.texi" "*.texinfo"
@@ -90,6 +93,9 @@ See `package-build--config-file-list' from MELPA package-build."
       (append melpazoid-build-default-files-spec (cdr file-list)))
      (t
       file-list))))
+
+
+;;; functions
 
 (defun melpazoid-build--expand-source-file-list (recipe dir)
   "Resolve source file from RECIPE in DIR.
