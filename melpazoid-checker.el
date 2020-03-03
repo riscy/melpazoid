@@ -25,7 +25,7 @@
 ;;; Code:
 
 (defvar melpazoid-checker--header-printed-p nil "Whether misc-header was printed.")
-(defvar melpazoid-error-p nil)
+(defvar melpazoid-checker-error-p nil)
 
 (defun melpazoid-checker--check-lexical-binding ()
   "Warn about lack of lexical binding."
@@ -98,7 +98,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
   (package-initialize)
   (setq melpazoid-checker--header-printed-p nil)
-  (setq melpazoid-error-p nil)
+  (setq melpazoid-checker-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 (defun melpazoid-checker--byte-compile (info)
@@ -123,7 +123,7 @@ OBJECTS are objects to interpolate into the string using `format'."
             (melpazoid-insert
              (melpazoid--newline-trim (buffer-substring (point) (point-max))))
             (melpazoid-insert "```")
-            (setq melpazoid-error-p t)))
+            (setq melpazoid-checker-error-p t)))
         (melpazoid-insert "")))))
 
 (defun melpazoid-checker--checkdoc (info)
@@ -148,7 +148,7 @@ OBJECTS are objects to interpolate into the string using `format'."
           (melpazoid-insert
            (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
           (melpazoid-insert "```")
-          (setq melpazoid-error-p t)))
+          (setq melpazoid-checker-error-p t)))
       (melpazoid-insert ""))))
 
 (defun melpazoid-checker--package-lint (info)
@@ -177,7 +177,7 @@ OBJECTS are objects to interpolate into the string using `format'."
                    "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
                  output))
               (melpazoid-insert "```")
-              (setq melpazoid-error-p t))))))))
+              (setq melpazoid-checker-error-p t))))))))
 
 (defun melpazoid-checker--declare (info)
   "Check `declare-defun' with INFO."
@@ -192,7 +192,7 @@ OBJECTS are objects to interpolate into the string using `format'."
           (melpazoid-insert "```")
           (melpazoid-insert (buffer-substring (point-min) (point-max)))
           (melpazoid-insert "```")
-          (setq melpazoid-error-p t)))
+          (setq melpazoid-checker-error-p t)))
       (melpazoid-insert ""))))
 
 (defun melpazoid-checker--sharp-quotes (info)
