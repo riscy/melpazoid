@@ -24,6 +24,10 @@
 
 ;;; Code:
 
+(require 'checkdoc)
+(require 'package-lint)
+(require 'f)
+
 (defvar melpazoid-checker--header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-checker-error-p nil)
 
