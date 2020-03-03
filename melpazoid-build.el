@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(defvar melpazoid-dependency-packages '(package-lint))
+
 (defconst melpazoid-build-default-files-spec
   '("*.el" "*.el.in" "dir"
     "*.info" "*.texi" "*.texinfo"
