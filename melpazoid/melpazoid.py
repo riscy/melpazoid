@@ -622,16 +622,22 @@ def _clone_address(filename: str, recipe: str) -> str:
             recipe_file.write(recipe)
         with open(os.path.join(tmpdir, 'script.el'), 'w') as script:
             script.write(
-                requests.get(
-                    'https://raw.githubusercontent.com/melpa/melpa/master/'
-                    'package-build/package-recipe.el'
-                ).text
+                _package_recipe_el()
                 + f"""(let ((package-build-recipes-dir "{tmpdir}"))
                        (send-string-to-terminal
                         (package-recipe--upstream-url
                           (package-recipe-lookup "{filename}"))))"""
             )
         return subprocess.check_output(['emacs', '--script', script.name]).decode()
+
+
+@functools.lru_cache()
+def _package_recipe_el() -> str:
+    """Grab the source code for MELPA's package-build/package-recipe.el"""
+    return requests.get(
+        'https://raw.githubusercontent.com/melpa/melpa/master/'
+        'package-build/package-recipe.el'
+    ).text
 
 
 def check_melpa_pr_loop():
