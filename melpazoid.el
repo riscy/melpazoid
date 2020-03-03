@@ -70,6 +70,8 @@
 (require 'pkg-info)
 (require 'package-lint)
 (require 'f)
+(require 'melpazoid-build)
+(require 'melpazoid-checkers)
 
 (defgroup melpazoid nil
   "A MELPA review tool."
