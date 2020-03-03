@@ -126,7 +126,7 @@ If the argument is omitted, the current directory is assumed."
                      (sources (melpazoid--expand-source-file-list .recipe rootdir))
                      (reqs (append (melpazoid--get-dependency-from-elisp-files sources)
                                    (melpazoid--get-dependency-from-melpazoid-file .development)
-                                   melpazoid-dependency-packages)))
+                                   melpazoid-build-dependency-packages)))
                 (melpazoid--resolve-dependency sandboxdir reqs)
                 (dolist (source sources)
                   (let* ((tmpfile (expand-file-name (file-name-nondirectory source) builddir))

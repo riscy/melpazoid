@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(defvar melpazoid-dependency-packages '(package-lint))
+(defvar melpazoid-build-dependency-packages '(package-lint))
 
 (defconst melpazoid-build-default-files-spec
   '("*.el" "*.el.in" "dir"
