@@ -93,6 +93,35 @@ See `package-build--expand-source-file-list' from MELPA package-build."
            dir
            (melpazoid--config-file-list recipe))))
 
+(defun melpazoid--get-dependency-from-elisp-files (files)
+  "Get package dependency from Package-Require header from FILES.
+Duplicate requires are resolved by more restrictive."
+  (let (ret)
+    (dolist (req (let (ret)
+                   (dolist (file files)
+                     (with-temp-buffer
+                       (insert-file-contents file)
+                       (when-let (package-desc (ignore-errors (package-buffer-info)))
+                         (push (package-desc-reqs package-desc) ret))))
+                   (mapcan 'identity ret)))
+      (let ((sym (car  req))
+            (ver (cadr req)))
+        (if (assq sym ret)
+            (when (version-list-< (car (alist-get sym ret)) ver)
+              (setf (alist-get sym ret) (list ver)))
+          (push req ret))))
+    (nreverse ret)))
+
+(defun melpazoid--get-dependency-from-melpazoid-file (development)
+  "Get development package dependency from Melpazoid DEVELOPMENT.
+Currently, ignore any args for development."
+  (let (ret)
+    (dolist (req development)
+      (if (listp req)
+          (push `(,(car req) (0 0 1)) ret)
+        (push `(,req (0 0 1)) ret)))
+    (nreverse ret)))
+
 (defun melpazoid--resolve-dependency (sandboxdir deps)
   "Fetch and build dependency in SANDBOXDIR.
 DEPS is pkg symbol of list.
