@@ -382,7 +382,7 @@ NOTE:
      (promise-reject `(fail-resolve-dependency ,reason)))))
 
 (defun melpazoid--promise-byte-compile (info)
-  "Byte-compile info"
+  "Byte-compile INFO."
   (let-alist info
     (let ((sandboxdir .sandboxdir)
           (tmpfile    .tmpfile))
