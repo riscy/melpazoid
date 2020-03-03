@@ -24,6 +24,10 @@
 
 ;;; Code:
 
+(require 'subr-x)
+(require 'package)
+(require 'pkg-info)
+
 (defvar melpazoid-build-dependency-packages '(package-lint))
 
 (defconst melpazoid-build-default-files-spec

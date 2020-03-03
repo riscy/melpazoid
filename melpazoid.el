@@ -65,11 +65,6 @@
 
 ;;; Code:
 
-(require 'package)
-(require 'checkdoc)
-(require 'pkg-info)
-(require 'package-lint)
-(require 'f)
 (require 'melpazoid-build)
 (require 'melpazoid-checker)
 
