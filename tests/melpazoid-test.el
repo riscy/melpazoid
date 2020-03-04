@@ -31,5 +31,5 @@
   (it "contains a spec with an expectation"
       (expect t :to-be t)))
 
-(provide 'melpazoid-test)
+;; (provide 'melpazoid-test)
 ;;; melpazoid-test.el ends here
