@@ -94,9 +94,6 @@ See `package-build--config-file-list' from MELPA package-build."
      (t
       file-list))))
 
-
-;;; functions
-
 (defun melpazoid-build--expand-source-file-list (recipe dir)
   "Resolve source file from RECIPE in DIR.
 See `package-build--expand-source-file-list' from MELPA package-build."
@@ -104,6 +101,9 @@ See `package-build--expand-source-file-list' from MELPA package-build."
           (melpazoid-build--expand-file-specs
            dir
            (melpazoid-build--config-file-list recipe))))
+
+
+;;; functions
 
 (defun melpazoid-build--resolve-duplicate-reqs (reqs)
   "Resolve duplicate REQS."
