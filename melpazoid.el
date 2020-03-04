@@ -7,7 +7,7 @@
 ;; Created: June 9 2019
 ;; Keywords: tools convenience
 ;; URL: https://github.com/riscy/melpazoid
-;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (f "0.20"))
+;; Package-Requires: ((emacs "25.1") (package-lint "0.12") (f "0.20") (pkg-info "0.6"))
 ;; Version: 0.0.1
 
 ;; This program is free software: you can redistribute it and/or modify

@@ -17,3 +17,11 @@ term: image
 image:
 	@docker build --build-arg PACKAGE_NAME --quiet \
 		--tag ${IMAGE_NAME} -f docker/Dockerfile .
+
+.PHONY: cask-test
+cask-test: .cask
+	cask exec buttercup -L .
+
+.cask:
+	cask install
+	touch $@
