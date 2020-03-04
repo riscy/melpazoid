@@ -27,6 +27,9 @@
 (require 'buttercup)
 (require 'melpazoid)
 
+(describe "A suite"
+  (it "contains a spec with an expectation"
+      (expect t :to-be t)))
 
 (provide 'melpazoid-test)
 ;;; melpazoid-test.el ends here
