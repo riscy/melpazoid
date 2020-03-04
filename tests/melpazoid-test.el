@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(require 'buttercup)
+(require 'melpazoid)
 
 
 (provide 'melpazoid-test)
