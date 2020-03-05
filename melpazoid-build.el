@@ -122,10 +122,10 @@ See `package-build--expand-source-file-list' from MELPA package-build."
 Duplicate requires are resolved by more restrictive."
   (let (ret)
     (dolist (file files)
-      (with-temp-buffer
-        (insert-file-contents file)
-        (when-let (package-desc (ignore-errors (package-buffer-info)))
-          (push (package-desc-reqs package-desc) ret))))
+      (with-current-buffer (find-file-noselect file)
+        (save-excursion
+          (when-let (package-desc (ignore-errors (package-buffer-info)))
+            (push (package-desc-reqs package-desc) ret)))))
     (mapcan 'identity ret)))
 
 (defun melpazoid-build--get-dependency-from-melpazoid-file (development)
