@@ -24,7 +24,9 @@
 
 ;;; Code:
 
-(defun melpazoid-build--get-melpazoid-path (&optional dir)
+(require 'subr-x)
+
+(defun melpazoid-file--path (&optional dir)
   "Get directory path which Melpazoid located from DIR.
 If no found the directory, returns nil.
 If DIR is omitted, assume `default-directory'."
@@ -32,20 +34,20 @@ If DIR is omitted, assume `default-directory'."
         (dir* (or dir default-directory)))
     (expand-file-name file (locate-dominating-file dir* file))))
 
-(defun melpazoid-build--read-melpazoid-file (&optional dir)
+(defun melpazoid-file--read (&optional dir)
   "Return sexp from Melpazoid file in DIR.
 If no found the Melpazoid file, returns nil.
 If DIR is omitted, assume `default-directory'."
-  (when-let (path (melpazoid-build--get-melpazoid-path dir))
+  (when-let (path (melpazoid-file--path dir))
     (read (with-temp-buffer
             (insert-file-contents path)
             (buffer-string)))))
 
-(defun melpazoid-build--read-melpazoid-file-with-pkg (pkg &optional dir)
+(defun melpazoid-file--read-pkg (pkg &optional dir)
   "Return sexp from Melpazoid file in DIR for PKG.
 If no found the Melpazoid file, returns nil.
 If DIR is omitted, assume `default-directory'."
-  (when-let (contents (melpazoid-build--read-melpazoid-file dir))
+  (when-let (contents (melpazoid-file--read dir))
     (plist-get (cadr contents) pkg)))
 
 (provide 'melpazoid-file)

@@ -27,6 +27,7 @@
 (require 'subr-x)
 (require 'package)
 (require 'pkg-info)
+(require 'melpazoid-file)
 
 (defvar melpazoid-build-dependency-packages '(package-lint))
 
@@ -132,7 +133,7 @@ Duplicate requires are resolved by more restrictive."
   "Get development package dependency from Melpazoid located DIR for PKG.
 Currently, ignore any args for development.
 If DIR is omitted, assume `default-directory'."
-  (when-let* ((contents (melpazoid-build--read-melpazoid-file-with-pkg pkg dir))
+  (when-let* ((contents (melpazoid-file--read-pkg pkg dir))
               (devs (alist-get 'development contents)))
     (let (ret)
       (dolist (req devs)
