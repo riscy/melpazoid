@@ -103,31 +103,7 @@ See `package-build--expand-source-file-list' from MELPA package-build."
            (melpazoid-build--config-file-list recipe))))
 
 
-;;; Melpazoid file functions
-
-(defun melpazoid-build--get-melpazoid-path (&optional dir)
-  "Get directory path which Melpazoid located from DIR.
-If no found the directory, returns nil.
-If DIR is omitted, assume `default-directory'."
-  (let ((file "Melpazoid")
-        (dir* (or dir default-directory)))
-    (expand-file-name file (locate-dominating-file dir* file))))
-
-(defun melpazoid-build--read-melpazoid-file (&optional dir)
-  "Return sexp from Melpazoid file in DIR.
-If no found the Melpazoid file, returns nil.
-If DIR is omitted, assume `default-directory'."
-  (when-let (path (melpazoid-build--get-melpazoid-path dir))
-    (read (with-temp-buffer
-            (insert-file-contents path)
-            (buffer-string)))))
-
-(defun melpazoid-build--read-melpazoid-file-with-pkg (pkg &optional dir)
-  "Return sexp from Melpazoid file in DIR for PKG.
-If no found the Melpazoid file, returns nil.
-If DIR is omitted, assume `default-directory'."
-  (when-let (contents (melpazoid-build--read-melpazoid-file dir))
-    (plist-get (cadr contents) pkg)))
+;;; functions
 
 (defun melpazoid-build--resolve-duplicate-reqs (reqs)
   "Resolve duplicate REQS."
@@ -140,9 +116,6 @@ If DIR is omitted, assume `default-directory'."
               (setf (alist-get sym ret) (list ver)))
           (push req ret))))
     (nreverse ret)))
-
-
-;;; functions
 
 (defun melpazoid-build--get-dependency-from-elisp-files (files)
   "Get package dependency from Package-Require header from FILES.
