@@ -1,6 +1,8 @@
 '(melpazoid
-  ((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid"))
+  ((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid"
+                        :files (:defaults (:exclude "melpazoid-async.el"))))
    (development . (buttercup)))
 
   melpazoid-async
-  ((recipe . (melpazoid-async :fetcher github :repo "riscy/melpazoid"))))
+  ((recipe . (melpazoid-async :fetcher github :repo "riscy/melpazoid"
+                              :files ("melpazoid-async.el")))))
