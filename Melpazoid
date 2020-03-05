@@ -4,9 +4,14 @@
 (package
  melpazoid
  ((recipe . (melpazoid :fetcher github :repo "riscy/melpazoid"
-                       :files (:defaults (:exclude "melpazoid-async.el"))))
+                       :files (:defaults (:exclude "melpazoid-async.el"
+                                                   "melpazoid-mode.el"))))
   (development . (buttercup)))
 
  melpazoid-async
  ((recipe . (melpazoid-async :fetcher github :repo "riscy/melpazoid"
-                             :files ("melpazoid-async.el")))))
+                             :files ("melpazoid-async.el"))))
+
+ melpazoid-mode
+ ((recipe . (melpazoid-mode :fetcher github :repo "riscy/melpazoid"
+                            :files ("melpazoid-mode.el")))))
