@@ -1,4 +1,2 @@
-_requirements.el
-_elisp
 *.elc
 /.cask
