@@ -105,6 +105,30 @@ See `package-build--expand-source-file-list' from MELPA package-build."
 
 ;;; functions
 
+(defun melpazoid-build--get-melpazoid-path (&optional dir)
+  "Get directory path which Melpazoid located from DIR.
+If no found the directory, returns nil.
+If DIR is omitted, assume `default-directory'."
+  (let ((file "Melpazoid")
+        (dir* (or dir default-directory)))
+    (expand-file-name file (locate-dominating-file dir* file))))
+
+(defun melpazoid-build--read-melpazoid-file (&optional dir)
+  "Return sexp from Melpazoid file in DIR.
+If no found the Melpazoid file, returns nil.
+If DIR is omitted, assume `default-directory'."
+  (when-let (path (melpazoid-build--get-melpazoid-path dir))
+    (read (with-temp-buffer
+            (insert-file-contents path)
+            (buffer-string)))))
+
+(defun melpazoid-build--read-melpazoid-file-with-pkg (pkg &optional dir)
+  "Return sexp from Melpazoid file in DIR for PKG.
+If no found the Melpazoid file, returns nil.
+If DIR is omitted, assume `default-directory'."
+  (when-let (contents (melpazoid-build--read-melpazoid-file dir))
+    (plist-get (cadr contents) pkg)))
+
 (defun melpazoid-build--resolve-duplicate-reqs (reqs)
   "Resolve duplicate REQS."
   (let (ret)
@@ -128,15 +152,18 @@ Duplicate requires are resolved by more restrictive."
             (push (package-desc-reqs package-desc) ret)))))
     (mapcan 'identity ret)))
 
-(defun melpazoid-build--get-dependency-from-melpazoid-file (development)
-  "Get development package dependency from Melpazoid DEVELOPMENT.
-Currently, ignore any args for development."
-  (let (ret)
-    (dolist (req development)
-      (if (listp req)
-          (push `(,(car req) (0 0 1)) ret)
-        (push `(,req (0 0 1)) ret)))
-    (nreverse ret)))
+(defun melpazoid-build--get-dependency-from-melpazoid-file (pkg &optional dir)
+  "Get development package dependency from Melpazoid located DIR for PKG.
+Currently, ignore any args for development.
+If DIR is omitted, assume `default-directory'."
+  (when-let* ((contents (melpazoid-build--read-melpazoid-file-with-pkg pkg dir))
+              (devs (alist-get 'development contents)))
+    (let (ret)
+      (dolist (req devs)
+        (if (listp req)
+            (push `(,(car req) (0 0 1)) ret)
+          (push `(,req (0 0 1)) ret)))
+      (nreverse ret))))
 
 (defun melpazoid-build--resolve-dependency (sandboxdir deps)
   "Fetch and build dependency in SANDBOXDIR.
