@@ -103,7 +103,7 @@ See `package-build--expand-source-file-list' from MELPA package-build."
            (melpazoid-build--config-file-list recipe))))
 
 
-;;; functions
+;;; Melpazoid file functions
 
 (defun melpazoid-build--get-melpazoid-path (&optional dir)
   "Get directory path which Melpazoid located from DIR.
@@ -140,6 +140,9 @@ If DIR is omitted, assume `default-directory'."
               (setf (alist-get sym ret) (list ver)))
           (push req ret))))
     (nreverse ret)))
+
+
+;;; functions
 
 (defun melpazoid-build--get-dependency-from-elisp-files (files)
   "Get package dependency from Package-Require header from FILES.
