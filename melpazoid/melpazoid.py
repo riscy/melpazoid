@@ -492,10 +492,9 @@ def yes_p(text: str) -> bool:
 
 def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
-    name = _tokenize_lisp_list(recipe)[1]
     scm = _source_code_manager(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
-        clone_address = _clone_address(name, recipe)
+        clone_address = _clone_address(recipe)
         _clone(clone_address, _branch(recipe), into=elisp_dir, scm=scm)
         run_checks(recipe, elisp_dir, clone_address)
 
@@ -566,19 +565,19 @@ def check_melpa_pr(pr_url: str):
     if int(pr_data['changed_files']) != 1:
         _note('Please only add one recipe per pull request', CLR_ERROR)
         return
-    filename, recipe = _name_and_recipe(pr_data['diff_url'])
+    filename, recipe = _filename_and_recipe(pr_data['diff_url'])
     if not filename or not recipe:
         _note(f"Unable to build the pull request at {pr_url}", CLR_ERROR)
         return
 
-    clone_address: str = _clone_address(filename, recipe)
+    clone_address: str = _clone_address(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         _clone(clone_address, _branch(recipe), into=elisp_dir)
         return run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
 @functools.lru_cache()
-def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
+def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -607,16 +606,17 @@ def _name_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
             return '', ''
 
 
-def _clone_address(filename: str, recipe: str) -> str:
+def _clone_address(recipe: str) -> str:
     """
     This is a HACK to get the clone address from the
     filename/recipe pair using the builtin MELPA machinery.  As a
     bonus, it validates the recipe.
-    >>> _clone_address('shx', '(shx :repo "riscy/shx-for-emacs" :fetcher github)')
+    >>> _clone_address('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
     'https://github.com/riscy/shx-for-emacs.git'
-    >>> _clone_address('pmdm', '(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
+    >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
+    filename = _tokenize_lisp_list(recipe)[1]
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, filename), 'w') as recipe_file:
             recipe_file.write(recipe)
