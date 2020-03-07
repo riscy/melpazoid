@@ -580,30 +580,23 @@ def check_melpa_pr(pr_url: str):
 def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
+    diff_text = requests.get(pr_data_diff_url).text
+    if (
+        'new file mode' not in diff_text
+        or 'a/recipes' not in diff_text
+        or 'b/recipes' not in diff_text
+    ):
+        _note('This does not appear to add a new recipe', CLR_WARN)
+        return '', ''
     with tempfile.TemporaryDirectory() as tmpdir:
-        try:
-            diff_text = requests.get(pr_data_diff_url).text
-            if (
-                'new file mode' not in diff_text
-                or 'a/recipes' not in diff_text
-                or 'b/recipes' not in diff_text
-            ):
-                _note('This does not appear to add a new recipe', CLR_WARN)
-                return '', ''
-            recipe_name = diff_text.split('\n')[0].split('/')[-1]
-            diff_filename = os.path.join(tmpdir, 'diff')
-            recipe_filename = os.path.join(tmpdir, recipe_name)
-            with open(diff_filename, 'w') as diff_file:
-                diff_file.write(diff_text)
-            subprocess.check_output(
-                f"patch {recipe_filename} < {diff_filename}", shell=True
-            )
-            with open(recipe_filename) as recipe_file:
-                recipe = recipe_file.read()
-            return recipe_name, recipe.strip()
-        except subprocess.CalledProcessError as err:
-            _note(str(err), CLR_WARN)
-            return '', ''
+        with subprocess.Popen(
+            ['patch', '-s', '-o', os.path.join(tmpdir, 'patch')],
+            stdin=subprocess.PIPE,
+        ) as process:
+            process.stdin.write(diff_text.encode())
+        with open(os.path.join(tmpdir, 'patch')) as patch_file:
+            basename = diff_text.split('\n')[0].split('/')[-1]
+            return basename, patch_file.read().strip()
 
 
 def _clone_address(recipe: str) -> str:
