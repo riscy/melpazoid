@@ -60,7 +60,6 @@ def run_checks(
     pr_data: dict = None,  # optional data from the PR
 ):
     """Entrypoint for running all checks."""
-    return_code(0)
     if not validate_recipe(recipe):
         _fail(f"Recipe '{recipe}' appears to be invalid")
         return
@@ -422,8 +421,9 @@ def print_details(
     recipe: str, recipe_files: list, pr_data: dict = None, clone_address: str = None
 ):
     _note('\n### Details ###\n', CLR_INFO)
+    print(f"```elisp\n{recipe}\n```")
     if ':files' in recipe or ':branch' in recipe:
-        _note('  - Prefer the default recipe, especially for small packages', CLR_WARN)
+        _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
         print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
@@ -492,6 +492,7 @@ def yes_p(text: str) -> bool:
 
 def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
+    return_code(0)
     scm = _source_code_manager(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         clone_address = _clone_address(recipe)
@@ -546,6 +547,7 @@ def _branch(recipe: str) -> str:
 
 def check_local_package(elisp_dir: str = None, package_name: str = None):
     """Check a locally-hosted package (WIP)."""
+    return_code(0)
     elisp_dir = elisp_dir or input('Path: ').strip()
     assert os.path.isdir(elisp_dir)
     package_name = package_name or input(f"Name of package at {elisp_dir}: ")
@@ -555,6 +557,7 @@ def check_local_package(elisp_dir: str = None, package_name: str = None):
 
 def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
+    return_code(0)
     match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
 
@@ -573,7 +576,7 @@ def check_melpa_pr(pr_url: str):
     clone_address: str = _clone_address(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         _clone(clone_address, _branch(recipe), into=elisp_dir)
-        return run_checks(recipe, elisp_dir, clone_address, pr_data)
+        run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
 @functools.lru_cache()
@@ -638,6 +641,8 @@ def check_melpa_pr_loop():
     for pr_url in _fetch_pull_requests():
         print(f"Found MELPA PR {pr_url}")
         check_melpa_pr(pr_url)
+        if return_code() != 0:
+            _fail('*** This PR failed')
         print('-' * 79)
 
 
