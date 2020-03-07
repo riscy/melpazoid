@@ -357,7 +357,7 @@ def _check_license_file(elisp_dir: str) -> bool:
             with open(os.path.join(elisp_dir, license_)) as stream:
                 print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
-    _fail('- No LICENSE or COPYING file found in repository')
+    _fail('- Please add a LICENSE or COPYING file to the repository')
     return False
 
 
@@ -370,7 +370,7 @@ def _check_license_in_files(elisp_files: list) -> bool:
         license_ = _check_license_in_file(elisp_file)
         basename = os.path.basename(elisp_file)
         if not license_:
-            _fail(f"- {basename} has no detectable license text")
+            _fail(f"- {basename} has no detectable license boilerplate")
             individual_files_licensed = False
         else:
             print(f"- {basename} has {license_} license text")
@@ -396,6 +396,8 @@ def _check_license_in_file(elisp_file: str) -> str:
 
 
 def check_packaging(recipe_files: list, recipe: str):
+    if ':files' in recipe or ':branch' in recipe:
+        _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
@@ -422,8 +424,6 @@ def print_details(
 ):
     _note('\n### Details ###\n', CLR_INFO)
     print(f"```elisp\n{recipe}\n```")
-    if ':files' in recipe or ':branch' in recipe:
-        _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
     print('- Package-Requires: ', end='')
     if _requirements(recipe_files):
         print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
