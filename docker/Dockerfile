@@ -13,8 +13,6 @@ RUN echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf \
     && apt-get update && apt-get install \
     bash \
     build-essential \
-    dbus-x11 \
-    fontconfig \
     git \
     gzip \
     language-pack-en-base \
@@ -23,12 +21,6 @@ RUN echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf \
     sudo \
     tar \
     unzip \
-# su-exec
-    && git clone https://github.com/ncopa/su-exec.git /tmp/su-exec \
-    && cd /tmp/su-exec \
-    && make \
-    && chmod 770 su-exec \
-    && mv ./su-exec /usr/local/sbin/ \
 # Cleanup
     && apt-get purge build-essential \
     && apt-get autoremove \
@@ -37,7 +29,7 @@ RUN echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf \
 # Emacs
 RUN apt-get update && apt-get install software-properties-common \
     && apt-add-repository ppa:kelleyk/emacs \
-    && apt-get update && echo hi && apt-get install emacs26 \
+    && apt-get update && apt-get install emacs26 \
 # Cleanup
     && apt-get purge software-properties-common \
     && rm -rf /tmp/* /var/lib/apt/lists/* /root/.cache/*
@@ -53,7 +45,7 @@ COPY docker/requirements.el $WORKSPACE
 RUN emacs --script $WORKSPACE/requirements.el
 
 COPY _requirements.el $WORKSPACE
-RUN emacs --script ~/_requirements.el
+RUN emacs --script $WORKSPACE/_requirements.el
 
 COPY --chown=emacser:emacser docker/.emacs $WORKSPACE
 COPY --chown=emacser:emacser _elisp $ELISP_PATH
