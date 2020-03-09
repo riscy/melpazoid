@@ -72,9 +72,8 @@ def run_checks(
     _write_requirements(files, recipe)
     check_containerized_build(_package_name(recipe))
     check_license(files, elisp_dir, clone_address)
-    check_packaging(files, recipe)
     print_related_packages(recipe)  # could throw ConnectionError
-    print_details(recipe, files, pr_data, clone_address)
+    print_packaging(recipe, files, pr_data, clone_address)
 
 
 def return_code(return_code: int = None) -> int:
@@ -396,43 +395,50 @@ def _check_license_in_file(elisp_file: str) -> str:
     return ''
 
 
-def check_packaging(recipe_files: list, recipe: str):
-    if ':files' in recipe or ':branch' in recipe:
-        _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
-    if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
-        _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
-    # MELPA looks for a -pkg.el file and if it finds it, it uses that. It is
-    # okay to have a -pkg.el file, but doing it incorrectly can break the build.
-    # If it can't find a -pkg.el file, it looks in <your-package-name>.el.  If
-    # you put your package info in your main file then we can use package-lint
-    # to catch mistakes and enforce consistency.
-    if not _main_file(recipe_files, recipe):
-        package_name = _package_name(recipe)
-        _fail(f"- There is no .el file matching the package name '{package_name}'")
-    # In fact, if you have different Package-Requires among your source files,
-    # the Package-Requires that aren't in <your-package-name>.el are ignored,
-    # and there is at least one package in MELPA that accidentally does this.
-    all_requirements = set(_requirements(recipe_files, recipe))
-    for el in recipe_files:
-        el_requirements = set(_requirements([el]))
-        if el_requirements and el_requirements != all_requirements:
-            basename = os.path.basename(el)
-            _fail(f"- Package-Requires mismatch between {basename} and another file!")
-
-
-def print_details(
+def print_packaging(
     recipe: str, recipe_files: list, pr_data: dict = None, clone_address: str = None
 ):
-    _note('\n### Details ###\n', CLR_INFO)
+    _note('\n### Package details ###\n', CLR_INFO)
+    _print_recipe(recipe_files, recipe)
+    _print_requirements(recipe_files, recipe)
+    if pr_data and clone_address:
+        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
+        if pr_data['user']['login'].lower() not in clone_address.lower():
+            _note("  - NOTE: Repo and recipe owner don't match", CLR_WARN)
+    _print_package_files(recipe_files)
+
+
+def _print_recipe(recipe_files: list, recipe: str):
     print(f"```elisp\n{recipe}\n```")
+    if ':files' in recipe or ':branch' in recipe:
+        _note('  - Prefer the default recipe, especially for small packages', CLR_WARN)
+    if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
+        _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
+    if not _main_file(recipe_files, recipe):
+        _fail(f"- No .el file matches the name '{_package_name(recipe)}'!")
+
+
+def _print_requirements(recipe_files: list, recipe: str):
+    """Print the list of Package-Requires from the 'main' file.
+    Report on any mismatches between this file and other files, since the ones
+    in the other files will be ignored.
+    """
     print('- Package-Requires: ', end='')
-    if _requirements(recipe_files):
-        print(', '.join(req for req in _requirements(recipe_files, with_versions=True)))
-    else:
-        print('n/a')
+    main_requirements = _requirements(recipe_files, recipe, with_versions=True)
+    print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
+    for file in recipe_files:
+        file_requirements = set(_requirements([file], with_versions=True))
+        if file_requirements and file_requirements != main_requirements:
+            _fail(
+                f"  - Package-Requires mismatch between {os.path.basename(file)} and "
+                f"{os.path.basename(_main_file(recipe_files, recipe))}!"
+            )
+
+
+def _print_package_files(recipe_files: list):
     for recipe_file in recipe_files:
         if os.path.isdir(recipe_file):
-            print(f"- {recipe_file}: (directory)")
+            print(f"- {CLR_ULINE}{recipe_file}{CLR_OFF} -- directory")
             continue
         with open(recipe_file) as stream:
             try:
@@ -445,15 +451,10 @@ def print_details(
         print(
             f"- {CLR_ULINE}{recipe_file}{CLR_OFF}"
             f" ({_check_license_in_file(recipe_file) or 'unknown license'})"
-            + (f": {header}" if header else "")
+            + (f" -- {header}" if header else "")
         )
         if recipe_file.endswith('-pkg.el'):
             _note(f"  - Consider excluding this file; MELPA will create one", CLR_WARN)
-    if pr_data and clone_address:
-        # Check the maintainer
-        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
-        if pr_data['user']['login'].lower() not in clone_address.lower():
-            _note("  - NOTE: Repo and recipe owner don't match", CLR_WARN)
 
 
 def print_related_packages(recipe: str):
@@ -597,8 +598,7 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
         return '', ''
     with tempfile.TemporaryDirectory() as tmpdir:
         with subprocess.Popen(
-            ['patch', '-s', '-o', os.path.join(tmpdir, 'patch')],
-            stdin=subprocess.PIPE,
+            ['patch', '-s', '-o', os.path.join(tmpdir, 'patch')], stdin=subprocess.PIPE,
         ) as process:
             process.stdin.write(diff_text.encode())
         with open(os.path.join(tmpdir, 'patch')) as patch_file:
