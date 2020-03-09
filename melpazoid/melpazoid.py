@@ -97,7 +97,7 @@ def validate_recipe(recipe: str) -> bool:
     >>> validate_recipe('??')
     False
     """
-    tokenized_recipe = _tokenize_lisp_list(recipe)
+    tokenized_recipe = _tokenize_expression(recipe)
     valid = (
         tokenized_recipe[0] == '('
         and tokenized_recipe[-1] == ')'
@@ -138,7 +138,7 @@ def check_containerized_build(package_name):
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
     files: list = subprocess.check_output(['find', elisp_dir]).decode().split()
-    recipe_tokens: list = _tokenize_lisp_list(recipe)
+    recipe_tokens: list = _tokenize_expression(recipe)
     if ':files' in recipe_tokens:
         files_inc, files_exc = _apply_recipe(recipe, elisp_dir)
     else:
@@ -146,22 +146,24 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
     return list(set(files) & set(files_inc) - set(files_exc))
 
 
-def _tokenize_lisp_list(recipe: str) -> list:
+def _tokenize_expression(expression: str) -> list:
     """
-    >>> _tokenize_lisp_list('(shx :repo "riscy/xyz" :fetcher github) ; comment')
+    >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
     ['(', 'shx', ':repo', '"riscy/xyz"', ':fetcher', 'github', ')']
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, 'recipe')
-        with open(filename, 'w') as recipe_file:
-            recipe_file.write(
-                f'''(send-string-to-terminal (format "%S" '{recipe}\n))'''
-            )
-        recipe = subprocess.check_output(['emacs', '--script', filename]).decode()
-    recipe = recipe.replace('(', ' ( ')
-    recipe = recipe.replace(')', ' ) ')
-    tokenized_lisp_list: list = recipe.split()
-    return tokenized_lisp_list
+        with open(os.path.join(tmpdir, 'scratch'), 'w') as scratch:
+            scratch.write(expression)
+        parsed_expression = _run_elisp_script(
+            f"""(send-string-to-terminal
+                  (format "%S" (with-temp-buffer
+                                 (insert-file-contents "{scratch.name}")
+                                 (read (current-buffer)))))"""
+        )
+    parsed_expression = parsed_expression.replace('(', ' ( ')
+    parsed_expression = parsed_expression.replace(')', ' ) ')
+    tokenized_expression: list = parsed_expression.split()
+    return tokenized_expression
 
 
 def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
@@ -170,7 +172,7 @@ def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
     files_exc: list = []
     excluding = False
     nesting = 0
-    recipe_tokens = _tokenize_lisp_list(recipe)
+    recipe_tokens = _tokenize_expression(recipe)
     for token in recipe_tokens[recipe_tokens.index(':files') + 1 :]:
         if token == '(':
             nesting += 1
@@ -209,7 +211,7 @@ def _package_name(recipe: str) -> str:
     >>> _package_name('(shx :files ...)')
     'shx'
     """
-    return _tokenize_lisp_list(recipe)[1] if recipe else ''
+    return _tokenize_expression(recipe)[1] if recipe else ''
 
 
 def _main_file(recipe_files: list, recipe: str) -> str:
@@ -288,7 +290,7 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     '( ( emacs "31.5" ) ( xyz "123.4" ) )'
     """
     reqs = pkg_el.read()
-    reqs = ' '.join(_tokenize_lisp_list(reqs))
+    reqs = ' '.join(_tokenize_expression(reqs))
     reqs = reqs[reqs.find('( (') :]
     reqs = reqs[: reqs.find(') )') + 3]
     return reqs
@@ -526,7 +528,7 @@ def _source_code_manager(recipe: str) -> str:
     _source_code_manager('(kanban :fetcher gitlab :url ...)')
     'git'
     """
-    tokenized_recipe = _tokenize_lisp_list(recipe)
+    tokenized_recipe = _tokenize_expression(recipe)
     if tokenized_recipe[tokenized_recipe.index(':fetcher') + 1] == 'hg':
         return 'hg'
     return 'git'
@@ -539,7 +541,7 @@ def _branch(recipe: str) -> str:
     >>> _branch('(shx ...)')
     ''
     """
-    tokenized_recipe = _tokenize_lisp_list(recipe)
+    tokenized_recipe = _tokenize_expression(recipe)
     if ':branch' not in tokenized_recipe:
         return ''
     return tokenized_recipe[tokenized_recipe.index(':branch') + 1].strip('"')
@@ -575,6 +577,9 @@ def check_melpa_pr(pr_url: str):
 
     clone_address: str = _clone_address(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
+        # package-build prefers the directory to be named after the package:
+        elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
+        os.makedirs(elisp_dir)
         _clone(clone_address, _branch(recipe), into=elisp_dir)
         run_checks(recipe, elisp_dir, clone_address, pr_data)
 
@@ -612,19 +617,38 @@ def _clone_address(recipe: str) -> str:
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
-    filename = _tokenize_lisp_list(recipe)[1]
+    return _run_elisp_script(
+        _package_recipe_el()
+        + f"""(send-string-to-terminal
+                (package-recipe--upstream-url
+                  {_recipe_struct_elisp(recipe)}))"""
+    )
+
+
+def _recipe_struct_elisp(recipe: str) -> str:
+    """
+    >>> _recipe_struct_elisp('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
+    '#s(package-github-recipe "shx" nil "riscy/shx-for-emacs" nil nil nil nil nil nil)'
+    """
+    name = _package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, filename), 'w') as recipe_file:
+        with open(os.path.join(tmpdir, name), 'w') as recipe_file:
             recipe_file.write(recipe)
-        with open(os.path.join(tmpdir, 'script.el'), 'w') as script:
-            script.write(
-                _package_recipe_el()
-                + f"""(let ((package-build-recipes-dir "{tmpdir}"))
-                       (send-string-to-terminal
-                        (package-recipe--upstream-url
-                          (package-recipe-lookup "{filename}"))))"""
-            )
-        return subprocess.check_output(['emacs', '--script', script.name]).decode()
+        return _run_elisp_script(
+            _package_recipe_el()
+            + f"""(let ((package-build-recipes-dir "{tmpdir}"))
+                    (send-string-to-terminal
+                      (format "%S" (package-recipe-lookup "{name}"))))"""
+        )
+
+
+def _run_elisp_script(script: str) -> str:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, 'scratch.el'), 'w') as scratch:
+            scratch.write(script)
+        return subprocess.check_output(
+            ['emacs', '--script', scratch.name], stderr=subprocess.DEVNULL,
+        ).decode()
 
 
 @functools.lru_cache()
