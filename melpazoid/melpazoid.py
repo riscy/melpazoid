@@ -121,7 +121,7 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
     return_code(2)
 
 
-def check_containerized_build(package_name):
+def check_containerized_build(package_name: str):
     print(f"Building container for {package_name}... 🐳")
     output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
     for line in output.decode().strip().split('\n'):
@@ -146,6 +146,7 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
     return list(set(files) & set(files_inc) - set(files_exc))
 
 
+@functools.lru_cache()
 def _tokenize_expression(expression: str) -> list:
     """
     >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
@@ -374,8 +375,6 @@ def _check_license_in_files(elisp_files: list) -> bool:
         if not license_:
             _fail(f"- {basename} has no detectable license boilerplate")
             individual_files_licensed = False
-        else:
-            print(f"- {basename} has {license_} license text")
     return individual_files_licensed
 
 
@@ -625,11 +624,9 @@ def _clone_address(recipe: str) -> str:
     )
 
 
+@functools.lru_cache()
 def _recipe_struct_elisp(recipe: str) -> str:
-    """
-    >>> _recipe_struct_elisp('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
-    '#s(package-github-recipe "shx" nil "riscy/shx-for-emacs" nil nil nil nil nil nil)'
-    """
+    """Turn the recipe into an elisp 'recipe' object."""
     name = _package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, name), 'w') as recipe_file:

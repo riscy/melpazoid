@@ -76,7 +76,7 @@
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
   (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
   (ignore-errors (kill-buffer "*Warnings*"))
-  (let ((sentence-end-double-space nil)  ; be a little more leniant
+  (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
         (checkdoc-common-verbs-wrong-voice nil))
     (cl-letf (((symbol-function 'message) #'ignore))

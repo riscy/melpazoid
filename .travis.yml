@@ -25,7 +25,6 @@ env:
     RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")'
     EXPECT_ERROR=2
 install:
-  - hg || true
   - pip install .
   - pip install mypy
   - pytest --doctest-modules
