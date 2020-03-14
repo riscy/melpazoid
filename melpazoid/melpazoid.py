@@ -66,9 +66,12 @@ def run_checks(
     files: list = _files_in_recipe(recipe, elisp_dir)
     subprocess.check_output(['rm', '-rf', '_elisp'])
     os.makedirs('_elisp')
-    for ii, recipe_file in enumerate(files):
-        subprocess.check_output(['cp', '-r', recipe_file, '_elisp/'])
-        files[ii] = os.path.join('_elisp', os.path.basename(recipe_file))
+    for ii, file in enumerate(files):
+        target = os.path.basename(file) if file.endswith('.el') else file
+        target = os.path.join('_elisp', target)
+        os.makedirs(os.path.join('_elisp', os.path.dirname(file)), exist_ok=True)
+        subprocess.check_output(['mv', os.path.join(elisp_dir, file), target])
+        files[ii] = target
     _write_requirements(files, recipe)
     check_containerized_build(_package_name(recipe))
     check_license(files, elisp_dir, clone_address)
@@ -136,13 +139,17 @@ def check_containerized_build(package_name: str):
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
-    files: list = subprocess.check_output(['find', elisp_dir]).decode().split()
-    recipe_tokens: list = _tokenize_expression(recipe)
-    if ':files' in recipe_tokens:
-        files_inc, files_exc = _apply_recipe(recipe, elisp_dir)
-    else:
-        files_inc, files_exc = _apply_default_recipe(elisp_dir)
-    return list(set(files) & set(files_inc) - set(files_exc))
+    files = _run_elisp_script(
+        f"""
+        (require 'package-build)
+        (send-string-to-terminal
+          (let* ((package-build-working-dir "{os.path.dirname(elisp_dir)}")
+                 (rcp {_recipe_struct_elisp(recipe)}))
+            (mapconcat (lambda (x) (format "%s" x))
+                       (package-build--expand-source-file-list rcp) "\n")))
+        """
+    ).split('\n')
+    return [file for file in files if os.path.exists(os.path.join(elisp_dir, file))]
 
 
 @functools.lru_cache()
@@ -155,55 +162,16 @@ def _tokenize_expression(expression: str) -> list:
         with open(os.path.join(tmpdir, 'scratch'), 'w') as scratch:
             scratch.write(expression)
         parsed_expression = _run_elisp_script(
-            f"""(send-string-to-terminal
-                  (format "%S" (with-temp-buffer
-                                 (insert-file-contents "{scratch.name}")
-                                 (read (current-buffer)))))"""
+            f"""
+            (send-string-to-terminal
+              (format "%S" (with-temp-buffer (insert-file-contents "{scratch.name}")
+                                             (read (current-buffer)))))
+            """
         )
     parsed_expression = parsed_expression.replace('(', ' ( ')
     parsed_expression = parsed_expression.replace(')', ' ) ')
     tokenized_expression: list = parsed_expression.split()
     return tokenized_expression
-
-
-def _apply_recipe(recipe: str, elisp_dir: str) -> Tuple[list, list]:
-    # TODO: this could possibly use the MELPA machinery instead
-    files_inc: list = []
-    files_exc: list = []
-    excluding = False
-    nesting = 0
-    recipe_tokens = _tokenize_expression(recipe)
-    for token in recipe_tokens[recipe_tokens.index(':files') + 1 :]:
-        if token == '(':
-            nesting += 1
-        elif token == ')':
-            excluding = False
-            nesting -= 1
-            if not nesting:
-                break
-        elif token == ':defaults':
-            include, exclude = _apply_default_recipe(elisp_dir)
-            files_inc += include
-            files_exc += exclude
-        elif token == ':exclude':
-            excluding = True
-        elif excluding:
-            files_exc += glob.glob(os.path.join(elisp_dir, token.strip('"')))
-        else:
-            files_inc += glob.glob(os.path.join(elisp_dir, token.strip('"')))
-    return files_inc, files_exc
-
-
-def _apply_default_recipe(elisp_dir: str) -> Tuple[list, list]:
-    # TODO: this could possibly use the MELPA machinery instead
-    files_inc = glob.glob(os.path.abspath(os.path.join(elisp_dir, '*.el')))
-    files_exc = (
-        glob.glob(os.path.abspath(os.path.join(elisp_dir, 'test.el')))
-        + glob.glob(os.path.abspath(os.path.join(elisp_dir, 'tests.el')))
-        + glob.glob(os.path.abspath(os.path.join(elisp_dir, '*-test.el')))
-        + glob.glob(os.path.abspath(os.path.join(elisp_dir, '*-tests.el')))
-    )
-    return files_inc, files_exc
 
 
 def _package_name(recipe: str) -> str:
@@ -497,6 +465,8 @@ def check_recipe(recipe: str = ''):
     return_code(0)
     scm = _source_code_manager(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
+        # package-build prefers the directory to be named after the package:
+        elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
         clone_address = _clone_address(recipe)
         _clone(clone_address, _branch(recipe), into=elisp_dir, scm=scm)
         run_checks(recipe, elisp_dir, clone_address)
@@ -617,10 +587,11 @@ def _clone_address(recipe: str) -> str:
     'https://hg.serna.eu/emacs/pmdm'
     """
     return _run_elisp_script(
-        _package_recipe_el()
-        + f"""(send-string-to-terminal
-                (package-recipe--upstream-url
-                  {_recipe_struct_elisp(recipe)}))"""
+        f"""
+        (require 'package-recipe)
+        (send-string-to-terminal
+          (package-recipe--upstream-url {_recipe_struct_elisp(recipe)}))
+        """
     )
 
 
@@ -632,20 +603,42 @@ def _recipe_struct_elisp(recipe: str) -> str:
         with open(os.path.join(tmpdir, name), 'w') as recipe_file:
             recipe_file.write(recipe)
         return _run_elisp_script(
-            _package_recipe_el()
-            + f"""(let ((package-build-recipes-dir "{tmpdir}"))
-                    (send-string-to-terminal
-                      (format "%S" (package-recipe-lookup "{name}"))))"""
+            f"""
+            (require 'package-recipe)
+            (let ((package-build-recipes-dir "{tmpdir}"))
+              (send-string-to-terminal (format "%S" (package-recipe-lookup "{name}"))))
+            """
         )
 
 
 def _run_elisp_script(script: str) -> str:
+    stderr = subprocess.STDERR if DEBUG else subprocess.DEVNULL
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, 'scratch.el'), 'w') as scratch:
-            scratch.write(script)
-        return subprocess.check_output(
-            ['emacs', '--script', scratch.name], stderr=subprocess.DEVNULL,
-        ).decode()
+        for filename, content in _package_build_files().items():
+            with open(os.path.join(tmpdir, filename), 'w') as file:
+                file.write(content)
+        script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
+        result = subprocess.check_output(
+            ['emacs', '--batch', '--eval', script], stderr=stderr
+        )
+        return result.decode().strip()
+
+
+@functools.lru_cache()
+def _package_build_files() -> dict:
+    """Grab the required package-build files from the MELPA repo."""
+    return {
+        filename: requests.get(
+            'https://raw.githubusercontent.com/melpa/melpa/master/'
+            f'package-build/{filename}'
+        ).text
+        for filename in [
+            'package-build-badges.el',
+            'package-build.el',
+            'package-recipe-mode.el',
+            'package-recipe.el',
+        ]
+    }
 
 
 @functools.lru_cache()
