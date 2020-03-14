@@ -274,8 +274,21 @@ OBJECTS are objects to interpolate into the string using `format'."
     (while filenames
       (setq filename (car filenames) filenames (cdr filenames))
       (and (not (string= (file-name-base filename) "melpazoid"))
+           (not (string-match ".*-pkg.el" filename))
            (string= (file-name-extension filename) "el")
-           (melpazoid filename)))))
+           (melpazoid filename))))
+
+  ;; check whether FILENAMEs can be simply loaded (TODO: offer backtrace)
+  (melpazoid-insert "\n### Loadability ###\n")
+  (melpazoid-insert "Validating files against the `#'load` function.")
+  (let ((filename nil) (filenames (directory-files ".")))
+    (while filenames
+      (setq filename (car filenames) filenames (cdr filenames))
+      (when (and (not (string= (file-name-base filename) "melpazoid"))
+                 (not (string-match ".*-pkg.el" filename))
+                 (string= (file-name-extension filename) "el"))
+        (unless (ignore-errors (load (expand-file-name filename) nil t t))
+          (melpazoid-insert "%s:Error: Emacs failed to load this file" filename))))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
