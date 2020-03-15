@@ -495,12 +495,10 @@ def _clone(repo: str, branch: str, into: str, scm: str = 'git') -> bool:
         return False
     # git clone prints to stderr, oddly enough:
     result = subprocess.run(git_command, stderr=subprocess.STDOUT)
-    if result.returncode == 0:
+    if result.returncode != 0:
         _fail('Unable to clone this (prefer "master" as the default branch)')
         return False
     return True
-
-
 
 
 def _source_code_manager(recipe: str) -> str:
@@ -562,9 +560,8 @@ def check_melpa_pr(pr_url: str):
     with tempfile.TemporaryDirectory() as elisp_dir:
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
-        os.makedirs(elisp_dir)
-        _clone(clone_address, _branch(recipe), into=elisp_dir)
-        run_checks(recipe, elisp_dir, clone_address, pr_data)
+        if _clone(clone_address, _branch(recipe), into=elisp_dir):
+            run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
 @functools.lru_cache()
