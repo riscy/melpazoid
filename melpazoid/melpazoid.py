@@ -523,16 +523,6 @@ def _branch(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':branch') + 1].strip('"')
 
 
-def check_local_package(elisp_dir: str = None, package_name: str = None):
-    """Check a locally-hosted package (WIP)."""
-    return_code(0)
-    elisp_dir = elisp_dir or input('Path: ').strip()
-    assert os.path.isdir(elisp_dir)
-    package_name = package_name or input(f"Name of package at {elisp_dir}: ")
-    recipe = f'({package_name or "NONAME"} :repo "N/A")'
-    run_checks(recipe, elisp_dir)
-
-
 def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
     return_code(0)
@@ -689,9 +679,6 @@ def _fetch_pull_requests() -> Iterator[str]:
 if __name__ == '__main__':
     if 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
-        sys.exit(return_code())
-    elif 'PKG_PATH' in os.environ and 'PKG_NAME' in os.environ:
-        check_local_package(os.environ['PKG_PATH'], os.environ['PKG_NAME'])
         sys.exit(return_code())
     elif 'RECIPE' in os.environ:
         check_recipe(os.environ['RECIPE'])

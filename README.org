@@ -65,12 +65,6 @@ foolproof, sometimes opinionated, and may raise false positives.
     #+begin_src bash
     MELPA_PR_URL=https://github.com/melpa/melpa/pull/6718 make
     #+end_src
-*** Test a local package (work in progress)
-    #+begin_src bash
-    PKG_PATH=/path/to/package \
-        PKG_NAME=package-name \
-        make
-    #+end_src
 *** Run in an unending loop
     This currently only works in macOS; it monitors the clipboard
     for new MELPA PR's, then automatically runs the checks on them.
