@@ -54,7 +54,7 @@ VALID_LICENSES_GITHUB = {
 
 
 def run_checks(
-    recipe: str,  # e.g. of the form (shx :repo ...)
+    recipe: str,  # e.g. of the form (my-package :repo ...)
     elisp_dir: str,  # where the package is on this machine
     clone_address: str = None,  # optional repo address
     pr_data: dict = None,  # optional data from the PR
@@ -80,8 +80,7 @@ def run_checks(
 
 
 def return_code(return_code: int = None) -> int:
-    """
-    Return (and optionally set) the current return code.
+    """Return (and optionally set) the current return code.
     If return_code matches env var EXPECT_ERROR, return 0 --
     this is useful for running CI checks on melpazoid itself.
     """
@@ -93,8 +92,8 @@ def return_code(return_code: int = None) -> int:
 
 
 def validate_recipe(recipe: str) -> bool:
-    """
-    >>> validate_recipe('(abc :repo "xyz" :fetcher github)')
+    """Validate whether the recipe looks correct.
+    >>> validate_recipe('(abc :repo "xyz" :fetcher github) ; abc recipe!')
     True
     >>> validate_recipe('??')
     False
@@ -139,7 +138,7 @@ def check_containerized_build(package_name: str):
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
-    files = _run_elisp_script(
+    files = run_build_script(
         f"""
         (require 'package-build)
         (send-string-to-terminal
@@ -154,14 +153,14 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
 
 @functools.lru_cache()
 def _tokenize_expression(expression: str) -> list:
-    """
+    """Hacky function to turn an elisp expression into a list of tokens.
     >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
     ['(', 'shx', ':repo', '"riscy/xyz"', ':fetcher', 'github', ')']
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, 'scratch'), 'w') as scratch:
             scratch.write(expression)
-        parsed_expression = _run_elisp_script(
+        parsed_expression = run_build_script(
             f"""
             (send-string-to-terminal
               (format "%S" (with-temp-buffer (insert-file-contents "{scratch.name}")
@@ -175,15 +174,16 @@ def _tokenize_expression(expression: str) -> list:
 
 
 def _package_name(recipe: str) -> str:
-    """
+    """Return the package's name, based on the recipe.
     >>> _package_name('(shx :files ...)')
     'shx'
     """
-    return _tokenize_expression(recipe)[1] if recipe else ''
+    match = re.match(r'^\(([^ ]+) ', recipe)
+    return match.groups()[0] if match else ''
 
 
-def _main_file(recipe_files: list, recipe: str) -> str:
-    """
+def _main_file(files: list, recipe: str) -> str:
+    """Figure out the 'main' file of the recipe, per MELPA convention.
     >>> _main_file(['_elisp/a.el', '_elisp/b.el'], '(a :files ...)')
     '_elisp/a.el'
     >>> _main_file(['a.el', 'b.el'], '(b :files ...)')
@@ -195,7 +195,7 @@ def _main_file(recipe_files: list, recipe: str) -> str:
     try:
         return next(
             el
-            for el in sorted(recipe_files)
+            for el in sorted(files)
             if os.path.basename(el) == f"{package_name}-pkg.el"
             or os.path.basename(el) == f"{package_name}.el"
         )
@@ -203,7 +203,7 @@ def _main_file(recipe_files: list, recipe: str) -> str:
         return ''
 
 
-def _write_requirements(recipe_files: list, recipe: str):
+def _write_requirements(files: list, recipe: str):
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w') as requirements_el:
         requirements_el.write(
@@ -219,7 +219,7 @@ def _write_requirements(recipe_files: list, recipe: str):
             (package-reinstall 'package-lint)
             '''
         )
-        for req in _requirements(recipe_files, recipe):
+        for req in _requirements(files, recipe):
             if req != 'emacs':
                 # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
@@ -228,15 +228,13 @@ def _write_requirements(recipe_files: list, recipe: str):
                     requirements_el.write(f"(require '{req})\n")
 
 
-def _requirements(
-    recipe_files: list, recipe: str = None, with_versions: bool = False
-) -> set:
+def _requirements(files: list, recipe: str = None, with_versions: bool = False) -> set:
     reqs: list = []
     if recipe:
-        main_file = _main_file(recipe_files, recipe)
+        main_file = _main_file(files, recipe)
         if main_file:
-            recipe_files = [main_file]
-    for filename in recipe_files:
+            files = [main_file]
+    for filename in files:
         if not os.path.isfile(filename):
             continue
         elif filename.endswith('-pkg.el'):
@@ -253,7 +251,7 @@ def _requirements(
 
 
 def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
-    """
+    """Hacky function to pull the requirements out of a -pkg.el file.
     >>> _reqs_from_pkg_el(io.StringIO('''(define-package "x" "1.2" "A pkg." '((emacs "31.5") (xyz "123.4")))'''))
     '( ( emacs "31.5" ) ( xyz "123.4" ) )'
     """
@@ -265,7 +263,7 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
 
 
 def _reqs_from_el_file(el_file: TextIO) -> str:
-    """
+    """Hacky function to pull the requirements out of an elisp file.
     >>> _reqs_from_el_file(io.StringIO(';; x y z\\n ;; package-requires: ((emacs "24.4"))'))
     ';; package-requires: ((emacs "24.4"))'
     """
@@ -275,14 +273,14 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
     return ''
 
 
-def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None):
+def check_license(files: list, elisp_dir: str, clone_address: str = None):
     _note('\n### License ###\n', CLR_INFO)
     repo_licensed = False
     if clone_address:
         repo_licensed = _check_license_github_api(clone_address)
     if not repo_licensed:
-        repo_licensed = _check_license_file(elisp_dir)
-    individual_files_licensed = _check_license_in_files(recipe_files)
+        repo_licensed = _check_repo_for_license(elisp_dir)
+    individual_files_licensed = _check_files_for_license_boilerplate(files)
     if not repo_licensed and not individual_files_licensed:
         _fail('- Use a GPL-compatible license.')
         print(
@@ -291,7 +289,7 @@ def check_license(recipe_files: list, elisp_dir: str, clone_address: str = None)
 
 
 def _check_license_github_api(clone_address: str) -> bool:
-    """
+    """Use the GitHub API to check for a license.
     >>> _check_license_github_api('https://github.com/magit/magit.git')
     - GitHub API found `GNU General Public License v3.0`
     True
@@ -319,7 +317,7 @@ def _check_license_github_api(clone_address: str) -> bool:
     return False
 
 
-def _check_license_file(elisp_dir: str) -> bool:
+def _check_repo_for_license(elisp_dir: str) -> bool:
     """Scan any COPYING or LICENSE files."""
     for license_ in glob.glob(os.path.join(elisp_dir, '*')):
         license_ = os.path.basename(license_)
@@ -331,22 +329,22 @@ def _check_license_file(elisp_dir: str) -> bool:
     return False
 
 
-def _check_license_in_files(elisp_files: list) -> bool:
-    """Check the elisp files themselves."""
+def _check_files_for_license_boilerplate(files: list) -> bool:
+    """Check a list of elisp files for license boilerplate."""
     individual_files_licensed = True
-    for elisp_file in elisp_files:
-        if not elisp_file.endswith('.el') or elisp_file.endswith('-pkg.el'):
+    for file in files:
+        if not file.endswith('.el') or file.endswith('-pkg.el'):
             continue
-        license_ = _check_license_in_file(elisp_file)
-        basename = os.path.basename(elisp_file)
+        license_ = _check_file_for_license_boilerplate(file)
+        basename = os.path.basename(file)
         if not license_:
             _fail(f"- {basename} has no detectable license boilerplate")
             individual_files_licensed = False
     return individual_files_licensed
 
 
-def _check_license_in_file(elisp_file: str) -> str:
-    """Scan the elisp file for some recognized license text."""
+def _check_file_for_license_boilerplate(file: str) -> str:
+    """Check an elisp file for some license boilerplate."""
     # TODO: this function could be more comprehensive; don't use grep
     licenses = [
         ('GPL', r'GNU.* General Public License'),
@@ -357,7 +355,7 @@ def _check_license_in_file(elisp_file: str) -> str:
     ]
     for license_key, license_txt in licenses:
         try:
-            subprocess.check_output(['grep', '-i', license_txt, elisp_file])
+            subprocess.check_output(['grep', '-i', license_txt, file])
             return license_key
         except subprocess.CalledProcessError:
             pass
@@ -365,19 +363,19 @@ def _check_license_in_file(elisp_file: str) -> str:
 
 
 def print_packaging(
-    recipe: str, recipe_files: list, pr_data: dict = None, clone_address: str = None
+    recipe: str, files: list, pr_data: dict = None, clone_address: str = None
 ):
     _note('\n### Package details ###\n', CLR_INFO)
-    _print_recipe(recipe_files, recipe)
-    _print_requirements(recipe_files, recipe)
+    _print_recipe(files, recipe)
+    _print_requirements(files, recipe)
     if pr_data and clone_address:
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
         if pr_data['user']['login'].lower() not in clone_address.lower():
             _note("  - NOTE: Repo and recipe owner don't match", CLR_WARN)
-    _print_package_files(recipe_files)
+    _print_package_files(files)
 
 
-def _print_recipe(recipe_files: list, recipe: str):
+def _print_recipe(files: list, recipe: str):
     print(f"```elisp\n{recipe}\n```")
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
@@ -385,33 +383,33 @@ def _print_recipe(recipe_files: list, recipe: str):
         _note('- Only specify :branch in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
-    if not _main_file(recipe_files, recipe):
+    if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{_package_name(recipe)}'!")
 
 
-def _print_requirements(recipe_files: list, recipe: str):
+def _print_requirements(files: list, recipe: str):
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
     """
     print('- Package-Requires: ', end='')
-    main_requirements = _requirements(recipe_files, recipe, with_versions=True)
+    main_requirements = _requirements(files, recipe, with_versions=True)
     print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
-    for file in recipe_files:
+    for file in files:
         file_requirements = set(_requirements([file], with_versions=True))
         if file_requirements and file_requirements != main_requirements:
             _fail(
                 f"  - Package-Requires mismatch between {os.path.basename(file)} and "
-                f"{os.path.basename(_main_file(recipe_files, recipe))}!"
+                f"{os.path.basename(_main_file(files, recipe))}!"
             )
 
 
-def _print_package_files(recipe_files: list):
-    for recipe_file in recipe_files:
-        if os.path.isdir(recipe_file):
-            print(f"- {CLR_ULINE}{recipe_file}{CLR_OFF} -- directory")
+def _print_package_files(files: list):
+    for file in files:
+        if os.path.isdir(file):
+            print(f"- {CLR_ULINE}{file}{CLR_OFF} -- directory")
             continue
-        with open(recipe_file) as stream:
+        with open(file) as stream:
             try:
                 header = stream.readline()
                 header = header.split('-*-')[0]
@@ -420,19 +418,16 @@ def _print_package_files(recipe_files: list):
             except (IndexError, UnicodeDecodeError):
                 header = '(no elisp header)'
         print(
-            f"- {CLR_ULINE}{recipe_file}{CLR_OFF}"
-            f" ({_check_license_in_file(recipe_file) or 'unknown license'})"
+            f"- {CLR_ULINE}{file}{CLR_OFF}"
+            f" ({_check_file_for_license_boilerplate(file) or 'unknown license'})"
             + (f" -- {header}" if header else "")
         )
-        if recipe_file.endswith('-pkg.el'):
+        if file.endswith('-pkg.el'):
             _note(f"  - Consider excluding this file; MELPA will create one", CLR_WARN)
 
 
 def print_related_packages(recipe: str):
-    """
-    Print list of potentially related packages.
-    Could throw ConnectionError.
-    """
+    """Print list of potentially related packages."""
     # TODO: can this be made more useful?
     package_tokens = {
         token for token in _package_name(recipe).split('-') if token != 'mode'
@@ -502,7 +497,7 @@ def _clone(repo: str, branch: str, into: str, scm: str = 'git') -> bool:
 
 
 def _source_code_manager(recipe: str) -> str:
-    """
+    """Determine the source code manager used (mercurial or git).
     >>>
     _source_code_manager('(kanban :fetcher hg :url ...)')
     'hg'
@@ -516,7 +511,7 @@ def _source_code_manager(recipe: str) -> str:
 
 
 def _branch(recipe: str) -> str:
-    """
+    """Return the recipe's branch if available, else the empty string.
     >>> _branch('(shx :branch "develop" ...)')
     'develop'
     >>> _branch('(shx ...)')
@@ -546,7 +541,7 @@ def check_melpa_pr(pr_url: str):
 
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
     if 'changed_files' not in pr_data:
-        _note(f"{pr_url} does not appear to be a MELPA PR", CLR_ERROR)
+        _fail(f"{pr_url} does not appear to be a MELPA PR")
         return
     if int(pr_data['changed_files']) != 1:
         _note('Please only add one recipe per pull request', CLR_ERROR)
@@ -587,16 +582,13 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
 
 
 def _clone_address(recipe: str) -> str:
-    """
-    This is a HACK to get the clone address from the
-    filename/recipe pair using the builtin MELPA machinery.  As a
-    bonus, it validates the recipe.
+    """Fetch the upstream repository URL for the recipe.
     >>> _clone_address('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
     'https://github.com/riscy/shx-for-emacs.git'
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
-    return _run_elisp_script(
+    return run_build_script(
         f"""
         (require 'package-recipe)
         (send-string-to-terminal
@@ -607,12 +599,12 @@ def _clone_address(recipe: str) -> str:
 
 @functools.lru_cache()
 def _recipe_struct_elisp(recipe: str) -> str:
-    """Turn the recipe into an elisp 'recipe' object."""
+    """Turn the recipe into a serialized 'package-recipe' object."""
     name = _package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, name), 'w') as recipe_file:
-            recipe_file.write(recipe)
-        return _run_elisp_script(
+        with open(os.path.join(tmpdir, name), 'w') as file:
+            file.write(recipe)
+        return run_build_script(
             f"""
             (require 'package-recipe)
             (let ((package-build-recipes-dir "{tmpdir}"))
@@ -621,7 +613,11 @@ def _recipe_struct_elisp(recipe: str) -> str:
         )
 
 
-def _run_elisp_script(script: str) -> str:
+def run_build_script(script: str) -> str:
+    """Run an elisp script in a package-build context.
+    >>> run_build_script('(send-string-to-terminal "Hello world")')
+    'Hello world'
+    """
     stderr = subprocess.STDERR if DEBUG else subprocess.DEVNULL
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
@@ -701,8 +697,8 @@ if __name__ == '__main__':
         check_recipe(os.environ['RECIPE'])
         sys.exit(return_code())
     elif 'RECIPE_FILE' in os.environ:
-        with open(os.environ['RECIPE_FILE'], 'r') as recipe_file:
-            check_recipe(recipe_file.read())
+        with open(os.environ['RECIPE_FILE'], 'r') as file:
+            check_recipe(file.read())
         sys.exit(return_code())
     else:
         check_melpa_pr_loop()
