@@ -468,26 +468,36 @@ def check_recipe(recipe: str = ''):
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
         clone_address = _clone_address(recipe)
-        _clone(clone_address, _branch(recipe), into=elisp_dir, scm=scm)
-        run_checks(recipe, elisp_dir, clone_address)
+        if _clone(clone_address, _branch(recipe), into=elisp_dir, scm=scm):
+            run_checks(recipe, elisp_dir, clone_address)
 
 
-def _clone(repo: str, branch: str, into: str, scm: str = 'git'):
-    """
-    Raises RuntimeError if repo doesn't exist, and
-    subprocess.CalledProcessError if git clone fails.
-    """
-    print(f"Cloning {repo}")
+def _clone(repo: str, branch: str, into: str, scm: str = 'git') -> bool:
+    """Try to clone the repository; return whether we succeeded."""
     if not requests.get(repo).ok:
         _fail(f"Unable to locate '{repo}'")
-        raise RuntimeError
+        return False
     subprocess.check_output(['mkdir', '-p', into])
     if branch:
         git_command = [scm, 'clone', '-b', branch, repo, into]
-    else:
+    elif scm == 'git':
+        # If a package's repository doesn't use the master branch, then the
+        # Melpa recipe must specify the branch using the :branch keyword
+        # https://github.com/melpa/melpa/pull/6712
+        git_command = [scm, 'clone', '-b', 'master', repo, into]
+    elif scm == 'hg':
         git_command = [scm, 'clone', repo, into]
+    else:
+        _fail(f"Unrecognized SCM: {scm}")
+        return False
     # git clone prints to stderr, oddly enough:
-    subprocess.check_output(git_command, stderr=subprocess.STDOUT)
+    result = subprocess.run(git_command, stderr=subprocess.STDOUT)
+    if result.returncode == 0:
+        _fail('Unable to clone this (prefer "master" as the default branch)')
+        return False
+    return True
+
+
 
 
 def _source_code_manager(recipe: str) -> str:
