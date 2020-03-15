@@ -335,7 +335,7 @@ def _check_license_in_files(elisp_files: list) -> bool:
     """Check the elisp files themselves."""
     individual_files_licensed = True
     for elisp_file in elisp_files:
-        if not elisp_file.endswith('.el'):
+        if not elisp_file.endswith('.el') or elisp_file.endswith('-pkg.el'):
             continue
         license_ = _check_license_in_file(elisp_file)
         basename = os.path.basename(elisp_file)
