@@ -348,13 +348,14 @@ def _check_license_in_files(elisp_files: list) -> bool:
 def _check_license_in_file(elisp_file: str) -> str:
     """Scan the elisp file for some recognized license text."""
     # TODO: this function could be more comprehensive; don't use grep
-    licenses = {
-        'GPL': r'GNU.* General Public License',
-        'ISC': r'Permission to use, copy, modify, and/or',
-        'MIT': r'Permission is hereby granted, free of charge, to any person',
-        'Unlicense': 'This is free and unencumbered software released into the public domain',
-    }
-    for license_key, license_txt in licenses.items():
+    licenses = [
+        ('GPL', r'GNU.* General Public License'),
+        ('ISC', r'Permission to use, copy, modify, and/or'),
+        ('MIT', r'Permission is hereby granted, free of charge, to any person'),
+        ('MIT', r'SPDX-License-Identifier: MIT'),
+        ('Unlicense', 'This is free and unencumbered software released into',),
+    ]
+    for license_key, license_txt in licenses:
         try:
             subprocess.check_output(['grep', '-i', license_txt, elisp_file])
             return license_key
@@ -378,8 +379,10 @@ def print_packaging(
 
 def _print_recipe(recipe_files: list, recipe: str):
     print(f"```elisp\n{recipe}\n```")
-    if ':files' in recipe or ':branch' in recipe:
-        _note('  - Prefer the default recipe, especially for small packages', CLR_WARN)
+    if ':files' in recipe and ':defaults' not in recipe:
+        _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
+    if ':branch' in recipe:
+        _note('- Only specify :branch in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     if not _main_file(recipe_files, recipe):
