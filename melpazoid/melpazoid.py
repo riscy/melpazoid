@@ -220,7 +220,12 @@ def _write_requirements(files: list, recipe: str):
             '''
         )
         for req in _requirements(files, recipe):
-            if req != 'emacs':
+            if req == 'org':
+                # TODO: is there a cleaner way to install a recent version of org?!
+                requirements_el.write(
+                    "(package-install (cadr (assq 'org package-archive-contents)))"
+                )
+            elif req != 'emacs':
                 # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
                 requirements_el.write(f"(package-install '{req})\n")
