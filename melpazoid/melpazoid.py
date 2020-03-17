@@ -178,8 +178,7 @@ def _package_name(recipe: str) -> str:
     >>> _package_name('(shx :files ...)')
     'shx'
     """
-    match = re.match(r'^\(([^ ]+) ', recipe)
-    return match.groups()[0] if match else ''
+    return _tokenize_expression(recipe)[1]
 
 
 def _main_file(files: list, recipe: str) -> str:
