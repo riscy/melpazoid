@@ -481,14 +481,15 @@ def check_recipe(recipe: str = ''):
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
         clone_address = _clone_address(recipe)
-        if _clone(clone_address, _branch(recipe), into=elisp_dir, scm=scm):
+        if _clone(clone_address, into=elisp_dir, branch=_branch(recipe), scm=scm):
             run_checks(recipe, elisp_dir, clone_address)
 
 
-def _clone(repo: str, branch: str, into: str, scm: str = 'git') -> bool:
+def _clone(repo: str, into: str, branch: str = None, scm: str = 'git') -> bool:
     """Try to clone the repository; return whether we succeeded."""
+    print(f"Checking out {repo}")
     if not requests.get(repo).ok:
-        _fail(f"Unable to locate '{repo}'")
+        _fail(f"Unable to locate {repo}")
         return False
     subprocess.check_output(['mkdir', '-p', into])
     if branch:
@@ -560,7 +561,7 @@ def check_melpa_pr(pr_url: str):
     with tempfile.TemporaryDirectory() as elisp_dir:
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
-        if _clone(clone_address, _branch(recipe), into=elisp_dir):
+        if _clone(clone_address, into=elisp_dir, branch=_branch(recipe)):
             run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
