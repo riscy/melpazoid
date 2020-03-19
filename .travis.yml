@@ -6,16 +6,10 @@ python:
 env:
 # If you already have a pull request open, specify as below:
   - MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749
+  - MELPA_PR_URL=https://github.com/melpa/melpa/pull/3041
 # Or test a recipe before you even open a MELPA pull request:
-  - >-
-    RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))'
-    EXPECT_ERROR=2
-  - >-
-    MELPA_PR_URL=https://github.com/melpa/melpa/pull/3041
-    EXPECT_ERROR=2
-  - >-
-    RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")'
-    EXPECT_ERROR=2
+  - RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))'
+  - RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")'
 install:
   - pip install .
   - pip install mypy
@@ -23,4 +17,4 @@ install:
   - mypy --ignore-missing-imports .
 
 script:
-  - python melpazoid/melpazoid.py
+  - EXPECT_ERROR=2 make
