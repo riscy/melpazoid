@@ -184,6 +184,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "url-copy-file" "Be aware that url-copy-file can't handle redirects (ensure it works)")
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` instead of `;; Package-Version` (MELPA automatically adds `Package-Version`)")
   (melpazoid-misc "^(define-key" "This define-key could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
+  (melpazoid-misc "^(bind-keys" "This bind-keys could overwrite a user's keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`")
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private")
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s built-in NOERROR argument")
