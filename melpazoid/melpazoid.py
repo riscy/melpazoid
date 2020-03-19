@@ -8,7 +8,7 @@ Test this file:
 Use this file a script:
   python <this_file>.py
 """
-from __future__ import print_function
+import configparser
 import functools
 import glob
 import io  # noqa: F401 -- used by doctests
@@ -432,26 +432,37 @@ def _print_package_files(files: list):
 
 def print_related_packages(recipe: str):
     """Print list of potentially related packages."""
-    # TODO: can this be made more useful?
-    package_tokens = {
-        token for token in _package_name(recipe).split('-') if token != 'mode'
-    }
-    related_packages = [
-        f"- https://melpa.org/#/{_melpa_archive()[other_package_tokens]}"
-        for other_package_tokens in _melpa_archive()
-        if package_tokens & other_package_tokens
+    known_packages = _known_packages()
+    known_names = [
+        name
+        for name in known_packages
+        if name in _package_name(recipe) or _package_name(recipe) in name
     ]
-    if related_packages:
-        _note('\n### Similarly named packages ###\n', CLR_INFO)
-        print('\n'.join(related_packages[:5]))
+    if not known_names:
+        return
+    _note('\n### Similarly named packages ###\n', CLR_INFO)
+    for name in known_names:
+        if name == _package_name(recipe):
+            _fail(f"- {name}: {known_packages[name]} (name conflict)")
+        else:
+            print(f"- {name}: {known_packages[name]}")
 
 
 @functools.lru_cache()
-def _melpa_archive() -> dict:
-    return {
-        frozenset(package.split('-')): package
+def _known_packages() -> dict:
+    melpa_packages = {
+        package: f"https://melpa.org/#/{package}"
         for package in requests.get('http://melpa.org/archive.json').json()
     }
+    epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
+    epkgs_parser = configparser.ConfigParser()
+    epkgs_parser.read_string(requests.get(epkgs).text)
+    epkgs_packages = {
+        epkg.split('"')[1]: epkgs_parser[epkg]['url']
+        for epkg in epkgs_parser
+        if epkg != 'DEFAULT'
+    }
+    return {**epkgs_packages, **melpa_packages}
 
 
 def yes_p(text: str) -> bool:
