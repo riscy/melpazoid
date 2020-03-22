@@ -74,8 +74,8 @@ def run_checks(
         files[ii] = target
     _write_requirements(files, recipe)
     check_containerized_build(_package_name(recipe))
+    print_related_packages(recipe)
     check_license(files, elisp_dir, clone_address)
-    print_related_packages(recipe)  # could throw ConnectionError
     print_packaging(recipe, files, pr_data, clone_address)
 
 
@@ -356,6 +356,7 @@ def _check_file_for_license_boilerplate(file: str) -> str:
         ('MIT', r'Permission is hereby granted, free of charge, to any person'),
         ('MIT', r'SPDX-License-Identifier: MIT'),
         ('Unlicense', 'This is free and unencumbered software released into',),
+        ('Apache 2.0', 'Licensed under the Apache License, Version 2.0',),
     ]
     for license_key, license_txt in licenses:
         try:
@@ -432,20 +433,17 @@ def _print_package_files(files: list):
 
 def print_related_packages(recipe: str):
     """Print list of potentially related packages."""
+    package_name = _package_name(recipe)
+    shorter_name = package_name[:-5] if package_name.endswith('-mode') else package_name
     known_packages = _known_packages()
-    known_names = [
-        name
-        for name in known_packages
-        if name in _package_name(recipe) or _package_name(recipe) in name
-    ]
+    known_names = [name for name in known_packages if shorter_name in name]
     if not known_names:
         return
     _note('\n### Similarly named packages ###\n', CLR_INFO)
-    for name in known_names:
-        if name == _package_name(recipe):
-            _fail(f"- {name}: {known_packages[name]} (name conflict)")
-        else:
-            print(f"- {name}: {known_packages[name]}")
+    for name in known_names[:10]:
+        print(f"- {name} {known_packages[name]}")
+    if package_name in known_packages:
+        _fail(f"- {package_name} {known_packages[package_name]} is in direct conflict")
 
 
 @functools.lru_cache()
