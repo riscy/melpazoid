@@ -293,11 +293,7 @@ def check_license(files: list, elisp_dir: str, clone_address: str = None):
 
 
 def _check_license_github_api(clone_address: str) -> bool:
-    """Use the GitHub API to check for a license.
-    >>> _check_license_github_api('https://github.com/magit/magit.git')
-    - GitHub API found `GNU General Public License v3.0`
-    True
-    """
+    """Use the GitHub API to check for a license."""
     # TODO: gitlab also has a license API -- support it?
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
     if clone_address.endswith('.git'):
