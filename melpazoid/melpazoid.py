@@ -486,18 +486,18 @@ def _clone(repo: str, into: str, branch: str = None, scm: str = 'git') -> bool:
         _fail(f"Unable to locate {repo}")
         return False
     subprocess.check_output(['mkdir', '-p', into])
-    if branch:
-        git_command = [scm, 'clone', '-b', branch, repo, into]
-    elif scm == 'git':
+    if scm == 'git':
         # If a package's repository doesn't use the master branch, then the
-        # Melpa recipe must specify the branch using the :branch keyword
+        # MELPA recipe must specify the branch using the :branch keyword
         # https://github.com/melpa/melpa/pull/6712
-        git_command = [scm, 'clone', '-b', 'master', repo, into]
+        options = ['--branch', branch if branch else 'master']
+        options += ['--depth', '1', '--single-branch']
     elif scm == 'hg':
-        git_command = [scm, 'clone', repo, into]
+        options = ['--branch', branch] if branch else []
     else:
         _fail(f"Unrecognized SCM: {scm}")
         return False
+    git_command = [scm, 'clone', *options, repo, into]
     # git clone prints to stderr, oddly enough:
     result = subprocess.run(git_command, stderr=subprocess.STDOUT)
     if result.returncode != 0:
