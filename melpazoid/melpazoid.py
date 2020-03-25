@@ -351,8 +351,11 @@ def _check_file_for_license_boilerplate(file: str) -> str:
         ('ISC', r'Permission to use, copy, modify, and/or'),
         ('MIT', r'Permission is hereby granted, free of charge, to any person'),
         ('MIT', r'SPDX-License-Identifier: MIT'),
-        ('Unlicense', 'This is free and unencumbered software released into',),
-        ('Apache 2.0', 'Licensed under the Apache License, Version 2.0',),
+        ('WTFPL', r'SPDX-License-Identifier: WTFPL'),
+        ('GPL', r'SPDX-License-Identifier: GPL-3.0-'),  # <-or-later, -only>
+        ('Unlicense', 'This is free and unencumbered software released into'),
+        ('Apache 2.0', 'Licensed under the Apache License, Version 2.0'),
+        ('BSD 3-Clause', 'Redistribution and use in source and binary forms'),
     ]
     for license_key, license_txt in licenses:
         try:
