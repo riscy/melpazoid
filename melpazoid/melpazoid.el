@@ -280,7 +280,7 @@ OBJECTS are objects to interpolate into the string using `format'."
 
   ;; check whether FILENAMEs can be simply loaded (TODO: offer backtrace)
   (melpazoid-insert "\n### Loadability ###\n")
-  (melpazoid-insert "Running #'load on each file (empty output is good):")
+  (melpazoid-insert "Running #'load on each file:")
   (melpazoid-insert "```")
   (let ((filename nil) (filenames (directory-files ".")))
     (while filenames
@@ -288,6 +288,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       (when (and (not (string= (file-name-base filename) "melpazoid"))
                  (not (string-match ".*-pkg.el" filename))
                  (string= (file-name-extension filename) "el"))
+        (melpazoid-insert "Loading %s" filename)
         (unless (ignore-errors (load (expand-file-name filename) nil t t))
           (melpazoid-insert "%s:Error: Emacs errored during load" filename)))))
   (melpazoid-insert "Done.")
