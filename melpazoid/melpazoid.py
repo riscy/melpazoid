@@ -455,8 +455,8 @@ def _known_packages() -> dict:
     epkgs_parser = configparser.ConfigParser()
     epkgs_parser.read_string(requests.get(epkgs).text)
     epkgs_packages = {
-        epkg.split('"')[1]: epkgs_parser[epkg]['url']
-        for epkg in epkgs_parser
+        epkg.split('"')[1]: 'https://' + data['url'].replace(':', '/')[4:]
+        for epkg, data in epkgs_parser.items()
         if epkg != 'DEFAULT'
     }
     return {**epkgs_packages, **melpa_packages}
