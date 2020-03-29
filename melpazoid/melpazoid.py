@@ -553,6 +553,9 @@ def check_melpa_pr(pr_url: str):
     if not filename or not recipe:
         _note(f"Unable to build the pull request at {pr_url}", CLR_ERROR)
         return
+    if filename != _package_name(recipe):
+        _fail(f"Filename '{filename}' does not match '{_package_name(recipe)}'")
+        return
 
     clone_address: str = _clone_address(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
