@@ -312,7 +312,7 @@ def _check_license_github_api(clone_address: str) -> bool:
             _fail('  - Use a GitHub-compatible format for your license file.')
             print('    See: https://github.com/licensee/licensee')
         return False
-    _fail('- Use a LICENSE file that GitHub can detect (e.g. no markup).')
+    _fail('- Use a LICENSE file that GitHub can detect (e.g. no markup) if possible')
     print('  See: https://github.com/licensee/licensee')
     return False
 
@@ -323,7 +323,7 @@ def _check_repo_for_license(elisp_dir: str) -> bool:
         license_ = os.path.basename(license_)
         if license_.startswith('LICENSE') or license_.startswith('COPYING'):
             with open(os.path.join(elisp_dir, license_)) as stream:
-                print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
+                print(f"<!-- {license_} excerpt: `{stream.readline().strip()}...` -->")
             return True
     _fail('- Please add a LICENSE or COPYING file to the repository')
     return False
@@ -338,7 +338,11 @@ def _check_files_for_license_boilerplate(files: list) -> bool:
         license_ = _check_file_for_license_boilerplate(file)
         basename = os.path.basename(file)
         if not license_:
-            _fail(f"- {basename} has no detectable license boilerplate")
+            _fail(
+                '- Please add license boilerplate or an [SPDX license identifier]'
+                '(https://spdx.org/using-spdx-license-identifier)'
+                f" to {basename}"
+            )
             individual_files_licensed = False
     return individual_files_licensed
 
