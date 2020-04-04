@@ -335,7 +335,8 @@ def _check_files_for_license_boilerplate(files: list) -> bool:
     for file in files:
         if not file.endswith('.el') or file.endswith('-pkg.el'):
             continue
-        license_ = _check_file_for_license_boilerplate(file)
+        with open(file) as stream:
+            license_ = _check_file_for_license_boilerplate(stream)
         basename = os.path.basename(file)
         if not license_:
             _fail(
@@ -347,26 +348,30 @@ def _check_files_for_license_boilerplate(files: list) -> bool:
     return individual_files_licensed
 
 
-def _check_file_for_license_boilerplate(file: str) -> str:
-    """Check an elisp file for some license boilerplate."""
-    # TODO: this function could be more comprehensive; don't use grep
-    licenses = [
+def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
+    """Check an elisp file for some license boilerplate.
+    >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier:  ISC '))
+    'ISC'
+    >>> _check_file_for_license_boilerplate(io.StringIO('GNU General Public License'))
+    'GPL'
+    """
+    text = el_file.read()
+    # SPDX license identifiers are easy https://spdx.org/using-spdx-license-identifier
+    match = re.search('SPDX-License-Identifier:[ ]+(.*)', text, flags=re.I)
+    if match:
+        return match.groups()[0].strip()
+    # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
+    fingerprints = [
         ('GPL', r'GNU.* General Public License'),
         ('ISC', r'Permission to use, copy, modify, and/or'),
         ('MIT', r'Permission is hereby granted, free of charge, to any person'),
-        ('MIT', r'SPDX-License-Identifier: MIT'),
-        ('WTFPL', r'SPDX-License-Identifier: WTFPL'),
-        ('GPL', r'SPDX-License-Identifier: GPL-3.0-'),  # <-or-later, -only>
         ('Unlicense', 'This is free and unencumbered software released into'),
         ('Apache 2.0', 'Licensed under the Apache License, Version 2.0'),
         ('BSD 3-Clause', 'Redistribution and use in source and binary forms'),
     ]
-    for license_key, license_txt in licenses:
-        try:
-            subprocess.check_output(['grep', '-i', license_txt, file])
+    for license_key, license_text in fingerprints:
+        if re.search(license_text, text):
             return license_key
-        except subprocess.CalledProcessError:
-            pass
     return ''
 
 
@@ -425,11 +430,11 @@ def _print_package_files(files: list):
                 header = header.strip()
             except (IndexError, UnicodeDecodeError):
                 header = '(no elisp header)'
-        print(
-            f"- {CLR_ULINE}{file}{CLR_OFF}"
-            f" ({_check_file_for_license_boilerplate(file) or 'unknown license'})"
-            + (f" -- {header}" if header else "")
-        )
+            print(
+                f"- {CLR_ULINE}{file}{CLR_OFF}"
+                f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
+                + (f" -- {header}" if header else "")
+            )
         if file.endswith('-pkg.el'):
             _note(f"  - Consider excluding this file; MELPA will create one", CLR_WARN)
 
