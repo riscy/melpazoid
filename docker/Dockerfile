@@ -51,8 +51,8 @@ COPY --chown=emacser:emacser docker/.emacs $WORKSPACE
 COPY --chown=emacser:emacser _elisp $ELISP_PATH
 COPY --chown=emacser:emacser melpazoid/melpazoid.el $ELISP_PATH
 
-ARG PACKAGE_NAME
-ENV PACKAGE_NAME "${PACKAGE_NAME}"
+ARG PACKAGE_MAIN
+ENV PACKAGE_MAIN "${PACKAGE_MAIN}"
 
 WORKDIR $ELISP_PATH
 CMD ["/usr/bin/emacs", "--script", "melpazoid.el"]

@@ -1,5 +1,4 @@
 IMAGE_NAME = melpazoid
-PACKAGE_NAME ?= NONE
 
 .PHONY: run
 run:
@@ -15,5 +14,5 @@ term: image
 
 .PHONY: image
 image:
-	@docker build --build-arg PACKAGE_NAME --quiet \
+	@docker build --build-arg PACKAGE_MAIN --quiet \
 		--tag ${IMAGE_NAME} -f docker/Dockerfile .

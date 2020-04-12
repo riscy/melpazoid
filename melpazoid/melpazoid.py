@@ -73,7 +73,7 @@ def run_checks(
         subprocess.check_output(['mv', os.path.join(elisp_dir, file), target])
         files[ii] = target
     _write_requirements(files, recipe)
-    check_containerized_build(_package_name(recipe))
+    check_containerized_build(files, recipe)
     print_related_packages(recipe)
     check_license(files, elisp_dir, clone_address)
     print_packaging(recipe, files, pr_data, clone_address)
@@ -122,9 +122,11 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
     return_code(2)
 
 
-def check_containerized_build(package_name: str):
+def check_containerized_build(files: list, recipe: str):
+    package_name = _package_name(recipe)
+    main_file = os.path.basename(_main_file(files, recipe))
     print(f"Building container for {package_name}... 🐳")
-    output = subprocess.check_output(['make', 'test', f"PACKAGE_NAME={package_name}"])
+    output = subprocess.check_output(['make', 'test', f"PACKAGE_MAIN={main_file}"])
     for line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in line or ': error: ' in line:

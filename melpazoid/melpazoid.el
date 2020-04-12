@@ -95,32 +95,31 @@
   "Wrapper for running `package-lint' against the current buffer."
   (require 'package-lint)    ; to retain cleaner byte-compilation in script mode
   (require 'pkg-info)        ; to retain cleaner byte-compilation in script mode
-  (if (not (melpazoid--run-package-lint-p))
-      (melpazoid-insert "(Skipping package-lint on this file)")
-    (melpazoid-insert
-     "package-lint-current-buffer (using version %s):"
-     (pkg-info-format-version (pkg-info-package-version "package-lint")))
-    (ignore-errors (kill-buffer "*Package-Lint*"))
-    (ignore-errors (package-lint-current-buffer))
-    (with-current-buffer (get-buffer-create "*Package-Lint*")
-      (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-        (if (string= "No issues found." output)
-            (melpazoid-insert "- No issues!")
-          (melpazoid-insert "```")
-          (melpazoid-insert
-           (if (string= output "")
-               "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-             output))
-          (melpazoid-insert "```")
-          (setq melpazoid-error-p t)))))
+  (melpazoid-insert
+   "package-lint-current-buffer (using version %s):"
+   (pkg-info-format-version (pkg-info-package-version "package-lint")))
+  (ignore-errors (kill-buffer "*Package-Lint*"))
+  (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
+    (ignore-errors (package-lint-current-buffer)))
+  (with-current-buffer (get-buffer-create "*Package-Lint*")
+    (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
+      (if (string= "No issues found." output)
+          (melpazoid-insert "- No issues!")
+        (melpazoid-insert "```")
+        (melpazoid-insert
+         (if (string= output "")
+             "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
+           output))
+        (melpazoid-insert "```")
+        (setq melpazoid-error-p t))))
   (melpazoid-insert ""))
 
-(defun melpazoid--run-package-lint-p ()
-  "Return non-nil if buffer's file is not the package's 'main' file."
-  (or (not (getenv "PACKAGE_NAME"))
-      ;; TODO: can we use buffer-file-name instead of (buffer-file-name)?
-      (string= (getenv "PACKAGE_NAME") (file-name-base (buffer-file-name)))
-      (zerop (length (getenv "PACKAGE_NAME")))))
+(defun melpazoid--package-lint-main-file ()
+  "Return suitable value for `package-lint-main-file'."
+  (let ((package-main (getenv "PACKAGE_MAIN")))
+    (cond ((eq package-main nil) nil)
+          ((string= package-main "") nil)
+          (t package-main))))
 
 (defun melpazoid-check-declare ()
   "Wrapper for `melpazoid' check-declare.
