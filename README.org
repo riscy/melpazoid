@@ -18,8 +18,8 @@ The checks are a combination of:
 1. [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Byte-Compilation.html#Byte-Compilation][byte-compile-file]]
 2. [[https://www.emacswiki.org/emacs/CheckDoc][checkdoc]]
 3. [[https://github.com/purcell/package-lint][package-lint]]
-4. a license checker (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.py][melpazoid.py]])
-5. some elisp checks (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid.el][melpazoid.el]])
+4. a license checker (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid/melpazoid.py][melpazoid.py]])
+5. some elisp checks (in [[https://github.com/riscy/melpazoid/blob/master/melpazoid/melpazoid.el][melpazoid.el]])
 
 1--4 are on the [[https://github.com/melpa/melpa/blob/master/.github/PULL_REQUEST_TEMPLATE.md][MELPA checklist]], so you should always try to get those right. In
 normal circumstances the build will exit with a failure if there is any
