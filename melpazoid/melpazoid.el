@@ -139,8 +139,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-sharp-quotes ()
   "Check for missing sharp quotes."
-  (melpazoid-misc "#'(lambda" "There is no need to quote lambdas (neither #' nor ')")
-  (melpazoid-misc "[^#]'(lambda" "Don't quote lambdas; this prevents them from being compiled")
+  (melpazoid-misc "#'(lambda " "There is no need to quote lambdas (neither #' nor ')")
+  (melpazoid-misc "[^#]'(lambda " "Don't quote lambdas; this prevents them from being compiled")
   (let ((msg "It's safer to sharp-quote function names; use `#'`"))
     (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
     (melpazoid-misc "(apply-partially '[^,]" msg)
@@ -159,8 +159,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(seq-find '" msg)
     (melpazoid-misc "(add-hook '[^[:space:]]+ '" msg)
     (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
-    (melpazoid-misc "(advice-add [^#)]*)" msg)
-    (melpazoid-misc "(defalias [^#()]*)" msg)
+    (melpazoid-misc "(advice-add '[^#)]*)" msg)
+    (melpazoid-misc "(defalias '[^#()]*)" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
 (defun melpazoid-check-misc ()
@@ -216,7 +216,7 @@ then also scan comments for REGEXP."
                 (not (comment-only-p (point-at-bol) (point-at-eol))))
         ;; print a header unless it's already been printed:
         (unless melpazoid--misc-header-printed-p
-          (melpazoid-insert "Experimental static checks/suggestions:")
+          (melpazoid-insert "Suggestions/experimental static checks:")
           (setq melpazoid--misc-header-printed-p t))
         (melpazoid-insert "- %s#L%s: %s"
                           (file-name-nondirectory (buffer-file-name))

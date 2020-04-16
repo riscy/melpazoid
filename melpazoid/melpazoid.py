@@ -515,7 +515,7 @@ def _clone(repo: str, into: str, branch: str = None, scm: str = 'git') -> bool:
     # git clone prints to stderr, oddly enough:
     result = subprocess.run(git_command, stderr=subprocess.STDOUT)
     if result.returncode != 0:
-        _fail('Unable to clone this (prefer "master" as the default branch)')
+        _fail(f"Unable to clone:\n  {' '.join(git_command)}")
         return False
     return True
 
@@ -565,7 +565,7 @@ def check_melpa_pr(pr_url: str):
         _note(f"Unable to build the pull request at {pr_url}", CLR_ERROR)
         return
     if filename != _package_name(recipe):
-        _fail(f"Filename '{filename}' does not match '{_package_name(recipe)}'")
+        _fail(f"Recipe filename '{filename}' does not match '{_package_name(recipe)}'")
         return
 
     clone_address: str = _clone_address(recipe)
