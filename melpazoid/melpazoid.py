@@ -484,18 +484,23 @@ def yes_p(text: str) -> bool:
 def check_recipe(recipe: str = ''):
     """Check a remotely-hosted package."""
     return_code(0)
-    scm = _source_code_manager(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
         clone_address = _clone_address(recipe)
-        if _clone(clone_address, into=elisp_dir, branch=_branch(recipe), scm=scm):
+        if _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             run_checks(recipe, elisp_dir, clone_address)
 
 
-def _clone(repo: str, into: str, branch: str = None, scm: str = 'git') -> bool:
+def _fetcher(recipe: str) -> str:
+    tokenized_recipe = _tokenize_expression(recipe)
+    return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
+
+
+def _clone(repo: str, into: str, branch: str = None, fetcher: str = 'github') -> bool:
     """Try to clone the repository; return whether we succeeded."""
     print(f"Checking out {repo}")
+    scm = 'hg' if fetcher == 'hg' else 'git'
     if not requests.get(repo).ok:
         _fail(f"Unable to locate {repo}")
         return False
@@ -505,7 +510,9 @@ def _clone(repo: str, into: str, branch: str = None, scm: str = 'git') -> bool:
         # MELPA recipe must specify the branch using the :branch keyword
         # https://github.com/melpa/melpa/pull/6712
         options = ['--branch', branch if branch else 'master']
-        options += ['--depth', '1', '--single-branch']
+        options += ['--single-branch']
+        if fetcher in {'github', 'gitlab', 'bitbucket'}:
+            options += ['--depth', '1']
     elif scm == 'hg':
         options = ['--branch', branch] if branch else []
     else:
@@ -518,20 +525,6 @@ def _clone(repo: str, into: str, branch: str = None, scm: str = 'git') -> bool:
         _fail(f"Unable to clone:\n  {' '.join(git_command)}")
         return False
     return True
-
-
-def _source_code_manager(recipe: str) -> str:
-    """Determine the source code manager used (mercurial or git).
-    >>>
-    _source_code_manager('(kanban :fetcher hg :url ...)')
-    'hg'
-    _source_code_manager('(kanban :fetcher gitlab :url ...)')
-    'git'
-    """
-    tokenized_recipe = _tokenize_expression(recipe)
-    if tokenized_recipe[tokenized_recipe.index(':fetcher') + 1] == 'hg':
-        return 'hg'
-    return 'git'
 
 
 def _branch(recipe: str) -> str:
