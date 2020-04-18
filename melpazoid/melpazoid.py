@@ -75,8 +75,7 @@ def run_checks(
     _write_requirements(files, recipe)
     check_containerized_build(files, recipe)
     print_related_packages(recipe)
-    check_license(files, elisp_dir, clone_address)
-    print_packaging(recipe, files, pr_data, clone_address)
+    print_packaging(files, recipe, elisp_dir, pr_data, clone_address)
 
 
 def return_code(return_code: int = None) -> int:
@@ -279,21 +278,6 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
     return ''
 
 
-def check_license(files: list, elisp_dir: str, clone_address: str = None):
-    _note('\n### License ###\n', CLR_INFO)
-    repo_licensed = False
-    if clone_address:
-        repo_licensed = _check_license_github_api(clone_address)
-    if not repo_licensed:
-        repo_licensed = _check_repo_for_license(elisp_dir)
-    individual_files_licensed = _check_files_for_license_boilerplate(files)
-    if not repo_licensed and not individual_files_licensed:
-        _fail('- Use a GPL-compatible license.')
-        print(
-            '  See: https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
-        )
-
-
 def _check_license_github_api(clone_address: str) -> bool:
     """Use the GitHub API to check for a license."""
     # TODO: gitlab also has a license API -- support it?
@@ -342,7 +326,7 @@ def _check_files_for_license_boilerplate(files: list) -> bool:
         basename = os.path.basename(file)
         if not license_:
             _fail(
-                '- Please add license boilerplate or an [SPDX license identifier]'
+                '- Please add license boilerplate or an [SPDX-License-Identifier]'
                 '(https://spdx.org/using-spdx-license-identifier)'
                 f" to {basename}"
             )
@@ -378,10 +362,15 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
 
 
 def print_packaging(
-    recipe: str, files: list, pr_data: dict = None, clone_address: str = None
+    files: list,
+    recipe: str,
+    elisp_dir: str,
+    pr_data: dict = None,
+    clone_address: str = None,
 ):
-    _note('\n### Package details ###\n', CLR_INFO)
+    _note('\n### Packaging ###\n', CLR_INFO)
     _print_recipe(files, recipe)
+    _check_license(files, elisp_dir, clone_address)
     _print_requirements(files, recipe)
     if pr_data and clone_address:
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
@@ -390,8 +379,22 @@ def print_packaging(
     _print_package_files(files)
 
 
+def _check_license(files: list, elisp_dir: str, clone_address: str = None):
+    repo_licensed = False
+    if clone_address:
+        repo_licensed = _check_license_github_api(clone_address)
+    if not repo_licensed:
+        repo_licensed = _check_repo_for_license(elisp_dir)
+    individual_files_licensed = _check_files_for_license_boilerplate(files)
+    if not repo_licensed and not individual_files_licensed:
+        _fail('- Use a GPL-compatible license.')
+        print(
+            '  See: https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
+        )
+
+
 def _print_recipe(files: list, recipe: str):
-    print(f"```elisp\n{recipe}\n```")
+    print(f"<!-- ```{recipe}``` -->")
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
     if ':branch' in recipe:
@@ -449,7 +452,7 @@ def print_related_packages(recipe: str):
     known_names = [name for name in known_packages if shorter_name in name]
     if not known_names:
         return
-    _note('\n### Similarly named packages ###\n', CLR_INFO)
+    _note('\n### Similarly named ###\n', CLR_INFO)
     for name in known_names[:10]:
         print(f"- {name} {known_packages[name]}")
     if package_name in known_packages:
