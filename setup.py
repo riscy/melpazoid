@@ -9,3 +9,5 @@ setup(
     packages=['melpazoid'],
     install_requires=['requests'],
 )
+
+# trigger ci
