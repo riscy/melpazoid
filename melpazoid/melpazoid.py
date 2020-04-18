@@ -488,7 +488,11 @@ def check_recipe(recipe: str = ''):
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, _package_name(recipe))
         clone_address = _clone_address(recipe)
-        if _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
+        if _local_repo():
+            print(f"Using local repository at {_local_repo()}")
+            subprocess.check_output(['cp', '-r', _local_repo(), elisp_dir])
+            run_checks(recipe, elisp_dir)
+        elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             run_checks(recipe, elisp_dir, clone_address)
 
 
@@ -497,9 +501,15 @@ def _fetcher(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
 
 
+def _local_repo():
+    local_repo = os.path.expanduser(os.environ.get('LOCAL_REPO', ''))
+    assert not local_repo or os.path.isdir(local_repo)
+    return local_repo
+
+
 def _clone(repo: str, into: str, branch: str = None, fetcher: str = 'github') -> bool:
     """Try to clone the repository; return whether we succeeded."""
-    print(f"Checking out {repo}")
+    print(f"Checking out {repo}" + (f" ({branch} branch)" if branch else ""))
     scm = 'hg' if fetcher == 'hg' else 'git'
     if not requests.get(repo).ok:
         _fail(f"Unable to locate {repo}")

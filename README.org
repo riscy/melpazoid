@@ -29,8 +29,8 @@ The license checker (4) is currently very crude. The elisp checks (5) are not
 foolproof, sometimes opinionated, and may raise false positives.
 
 * Usage
-  You can [[https://github.com/riscy/melpazoid#fork-it-and-let-ci-do-the-work][fork it and let CI do the work]], or [[https://github.com/riscy/melpazoid#use-it-locally][use it locally]].
-** Fork it and let CI do the work
+  You can [[https://github.com/riscy/melpazoid#fork-it-and-let-ci-do-the-work][fork it and let Travis-CI do the work]], or [[https://github.com/riscy/melpazoid#use-it-locally][use it locally]].
+** Fork it and let Travis-CI do the work
    If you don't want to install this software or its dependencies, you are
    encouraged to fork this repository and let CI do the work. Then enable
    [[https://travis-ci.org][Travis-CI]] on your fork, or just open a pull request against this repository
@@ -56,11 +56,21 @@ foolproof, sometimes opinionated, and may raise false positives.
    will be built with (hopefully) all of your requirements installed. By
    default, it will be run with no network access. The output scroll will report
    any discovered issues.
-*** Test your recipe
+*** Test the recipe for a hosted package
     #+begin_src bash
     RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' make
     #+end_src
-    Note the apostrophes around the RECIPE.
+    Note the apostrophes around the RECIPE.  Or test a specific branch:
+    #+begin_src bash
+    RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github :branch "develop")' make
+    #+end_src
+*** Test the recipe for a package on your machine
+    #+begin_src bash
+    RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' \
+        LOCAL_REPO='~/my-emacs-packages/shx-for-emacs' make
+    #+end_src
+    Instead of cloning from ~riscy/shx-for-emacs~ in this example, melpazoid
+    will use the files in ~LOCAL_REPO~.
 *** Test an open MELPA PR
     #+begin_src bash
     MELPA_PR_URL=https://github.com/melpa/melpa/pull/6718 make
