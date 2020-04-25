@@ -448,13 +448,17 @@ def print_related_packages(recipe: str):
     """Print list of potentially related packages."""
     package_name = _package_name(recipe)
     shorter_name = package_name[:-5] if package_name.endswith('-mode') else package_name
-    known_packages = _known_packages()
+    known_packages = {
+        **_known_packages(),
+        **_emacswiki_packages(keywords=[package_name, shorter_name]),
+    }
     known_names = [name for name in known_packages if shorter_name in name]
     if not known_names:
         return
     _note('\n### Similarly named ###\n', CLR_INFO)
     for name in known_names[:10]:
-        print(f"- {name} {known_packages[name]}")
+        if name != package_name:
+            print(f"- {name} {known_packages[name]}")
     if package_name in known_packages:
         _fail(f"- {package_name} {known_packages[package_name]} is in direct conflict")
 
@@ -474,6 +478,20 @@ def _known_packages() -> dict:
         if epkg != 'DEFAULT'
     }
     return {**epkgs_packages, **melpa_packages}
+
+
+def _emacswiki_packages(keywords: list) -> dict:
+    """Check mirrored emacswiki.org for 'keywords'.
+    >>> _emacswiki_packages(keywords=['newpaste'])
+    {'newpaste': 'https://github.com/emacsmirror/emacswiki.org/blob/master/newpaste.el'}
+    """
+    packages = {}
+    for keyword in keywords:
+        el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
+        pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
+        if requests.get(pkg).ok:
+            packages[keyword] = pkg
+    return packages
 
 
 def yes_p(text: str) -> bool:
