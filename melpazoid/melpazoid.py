@@ -396,10 +396,11 @@ def _check_license(files: list, elisp_dir: str, clone_address: str = None):
 def _print_recipe(files: list, recipe: str):
     print(f"<!-- ```{recipe}``` -->")
     if ':files' in recipe and ':defaults' not in recipe:
-        _note('- Prefer the default recipe, especially for small packages', CLR_WARN)
+        _note('- Prefer the default recipe if possible', CLR_WARN)
     if ':branch' in recipe:
         _note('- Only specify :branch in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
+        # TODO: recipes that do this are failing much higher in the pipeline
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{_package_name(recipe)}'!")
@@ -427,6 +428,9 @@ def _print_package_files(files: list):
         if os.path.isdir(file):
             print(f"- {CLR_ULINE}{file}{CLR_OFF} -- directory")
             continue
+        if not file.endswith('.el'):
+            print(f"- {CLR_ULINE}{file}{CLR_OFF} -- not elisp")
+            continue
         with open(file) as stream:
             try:
                 header = stream.readline()
@@ -434,7 +438,8 @@ def _print_package_files(files: list):
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except (IndexError, UnicodeDecodeError):
-                header = '(no elisp header)'
+                header = f"{CLR_ERROR}(no header){CLR_OFF}"
+                return_code(2)
             print(
                 f"- {CLR_ULINE}{file}{CLR_OFF}"
                 f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
@@ -460,7 +465,7 @@ def print_related_packages(recipe: str):
         if name != package_name:
             print(f"- {name} {known_packages[name]}")
     if package_name in known_packages:
-        _fail(f"- {package_name} {known_packages[package_name]} is in direct conflict")
+        _fail(f"- '{package_name}' already exists: {known_packages[package_name]}")
 
 
 @functools.lru_cache()
@@ -659,7 +664,7 @@ def run_build_script(script: str) -> str:
     >>> run_build_script('(send-string-to-terminal "Hello world")')
     'Hello world'
     """
-    stderr = subprocess.STDERR if DEBUG else subprocess.DEVNULL
+    stderr = subprocess.STDOUT if DEBUG else subprocess.DEVNULL
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
             with open(os.path.join(tmpdir, filename), 'w') as file:
@@ -703,7 +708,9 @@ def check_melpa_pr_loop():
         print(f"Found MELPA PR {pr_url}")
         check_melpa_pr(pr_url)
         if return_code() != 0:
-            _fail('*** This PR failed')
+            _fail('<!-- This PR failed -->')
+        else:
+            _note('<!-- This PR passed -->')
         print('-' * 79)
 
 
