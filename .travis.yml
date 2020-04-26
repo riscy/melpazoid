@@ -4,11 +4,7 @@ python:
   - "3.6"
 
 env:
-  # If you already have a pull request open, specify as below:
-  - MELPA_PR_URL=https://github.com/melpa/melpa/pull/3041
-  # Or test a recipe before you even open a MELPA pull request:
-  - RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")'
 install:
   - pip install .
 script:
-  - EXPECT_ERROR=2 make
+  - EXIST_OK=true MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749 make
