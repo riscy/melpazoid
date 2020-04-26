@@ -278,17 +278,14 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
     return ''
 
 
-def _check_license_github_api(clone_address: str) -> bool:
+def _check_license_github(clone_address: str) -> bool:
     """Use the GitHub API to check for a license."""
     # TODO: gitlab also has a license API -- support it?
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
-    if clone_address.endswith('.git'):
-        clone_address = clone_address[:-4]
-    match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
-    if not match:
+    repo_info = repo_info_github(clone_address)
+    if not repo_info:
         return False
-    repo_suffix = match.groups()[0].rstrip('/')
-    license_ = requests.get(f"{GITHUB_API}/{repo_suffix}").json().get('license')
+    license_ = repo_info.get('license')
     if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
         print(f"- GitHub API found `{license_.get('name')}`")
         return True
@@ -301,6 +298,20 @@ def _check_license_github_api(clone_address: str) -> bool:
     _fail('- Use a LICENSE file that GitHub can detect (e.g. no markup) if possible')
     print('  See: https://github.com/licensee/licensee')
     return False
+
+
+@functools.lru_cache()
+def repo_info_github(clone_address: str) -> dict:
+    """What does the GitHub API say about the repo?"""
+    if clone_address.endswith('.git'):
+        clone_address = clone_address[:-4]
+    match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
+    if not match:
+        return {}
+    response = requests.get(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}")
+    if not response.ok:
+        return {}
+    return response.json()
 
 
 def _check_repo_for_license(elisp_dir: str) -> bool:
@@ -372,6 +383,7 @@ def print_packaging(
     _print_recipe(files, recipe)
     _check_license(files, elisp_dir, clone_address)
     _print_requirements(files, recipe)
+    _print_github_details(clone_address)
     if pr_data and clone_address:
         print(f"- PR by {pr_data['user']['login']}: {clone_address}")
         if pr_data['user']['login'].lower() not in clone_address.lower():
@@ -379,10 +391,20 @@ def print_packaging(
     _print_package_files(files)
 
 
+def _print_github_details(clone_address: str):
+    repo_info = repo_info_github(clone_address)
+    if not repo_info:
+        return
+    print(f"- Created: {repo_info.get('created_at')}")
+    print(f"- Watched: {repo_info.get('watchers_count')}")
+    if repo_info.get('archived'):
+        _fail('- GitHub repository is archived')
+
+
 def _check_license(files: list, elisp_dir: str, clone_address: str = None):
     repo_licensed = False
     if clone_address:
-        repo_licensed = _check_license_github_api(clone_address)
+        repo_licensed = _check_license_github(clone_address)
     if not repo_licensed:
         repo_licensed = _check_repo_for_license(elisp_dir)
     individual_files_licensed = _check_files_for_license_boilerplate(files)
