@@ -6,7 +6,7 @@ run:
 
 .PHONY: test
 test: image
-	@docker run -it --rm --network none ${IMAGE_NAME}
+	@docker run --rm --network none ${IMAGE_NAME}
 
 .PHONY: term
 term: image

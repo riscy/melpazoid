@@ -1,0 +1,37 @@
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install
+      run: |
+        sudo apt-get install emacs
+        emacs --version
+        python -m pip install --upgrade pip
+        pip install . mypy pytest black
+    - name: Test
+      run: |
+        black -S --check .
+        pytest --doctest-modules
+        mypy --ignore-missing-imports .
+    - name: Test 'shx' Pull Request  # a small package with few dependencies
+      env:  # ... which already exists on MELPA:
+        EXIST_OK: true
+      run: MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749 make
+    - name: Test 'kanban' Recipe  # notably this is a Mercurial recipe
+      env:  # ...and we expect it to have some nags:
+        EXPECT_ERROR: 2
+      run: RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")' make
+    - name: Test 'magit' Recipe  # magit is a large recipe
+      env:  # ...which may have a couple of nags:
+        EXPECT_ERROR: 2
+      run: RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))' make
