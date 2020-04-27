@@ -486,7 +486,9 @@ def print_related_packages(recipe: str):
     for name in known_names[:10]:
         if name != package_name:
             print(f"- {name} {known_packages[name]}")
-    if package_name in known_packages and 'EXIST_OK' not in os.environ:
+    if package_name not in known_packages:
+        return
+    if os.environ.get('EXIST_OK', '').lower() != 'true':
         _fail(f"- '{package_name}' already exists: {known_packages[package_name]}")
 
 
