@@ -122,9 +122,11 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
 
 
 def check_containerized_build(files: list, recipe: str):
-    package_name = _package_name(recipe)
-    main_file = os.path.basename(_main_file(files, recipe))
-    print(f"Building container for {package_name}... 🐳")
+    print(f"Building container for {_package_name(recipe)}... 🐳")
+    if len([file for file in files if file.endswith('.el')]) > 1:
+        main_file = os.path.basename(_main_file(files, recipe))
+    else:
+        main_file = ''  # no need to specify main file if it's the only file
     output = subprocess.check_output(['make', 'test', f"PACKAGE_MAIN={main_file}"])
     for line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
@@ -206,6 +208,9 @@ def _main_file(files: list, recipe: str) -> str:
 def _write_requirements(files: list, recipe: str):
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w') as requirements_el:
+        # NOTE: emacs --script <file.el> will set <file.el> to the load-file-name
+        # which can disrupt the compilation of packages that check this:
+        requirements_el.write('(let ((load-file-name nil))')
         requirements_el.write(
             '''
             (require 'package)
@@ -231,6 +236,7 @@ def _write_requirements(files: list, recipe: str):
                 requirements_el.write(f"(package-install '{req})\n")
                 if DEBUG:
                     requirements_el.write(f"(require '{req})\n")
+        requirements_el.write(') ; end let')
 
 
 def _requirements(files: list, recipe: str = None, with_versions: bool = False) -> set:
@@ -248,10 +254,15 @@ def _requirements(files: list, recipe: str = None, with_versions: bool = False) 
         elif filename.endswith('.el'):
             with open(filename, 'r') as el_file:
                 reqs.append(_reqs_from_el_file(el_file))
-    reqs = sum([req.split('(')[1:] for req in reqs], [])
+    reqs = sum((req.split('(')[1:] for req in reqs), [])
     reqs = [req.replace(')', '').strip().lower() for req in reqs if req.strip()]
     if with_versions:
         return set(reqs)
+    for ii, req in enumerate(reqs):
+        if '"' not in req:
+            _fail(f"Version in '{req}' must be a string!  Attempting patch")
+            package, version = reqs[ii].split()
+            reqs[ii] = f'{package} "{version}"'
     return {req.split('"')[0].strip() for req in reqs}
 
 
