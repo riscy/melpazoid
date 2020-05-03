@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Python module for checking MELPA recipes.
-
-Test this file:
-  pytest --doctest-modules
-
-Use this file a script:
-  python <this_file>.py
-"""
+"""Entrypoint to melpazoid."""
 import configparser
 import functools
 import glob
@@ -27,7 +19,7 @@ _RETURN_CODE = 0
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
-NO_COLOR = os.environ.get('NO_COLOR')
+NO_COLOR = os.environ.get('NO_COLOR', False)
 CLR_OFF = '' if NO_COLOR else '\033[0m'
 CLR_ERROR = '' if NO_COLOR else '\033[31m'
 CLR_WARN = '' if NO_COLOR else '\033[33m'
@@ -465,6 +457,9 @@ def _print_package_files(files: list):
         if not file.endswith('.el'):
             print(f"- {CLR_ULINE}{file}{CLR_OFF} -- not elisp")
             continue
+        if file.endswith('-pkg.el'):
+            _note(f"- {file} -- consider excluding this; MELPA creates one", CLR_WARN)
+            continue
         with open(file) as stream:
             try:
                 header = stream.readline()
@@ -617,7 +612,7 @@ def check_melpa_pr(pr_url: str):
 
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
     if 'changed_files' not in pr_data:
-        _fail(f"{pr_url} does not appear to be a MELPA PR")
+        _fail(f"{pr_url} does not appear to be a MELPA PR: {pr_data}")
         return
     if int(pr_data['changed_files']) != 1:
         _note('Please only add one recipe per pull request', CLR_ERROR)
@@ -648,7 +643,6 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
         or 'a/recipes' not in diff_text
         or 'b/recipes' not in diff_text
     ):
-        _note('This does not appear to add a new recipe', CLR_WARN)
         return '', ''
     with tempfile.TemporaryDirectory() as tmpdir:
         with subprocess.Popen(
