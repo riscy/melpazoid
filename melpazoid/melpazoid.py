@@ -15,7 +15,7 @@ import time
 from typing import Iterator, List, TextIO, Tuple
 
 DEBUG = False  # eagerly load installed packages, etc.
-_RETURN_CODE = 0
+_RETURN_CODE = 0  # eventual return code when run as script
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -133,6 +133,7 @@ def check_containerized_build(files: List[str], recipe: str):
             _note(line, CLR_INFO)
         elif not line.startswith('make[1]: Leaving directory'):
             print(line)
+    print()
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
@@ -203,8 +204,8 @@ def _main_file(files: List[str], recipe: str) -> str:
 def _write_requirements(files: List[str], recipe: str):
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w') as requirements_el:
-        # NOTE: emacs --script <file.el> will set <file.el> to the load-file-name
-        # which can disrupt the compilation of packages that check this:
+        # NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
+        # which can disrupt the compilation of packages that use that variable:
         requirements_el.write('(let ((load-file-name nil))')
         requirements_el.write(
             '''
@@ -384,17 +385,18 @@ def print_packaging(
     files: List[str], recipe: str, elisp_dir: str, clone_address: str = None,
 ):
     """Print additional details (how it's licensed, what files, etc.)"""
-    _note('\n### Packaging ###\n', CLR_INFO)
+    _note('### Packaging ###\n', CLR_INFO)
     if clone_address and repo_info_github(clone_address).get('archived'):
         _fail('- GitHub repository is archived')
-    _print_recipe(files, recipe)
-    _check_license(files, elisp_dir, clone_address)
+    _check_recipe(files, recipe)
     _print_package_requires(files, recipe)
+    _check_license(files, elisp_dir, clone_address)
     _print_package_files(files)
+    print()
 
 
 def _print_pr_footnotes(clone_address: str, pr_data: dict):
-    _note('\n<!-- Footnotes', CLR_INFO)
+    _note('<!-- ### Footnotes ###', CLR_INFO, highlight='### Footnotes ###')
     repo_info = repo_info_github(clone_address)
     if repo_info.get('archived'):
         _fail('- GitHub repository is archived')
@@ -404,7 +406,7 @@ def _print_pr_footnotes(clone_address: str, pr_data: dict):
     print(f"- PR by {pr_data['user']['login']}: {clone_address}")
     if pr_data['user']['login'].lower() not in clone_address.lower():
         _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
-    print('-->')
+    print('-->\n')
 
 
 def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
@@ -421,7 +423,7 @@ def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
         )
 
 
-def _print_recipe(files: List[str], recipe: str):
+def _check_recipe(files: List[str], recipe: str):
     if ':branch' in recipe:
         _note('- Do not specify :branch except in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
@@ -489,11 +491,12 @@ def print_related_packages(package_name: str):
     known_names = [name for name in known_packages if shorter_name in name]
     if not known_names:
         return
-    _note('\n### Similarly named ###\n', CLR_INFO)
+    _note('### Similarly named ###\n', CLR_INFO)
     for name in known_names[:10]:
         print(f"- {name}: {known_packages[name]}")
     if package_name in known_packages:
         _fail(f"- Error: a package called '{package_name}' exists", highlight='Error:')
+    print()
 
 
 @functools.lru_cache()
