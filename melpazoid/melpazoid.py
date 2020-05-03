@@ -74,7 +74,8 @@ def run_checks(
         files[ii] = target
     _write_requirements(files, recipe)
     check_containerized_build(files, recipe)
-    print_related_packages(recipe)
+    if os.environ.get('EXIST_OK', '').lower() != 'true':
+        print_related_packages(recipe)
     print_packaging(files, recipe, elisp_dir, pr_data, clone_address)
 
 
@@ -495,12 +496,9 @@ def print_related_packages(recipe: str):
         return
     _note('\n### Similarly named ###\n', CLR_INFO)
     for name in known_names[:10]:
-        if name != package_name:
-            print(f"- {name} {known_packages[name]}")
-    if package_name not in known_packages:
-        return
-    if os.environ.get('EXIST_OK', '').lower() != 'true':
-        _fail(f"- '{package_name}' already exists: {known_packages[package_name]}")
+        print(f"- {name}: {known_packages[name]}")
+    if package_name in known_packages:
+        _fail(f"- Error: a package called '{package_name}' exists", highlight='Error:')
 
 
 @functools.lru_cache()
