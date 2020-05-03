@@ -357,7 +357,6 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     'GPL'
     """
     text = el_file.read()
-    # SPDX license identifiers are easy https://spdx.org/using-spdx-license-identifier
     match = re.search('SPDX-License-Identifier:[ ]+(.*)', text, flags=re.I)
     if match:
         return match.groups()[0].strip()
@@ -555,7 +554,7 @@ def _fetcher(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
 
 
-def _local_repo():
+def _local_repo() -> str:
     local_repo = os.path.expanduser(os.environ.get('LOCAL_REPO', ''))
     assert not local_repo or os.path.isdir(local_repo)
     return local_repo
@@ -654,6 +653,7 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
             return basename, patch_file.read().strip()
 
 
+@functools.lru_cache()
 def _clone_address(recipe: str) -> str:
     """Fetch the upstream repository URL for the recipe.
     >>> _clone_address('(shx :repo "riscy/shx-for-emacs" :fetcher github)')

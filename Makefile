@@ -16,3 +16,9 @@ term: image
 image:
 	@docker build --build-arg PACKAGE_MAIN --quiet \
 		--tag ${IMAGE_NAME} -f docker/Dockerfile .
+
+.PHONY: test-melpazoid
+test-melpazoid:
+	black -S --check .
+	pytest --doctest-modules
+	mypy --ignore-missing-imports melpazoid

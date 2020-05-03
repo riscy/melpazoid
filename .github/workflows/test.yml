@@ -20,10 +20,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install . mypy pytest black
     - name: Test
-      run: |
-        black -S --check .
-        pytest --doctest-modules
-        mypy --ignore-missing-imports .
+      run: make test-melpazoid
     - name: Test 'shx' Pull Request  # a small package with few dependencies
       env:  # ... which already exists on MELPA:
         EXIST_OK: true
