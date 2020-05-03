@@ -68,7 +68,9 @@ def run_checks(
     check_containerized_build(files, recipe)
     if os.environ.get('EXIST_OK', '').lower() != 'true':
         print_related_packages(recipe)
-    print_packaging(files, recipe, elisp_dir, pr_data, clone_address)
+    print_packaging(files, recipe, elisp_dir, clone_address)
+    if clone_address and pr_data:
+        print_pr_footnotes(clone_address, pr_data)
 
 
 def return_code(return_code: int = None) -> int:
@@ -376,32 +378,29 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
 
 
 def print_packaging(
-    files: list,
-    recipe: str,
-    elisp_dir: str,
-    pr_data: dict = None,
-    clone_address: str = None,
+    files: list, recipe: str, elisp_dir: str, clone_address: str = None,
 ):
     _note('\n### Packaging ###\n', CLR_INFO)
+    if clone_address and repo_info_github(clone_address).get('archived'):
+        _fail('- GitHub repository is archived')
     _print_recipe(files, recipe)
     _check_license(files, elisp_dir, clone_address)
-    _print_requirements(files, recipe)
-    _print_github_details(clone_address)
-    if pr_data and clone_address:
-        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
-        if pr_data['user']['login'].lower() not in clone_address.lower():
-            _note("  - NOTE: Repo and recipe owner don't match", CLR_WARN)
+    _print_package_requires(files, recipe)
     _print_package_files(files)
 
 
-def _print_github_details(clone_address: str):
+def print_pr_footnotes(clone_address: str, pr_data: dict):
+    _note('\n<!-- Footnotes', CLR_INFO)
     repo_info = repo_info_github(clone_address)
-    if not repo_info:
-        return
-    print(f"- Created: {repo_info.get('created_at')}")
-    print(f"- Watched: {repo_info.get('watchers_count')}")
     if repo_info.get('archived'):
         _fail('- GitHub repository is archived')
+    print(f"- Watched: {repo_info.get('watchers_count')}")
+    print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
+    print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
+    print(f"- PR by {pr_data['user']['login']}: {clone_address}")
+    if pr_data['user']['login'].lower() not in clone_address.lower():
+        _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
+    print('-->')
 
 
 def _check_license(files: list, elisp_dir: str, clone_address: str = None):
@@ -419,19 +418,18 @@ def _check_license(files: list, elisp_dir: str, clone_address: str = None):
 
 
 def _print_recipe(files: list, recipe: str):
-    print(f"<!-- ```{recipe}``` -->")
-    if ':files' in recipe and ':defaults' not in recipe:
-        _note('- Prefer the default recipe if possible', CLR_WARN)
     if ':branch' in recipe:
-        _note('- Only specify :branch in unusual cases', CLR_WARN)
+        _note('- Do not specify :branch except in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         # TODO: recipes that do this are failing much higher in the pipeline
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{_package_name(recipe)}'!")
+    if ':files' in recipe and ':defaults' not in recipe:
+        _note('- Prefer the default recipe if possible', CLR_WARN)
 
 
-def _print_requirements(files: list, recipe: str):
+def _print_package_requires(files: list, recipe: str):
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
