@@ -150,6 +150,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(seq-mapn '[^,]" msg)
     (melpazoid-misc "(mapconcat '[^,]" msg)
     (melpazoid-misc "(functionp '[^,]" msg)
+    (melpazoid-misc "(setq indent-line-function '[^,]" msg)
+    (melpazoid-misc "(setq-local indent-line-function '[^,]" msg)
     (melpazoid-misc "(mapcar '[^,]" msg)
     (melpazoid-misc "(funcall '[^,]" msg)
     (melpazoid-misc "(cl-assoc-if '[^,]" msg)
