@@ -1,5 +1,5 @@
 _requirements.el
-_elisp
+pkg
 *.elc
 
 .mypy_cache

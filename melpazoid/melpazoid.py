@@ -16,6 +16,7 @@ from typing import Iterator, List, TextIO, Tuple
 
 DEBUG = False  # eagerly load installed packages, etc.
 _RETURN_CODE = 0  # eventual return code when run as script
+_PKG_SUBDIR = 'pkg'  # name of directory for package's files
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -56,12 +57,12 @@ def run_checks(
         _fail(f"Recipe '{recipe}' appears to be invalid")
         return
     files = _files_in_recipe(recipe, elisp_dir)
-    subprocess.check_output(['rm', '-rf', '_elisp'])
-    os.makedirs('_elisp')
+    subprocess.check_output(['rm', '-rf', _PKG_SUBDIR])
+    os.makedirs(_PKG_SUBDIR)
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
-        target = os.path.join('_elisp', target)
-        os.makedirs(os.path.join('_elisp', os.path.dirname(file)), exist_ok=True)
+        target = os.path.join(_PKG_SUBDIR, target)
+        os.makedirs(os.path.join(_PKG_SUBDIR, os.path.dirname(file)), exist_ok=True)
         subprocess.check_output(['mv', os.path.join(elisp_dir, file), target])
         files[ii] = target
     _write_requirements(files, recipe)
@@ -182,8 +183,8 @@ def package_name(recipe: str) -> str:
 
 def _main_file(files: List[str], recipe: str) -> str:
     """Figure out the 'main' file of the recipe, per MELPA convention.
-    >>> _main_file(['_elisp/a.el', '_elisp/b.el'], '(a :files ...)')
-    '_elisp/a.el'
+    >>> _main_file(['pkg/a.el', 'pkg/b.el'], '(a :files ...)')
+    'pkg/a.el'
     >>> _main_file(['a.el', 'b.el'], '(b :files ...)')
     'b.el'
     >>> _main_file(['a.el', 'a-pkg.el'], '(a :files ...)')

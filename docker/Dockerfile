@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install software-properties-common \
     && rm -rf /tmp/* /var/lib/apt/lists/* /root/.cache/*
 
 ENV WORKSPACE "/workspace"
-ENV ELISP_PATH "${WORKSPACE}/_elisp"
+ENV ELISP_PATH "${WORKSPACE}/pkg"
 
 RUN useradd emacser -d $WORKSPACE
 RUN mkdir -p $ELISP_PATH && chown -R emacser $WORKSPACE
@@ -48,7 +48,7 @@ COPY _requirements.el $WORKSPACE
 RUN emacs --script $WORKSPACE/_requirements.el
 
 COPY --chown=emacser:emacser docker/.emacs $WORKSPACE
-COPY --chown=emacser:emacser _elisp $ELISP_PATH
+COPY --chown=emacser:emacser pkg $ELISP_PATH
 COPY --chown=emacser:emacser melpazoid/melpazoid.el $ELISP_PATH
 
 ARG PACKAGE_MAIN
