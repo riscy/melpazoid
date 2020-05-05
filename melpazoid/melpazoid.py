@@ -46,7 +46,7 @@ VALID_LICENSES_GITHUB = {
 }
 
 
-def run_checks(
+def _run_checks(
     recipe: str,  # e.g. of the form (my-package :repo ...)
     elisp_dir: str,  # where the package is on this machine
     clone_address: str = None,  # optional repo address
@@ -549,9 +549,9 @@ def check_recipe(recipe: str):
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
             subprocess.check_output(['cp', '-r', _local_repo(), elisp_dir])
-            run_checks(recipe, elisp_dir)
+            _run_checks(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
-            run_checks(recipe, elisp_dir, clone_address)
+            _run_checks(recipe, elisp_dir, clone_address)
 
 
 def _fetcher(recipe: str) -> str:
@@ -634,7 +634,7 @@ def check_melpa_pr(pr_url: str):
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, package_name(recipe))
         if _clone(clone_address, into=elisp_dir, branch=_branch(recipe)):
-            run_checks(recipe, elisp_dir, clone_address, pr_data)
+            _run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
 @functools.lru_cache()
