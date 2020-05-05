@@ -633,7 +633,12 @@ def check_melpa_pr(pr_url: str):
     with tempfile.TemporaryDirectory() as elisp_dir:
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, package_name(recipe))
-        if _clone(clone_address, into=elisp_dir, branch=_branch(recipe)):
+        if _clone(
+            clone_address,
+            into=elisp_dir,
+            branch=_branch(recipe),
+            fetcher=_fetcher(recipe),
+        ):
             _run_checks(recipe, elisp_dir, clone_address, pr_data)
 
 
