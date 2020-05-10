@@ -151,6 +151,21 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
     return [file for file in files if os.path.exists(os.path.join(elisp_dir, file))]
 
 
+def _set_branch(recipe: str, branch_name: str) -> str:
+    """Set the branch on the given recipe.
+    >>> _set_branch('(abcdef :fetcher hg :url "a/b")', "feature1")
+    '(abcdef :fetcher hg :url "a/b" :branch "feature1")'
+    """
+    tokens = _tokenize_expression(recipe)
+    if ':branch' in tokens:
+        index = tokens.index(':branch')
+        tokens[index + 1] = branch_name
+    else:
+        tokens.insert(-1, ':branch')
+        tokens.insert(-1, f'"{branch_name}"')
+    return '(' + ' '.join(tokens[1:-1]) + ')'
+
+
 @functools.lru_cache()
 def _tokenize_expression(expression: str) -> List[str]:
     """Turn an elisp expression into a list of tokens.
@@ -568,6 +583,18 @@ def _local_repo() -> str:
 def _clone(repo: str, into: str, branch: str = None, fetcher: str = 'github') -> bool:
     """Try to clone the repository; return whether we succeeded."""
     print(f"Checking out {repo}" + (f" ({branch} branch)" if branch else ""))
+
+    # check if we're being used in GitHub CI -- if so, modify the branch
+    if not branch and 'RECIPE' in os.environ:
+        os.path.split(os.environ.get('GITHUB_REF', ''))
+        branch = os.path.split(os.environ.get('GITHUB_REF', ''))[-1]
+        if not branch:
+            branch = os.environ.get('TRAVIS_PULL_REQUEST_BRANCH', '')
+        if not branch:
+            branch = os.environ.get('TRAVIS_BRANCH', '')
+        if branch:
+            _note(f"CI workflow detected; defaulting to branch '{branch}'", CLR_INFO)
+
     scm = 'hg' if fetcher == 'hg' else 'git'
     if not requests.get(repo).ok:
         _fail(f"Unable to locate {repo}")

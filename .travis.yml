@@ -8,3 +8,4 @@ install:
   - pip install .
 script:
   - EXIST_OK=true MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749 make
+  - EXIST_OK=true RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' make

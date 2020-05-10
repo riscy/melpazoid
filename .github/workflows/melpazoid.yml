@@ -18,7 +18,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         sudo apt-get install emacs && emacs --version
-        git clone https://github.com/riscy/melpazoid.git ~/melpazoid
+        git clone https://github.com/riscy/melpazoid.git --branch develop ~/melpazoid
         pip install ~/melpazoid
     - name: Run
       env:
@@ -26,4 +26,4 @@ jobs:
         RECIPE: (shx :repo "riscy/shx-for-emacs" :fetcher github)
         # set this to false (or remove it) if the package isn't on MELPA:
         EXIST_OK: true
-      run: echo $EXIST_OK && make -C ~/melpazoid
+      run: echo $GITHUB_REF && make -C ~/melpazoid
