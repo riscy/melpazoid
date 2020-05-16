@@ -71,7 +71,7 @@ def _run_checks(
         print_related_packages(package_name(recipe))
     print_packaging(files, recipe, elisp_dir, clone_address)
     if clone_address and pr_data:
-        _print_pr_footnotes(clone_address, pr_data)
+        _print_pr_footnotes(clone_address, pr_data, recipe)
 
 
 def _return_code(return_code: int = None) -> int:
@@ -259,10 +259,8 @@ def requirements(
         main_file = _main_file(files, recipe)
         if main_file:
             files = [main_file]
-    for filename in files:
-        if not os.path.isfile(filename):
-            continue
-        elif filename.endswith('-pkg.el'):
+    for filename in (f for f in files if os.path.isfile(f)):
+        if filename.endswith('-pkg.el'):
             with open(filename, 'r') as pkg_el:
                 reqs.append(_reqs_from_pkg_el(pkg_el))
         elif filename.endswith('.el'):
@@ -316,9 +314,9 @@ def _check_license_github(clone_address: str) -> bool:
         print(f"- GitHub API found `{license_.get('name')}`")
         return True
     if license_:
-        _note(f"- GitHub API found `{license_.get('name')}`", CLR_WARN)
+        _note(f"- GitHub API found `{license_.get('name')}`")
         if license_.get('name') == 'Other':
-            _fail('  - Use a GitHub-compatible format for your license file.')
+            _note('  - Try to use a standard format for your license file.', CLR_WARN)
             print('    See: https://github.com/licensee/licensee')
         return False
     _fail('- Use a LICENSE file that GitHub can detect (e.g. no markup) if possible')
@@ -411,14 +409,16 @@ def print_packaging(
     print()
 
 
-def _print_pr_footnotes(clone_address: str, pr_data: dict):
+def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
     _note('<!-- ### Footnotes ###', CLR_INFO, highlight='### Footnotes ###')
     repo_info = repo_info_github(clone_address)
-    if repo_info.get('archived'):
-        _fail('- GitHub repository is archived')
-    print(f"- Watched: {repo_info.get('watchers_count')}")
-    print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
-    print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
+    print('```\n' + recipe.replace(' :', '\n  :') + '\n```')  # prettify
+    if repo_info:
+        if repo_info.get('archived'):
+            _fail('- GitHub repository is archived')
+        print(f"- Watched: {repo_info.get('watchers_count')}")
+        print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
+        print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
     print(f"- PR by {pr_data['user']['login']}: {clone_address}")
     if pr_data['user']['login'].lower() not in clone_address.lower():
         _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
@@ -446,7 +446,7 @@ def _check_recipe(files: List[str], recipe: str):
         # TODO: recipes that do this are failing much higher in the pipeline
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     if not _main_file(files, recipe):
-        _fail(f"- No .el file matches the name '{package_name(recipe)}'!")
+        _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe if possible', CLR_WARN)
 
@@ -494,7 +494,7 @@ def _print_package_files(files: List[str]):
                 + (f" -- {header}" if header else "")
             )
         if file.endswith('-pkg.el'):
-            _note(f"  - Consider excluding this file; MELPA will create one", CLR_WARN)
+            _note('  - Consider excluding this file; MELPA will create one', CLR_WARN)
 
 
 def print_related_packages(package_name: str):
@@ -547,6 +547,7 @@ def _emacswiki_packages(keywords: List[str]) -> dict:
 
 
 def yes_p(text: str) -> bool:
+    """Ask user a yes/no question."""
     while True:
         keep = input(f"{text} [y/n] ").strip().lower()
         if keep.startswith('y') or keep.startswith('n'):
@@ -580,7 +581,7 @@ def _local_repo() -> str:
     return local_repo
 
 
-def _clone(repo: str, into: str, branch: str = None, fetcher: str = 'github') -> bool:
+def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
     """Try to clone the repository; return whether we succeeded."""
     print(f"Checking out {repo}" + (f" ({branch} branch)" if branch else ""))
 
@@ -615,7 +616,7 @@ def _clone(repo: str, into: str, branch: str = None, fetcher: str = 'github') ->
         return False
     git_command = [scm, 'clone', *options, repo, into]
     # git clone prints to stderr, oddly enough:
-    result = subprocess.run(git_command, stderr=subprocess.STDOUT)
+    result = subprocess.run(git_command, stderr=subprocess.STDOUT, check=True)
     if result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(git_command)}")
         return False
@@ -724,6 +725,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
         )
 
 
+@functools.lru_cache()
 def run_build_script(script: str) -> str:
     """Run an elisp script in a package-build context.
     >>> run_build_script('(send-string-to-terminal "Hello world")')
@@ -789,11 +791,7 @@ def _fetch_pull_requests() -> Iterator[str]:
             pr_url = match.string[: match.end()] if match else None
             if match and pr_url and pr_url != previous_pr_url:
                 break
-            print(
-                'Watching clipboard for MELPA PR... '
-                + ('😐' if random.randint(0, 2) else '🤨'),
-                end='\r',
-            )
+            print('Watching clipboard for MELPA PR... ', end='\r')
             time.sleep(1)
         previous_pr_url = pr_url
         yield pr_url

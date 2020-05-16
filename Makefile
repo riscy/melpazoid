@@ -19,6 +19,6 @@ image:
 
 .PHONY: test-melpazoid
 test-melpazoid:
-	black -S --check .
 	pytest --doctest-modules
 	mypy --ignore-missing-imports melpazoid
+	black -S --check .
