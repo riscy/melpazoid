@@ -21,15 +21,21 @@ jobs:
         pip install . mypy pytest black
     - name: Test
       run: make test-melpazoid
+
     - name: Test 'shx' Pull Request  # a small package with few dependencies
-      env:  # ... which already exists on MELPA:
-        EXIST_OK: true
+      env:  
+        CI_BRANCH: master  # always build the master branch for this repo
+        EXIST_OK: true     # we expect that it already exists on MELPA
       run: MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749 make
+
     - name: Test 'kanban' Recipe  # notably this is a Mercurial recipe
-      env:  # ...and we expect it to have some nags:
-        EXPECT_ERROR: 2
+      env:  
+        CI_BRANCH: default # always build the default branch on this repo
+        EXPECT_ERROR: 2    # we expect it to have some nags
       run: RECIPE='(kanban :fetcher hg :url "https://hg.sr.ht/~arnebab/kanban.el")' make
+
     - name: Test 'magit' Recipe  # magit is a large recipe
-      env:  # ...which may have a couple of nags:
-        EXPECT_ERROR: 2
+      env:
+        CI_BRANCH: master  # always build the master branch on this repo
+        EXPECT_ERROR: 2    # we expect it to have some nags
       run: RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))' make

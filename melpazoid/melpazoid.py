@@ -613,14 +613,14 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
 
     # check if we're being used in GitHub CI -- if so, modify the branch
     if not branch and 'RECIPE' in os.environ:
-        os.path.split(os.environ.get('GITHUB_REF', ''))
-        branch = os.path.split(os.environ.get('GITHUB_REF', ''))[-1]
-        if not branch:
-            branch = os.environ.get('TRAVIS_PULL_REQUEST_BRANCH', '')
-        if not branch:
-            branch = os.environ.get('TRAVIS_BRANCH', '')
+        branch = (
+            os.environ.get('CI_BRANCH', '')
+            or os.path.split(os.environ.get('GITHUB_REF', ''))[-1]
+            or os.environ.get('TRAVIS_PULL_REQUEST_BRANCH', '')
+            or os.environ.get('TRAVIS_BRANCH', '')
+        )
         if branch:
-            _note(f"CI workflow detected; defaulting to branch '{branch}'", CLR_INFO)
+            _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
     scm = 'hg' if fetcher == 'hg' else 'git'
     if not requests.get(repo).ok:
@@ -636,7 +636,7 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         if fetcher in {'github', 'gitlab', 'bitbucket'}:
             options += ['--depth', '1']
     elif scm == 'hg':
-        options = ['--branch', branch] if branch else []
+        options = ['--branch', branch if branch else 'default']
     else:
         _fail(f"Unrecognized SCM: {scm}")
         return False
