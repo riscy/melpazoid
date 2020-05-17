@@ -581,7 +581,7 @@ def yes_p(text: str) -> bool:
     return not keep.startswith('n')
 
 
-def check_recipe(recipe: str):
+def check_melpa_recipe(recipe: str):
     """Check a MELPA recipe definition."""
     _return_code(0)
     with tempfile.TemporaryDirectory() as elisp_dir:
@@ -828,11 +828,11 @@ if __name__ == '__main__':
         check_melpa_pr(os.environ['MELPA_PR_URL'])
         sys.exit(_return_code())
     elif 'RECIPE' in os.environ:
-        check_recipe(os.environ['RECIPE'])
+        check_melpa_recipe(os.environ['RECIPE'])
         sys.exit(_return_code())
     elif 'RECIPE_FILE' in os.environ:
         with open(os.environ['RECIPE_FILE'], 'r') as file:
-            check_recipe(file.read())
+            check_melpa_recipe(file.read())
         sys.exit(_return_code())
     else:
         _check_melpa_pr_loop()
