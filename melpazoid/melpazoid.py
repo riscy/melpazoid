@@ -4,8 +4,8 @@ import configparser
 import functools
 import glob
 import io  # noqa: F401 -- used by doctests
+import operator
 import os
-import random
 import re
 import requests
 import subprocess
@@ -57,6 +57,8 @@ def _run_checks(
         _fail(f"Recipe '{recipe}' appears to be invalid")
         return
     files = _files_in_recipe(recipe, elisp_dir)
+    use_default_recipe = files == _files_in_recipe(_default_recipe(recipe), elisp_dir)
+
     subprocess.check_output(['rm', '-rf', _PKG_SUBDIR])
     os.makedirs(_PKG_SUBDIR)
     for ii, file in enumerate(files):
@@ -69,7 +71,7 @@ def _run_checks(
     check_containerized_build(files, recipe)
     if os.environ.get('EXIST_OK', '').lower() != 'true':
         print_related_packages(package_name(recipe))
-    print_packaging(files, recipe, elisp_dir, clone_address)
+    print_packaging(files, recipe, use_default_recipe, elisp_dir, clone_address)
     if clone_address and pr_data:
         _print_pr_footnotes(clone_address, pr_data, recipe)
 
@@ -148,7 +150,7 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
                        (package-build--expand-source-file-list rcp) "\n")))
         """
     ).split('\n')
-    return [file for file in files if os.path.exists(os.path.join(elisp_dir, file))]
+    return sorted(f for f in files if os.path.exists(os.path.join(elisp_dir, f)))
 
 
 def _set_branch(recipe: str, branch_name: str) -> str:
@@ -164,6 +166,24 @@ def _set_branch(recipe: str, branch_name: str) -> str:
         tokens.insert(-1, ':branch')
         tokens.insert(-1, f'"{branch_name}"')
     return '(' + ' '.join(tokens[1:-1]) + ')'
+
+
+def _default_recipe(recipe: str) -> str:
+    """Simplify the given recipe, usually to the default.
+    # >>> _default_recipe('(recipe :repo a/b :fetcher hg :branch na :files ("*.el"))')
+    # '(recipe :repo a/b :fetcher hg :branch na)'
+    >>> _default_recipe('(recipe :fetcher hg :url "a/b")')
+    '(recipe :url "a/b" :fetcher hg)'
+    """
+    tokens = _tokenize_expression(recipe)
+    fetcher = tokens.index(':fetcher')
+    repo_or_url_token = ':repo' if ':repo' in tokens else ':url'
+    repo = tokens.index(repo_or_url_token)
+    indices = [1, repo, repo + 1, fetcher, fetcher + 1]
+    if ':branch' in tokens:
+        branch = tokens.index(':branch')
+        indices += [branch, branch + 1]
+    return '(' + ' '.join(operator.itemgetter(*indices)(tokens)) + ')'
 
 
 @functools.lru_cache()
@@ -396,13 +416,17 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
 
 
 def print_packaging(
-    files: List[str], recipe: str, elisp_dir: str, clone_address: str = None,
+    files: List[str],
+    recipe: str,
+    use_default_recipe: bool,
+    elisp_dir: str,
+    clone_address: str = None,
 ):
     """Print additional details (how it's licensed, what files, etc.)"""
     _note('### Packaging ###\n', CLR_INFO)
     if clone_address and repo_info_github(clone_address).get('archived'):
         _fail('- GitHub repository is archived')
-    _check_recipe(files, recipe)
+    _check_recipe(files, recipe, use_default_recipe)
     _print_package_requires(files, recipe)
     _check_license(files, elisp_dir, clone_address)
     _print_package_files(files)
@@ -439,7 +463,7 @@ def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
         )
 
 
-def _check_recipe(files: List[str], recipe: str):
+def _check_recipe(files: List[str], recipe: str, use_default_recipe: bool):
     if ':branch' in recipe:
         _note('- Do not specify :branch except in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
@@ -449,6 +473,8 @@ def _check_recipe(files: List[str], recipe: str):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe if possible', CLR_WARN)
+        if use_default_recipe:
+            _fail(f"  - It is in fact equivalent: `{_default_recipe(recipe)}`")
 
 
 def _print_package_requires(files: List[str], recipe: str):
