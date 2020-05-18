@@ -57,7 +57,7 @@ def _run_checks(
         _fail(f"Recipe '{recipe}' appears to be invalid")
         return
     files = _files_in_recipe(recipe, elisp_dir)
-    use_default_recipe = files == _files_in_recipe(_default_recipe(recipe), elisp_dir)
+    use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
 
     subprocess.check_output(['rm', '-rf', _PKG_SUBDIR])
     os.makedirs(_PKG_SUBDIR)
@@ -151,6 +151,15 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
         """
     ).split('\n')
     return sorted(f for f in files if os.path.exists(os.path.join(elisp_dir, f)))
+
+
+def _files_in_default_recipe(recipe: str, elisp_dir: str) -> list:
+    try:
+        return _files_in_recipe(_default_recipe(recipe), elisp_dir)
+    except ChildProcessError:
+        # It is possible that the default recipe is completely invalid and
+        # will throw an error -- in that case, just return the empty list:
+        return []
 
 
 def _set_branch(recipe: str, branch_name: str) -> str:
@@ -757,16 +766,19 @@ def run_build_script(script: str) -> str:
     >>> run_build_script('(send-string-to-terminal "Hello world")')
     'Hello world'
     """
-    stderr = subprocess.STDOUT if DEBUG else subprocess.DEVNULL
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
             with open(os.path.join(tmpdir, filename), 'w') as file:
                 file.write(content)
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
-        result = subprocess.check_output(
-            ['emacs', '--batch', '--eval', script], stderr=stderr
+        result = subprocess.run(
+            ['emacs', '--batch', '--eval', script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        return result.decode().strip()
+        if result.returncode != 0:
+            raise ChildProcessError(result.stderr.decode())
+        return result.stdout.decode().strip()
 
 
 @functools.lru_cache()
