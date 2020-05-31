@@ -436,7 +436,7 @@ def print_packaging(
     clone_address: str = None,
 ):
     """Print additional details (how it's licensed, what files, etc.)"""
-    _note('### Packaging ###\n', CLR_INFO)
+    _note('### Package ###\n', CLR_INFO)
     if clone_address and repo_info_github(clone_address).get('archived'):
         _fail('- GitHub repository is archived')
     _check_recipe(files, recipe, use_default_recipe)
@@ -449,7 +449,9 @@ def print_packaging(
 def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
     _note('<!-- ### Footnotes ###', CLR_INFO, highlight='### Footnotes ###')
     repo_info = repo_info_github(clone_address)
-    print('```\n' + recipe.replace(' :', '\n  :') + '\n```')  # prettify
+    print(
+        '```\n' + ' '.join(recipe.split()).replace(' :', '\n  :') + '\n```'
+    )  # prettify
     if repo_info:
         if repo_info.get('archived'):
             _fail('- GitHub repository is archived')
@@ -478,7 +480,7 @@ def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
 
 def _check_recipe(files: List[str], recipe: str, use_default_recipe: bool):
     if ':branch' in recipe:
-        _note('- Do not specify :branch except in unusual cases', CLR_WARN)
+        _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
     if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
         # TODO: recipes that do this are failing much higher in the pipeline
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
@@ -500,7 +502,7 @@ def _print_package_requires(files: List[str], recipe: str):
     print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
     for file in files:
         file_requirements = set(requirements([file], with_versions=True))
-        if file_requirements and file_requirements != main_requirements:
+        if file_requirements and file_requirements > main_requirements:
             _fail(
                 f"  - Package-Requires mismatch between {os.path.basename(file)} and "
                 f"{os.path.basename(_main_file(files, recipe))}!"

@@ -28,7 +28,7 @@
   "Wrapper for running `byte-compile-file' against FILENAME."
   ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
   (let ((version (caddr (split-string (emacs-version)))))
-    (melpazoid-insert "byte-compile-file (using Emacs %s):" version))
+    (melpazoid-insert "byte-compile (using Emacs %s):" version))
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
   (cl-letf (((symbol-function 'message) #'ignore))
@@ -96,7 +96,7 @@
   (require 'package-lint)    ; to retain cleaner byte-compilation in script mode
   (require 'pkg-info)        ; to retain cleaner byte-compilation in script mode
   (melpazoid-insert
-   "package-lint-current-buffer (using version %s):"
+   "package-lint (using version %s):"
    (pkg-info-format-version (pkg-info-package-version "package-lint")))
   (ignore-errors (kill-buffer "*Package-Lint*"))
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
@@ -168,7 +168,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
   (melpazoid-misc "(string-equal major-mode" "Prefer `(eq major-mode 'xyz)`")
-  (melpazoid-misc "(setq major-mode" "Consider `define-derived-mode`")
+  (melpazoid-misc "(setq major-mode" "Prefer `define-derived-mode`")
   (melpazoid-misc "(string= major-mode" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
@@ -181,7 +181,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space")
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should not occur")
-  (melpazoid-misc "([^ ]*read-string \"[^\"]*[^ ]\"" "Many `*-read-string` prompts should end with a space")
+  (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "Many `read-string` prompts should end with a space" t)
   (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)")
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
