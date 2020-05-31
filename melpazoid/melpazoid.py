@@ -8,6 +8,7 @@ import operator
 import os
 import re
 import requests
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,16 +57,17 @@ def _run_checks(
     if not validate_recipe(recipe):
         _fail(f"Recipe '{recipe}' appears to be invalid")
         return
+    try:
+        shutil.rmtree(_PKG_SUBDIR)
+    except FileNotFoundError:
+        pass
     files = _files_in_recipe(recipe, elisp_dir)
     use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
-
-    subprocess.check_output(['rm', '-rf', _PKG_SUBDIR])
-    os.makedirs(_PKG_SUBDIR)
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_SUBDIR, target)
         os.makedirs(os.path.join(_PKG_SUBDIR, os.path.dirname(file)), exist_ok=True)
-        subprocess.check_output(['mv', os.path.join(elisp_dir, file), target])
+        subprocess.run(['mv', os.path.join(elisp_dir, file), target])
         files[ii] = target
     _write_requirements(files, recipe)
     check_containerized_build(files, recipe)
@@ -125,7 +127,9 @@ def check_containerized_build(files: List[str], recipe: str):
         main_file = os.path.basename(_main_file(files, recipe))
     else:
         main_file = ''  # no need to specify main file if it's the only file
-    output = subprocess.check_output(['make', 'test', f"PACKAGE_MAIN={main_file}"])
+    output = subprocess.run(
+        ['make', 'test', f"PACKAGE_MAIN={main_file}"], stdout=subprocess.PIPE,
+    ).stdout
     for line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in line or ': error: ' in line:
@@ -599,7 +603,7 @@ def check_melpa_recipe(recipe: str):
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            subprocess.check_output(['cp', '-r', _local_repo(), elisp_dir])
+            subprocess.run(['cp', '-r', _local_repo(), elisp_dir])
             _run_checks(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _run_checks(recipe, elisp_dir, clone_address)
@@ -635,7 +639,7 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
     if not requests.get(repo).ok:
         _fail(f"Unable to locate {repo}")
         return False
-    subprocess.check_output(['mkdir', '-p', into])
+    subprocess.run(['mkdir', '-p', into])
     if scm == 'git':
         # If a package's repository doesn't use the master branch, then the
         # MELPA recipe must specify the branch using the :branch keyword
@@ -651,7 +655,7 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         return False
     git_command = [scm, 'clone', *options, repo, into]
     # git clone prints to stderr, oddly enough:
-    result = subprocess.run(git_command, stderr=subprocess.STDOUT, check=True)
+    result = subprocess.run(git_command, check=True)
     if result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(git_command)}")
         return False
