@@ -72,7 +72,7 @@ def _run_checks(
     _write_requirements(files, recipe)
     check_containerized_build(files, recipe)
     if os.environ.get('EXIST_OK', '').lower() != 'true':
-        print_related_packages(package_name(recipe))
+        print_similar_packages(package_name(recipe))
     print_packaging(files, recipe, use_default_recipe, elisp_dir, clone_address)
     if clone_address and pr_data:
         _print_pr_footnotes(clone_address, pr_data, recipe)
@@ -538,20 +538,26 @@ def _print_package_files(files: List[str]):
             _note('  - Consider excluding this file; MELPA will create one', CLR_WARN)
 
 
-def print_related_packages(package_name: str):
-    """Print list of potentially related packages."""
-    shorter_name = package_name[:-5] if package_name.endswith('-mode') else package_name
-    known_packages = {
+def print_similar_packages(package_name: str):
+    """Print list of similar, or at least similarly named, packages."""
+    keywords = [package_name]
+    keywords += [package_name[:-5]] if package_name.endswith('-mode') else []
+    keywords += ['org-' + package_name[3:]] if package_name.startswith('ox-') else []
+    keywords += ['ox-' + package_name[4:]] if package_name.startswith('org-') else []
+    all_candidates = {
         **_known_packages(),
-        **_emacswiki_packages(keywords=[package_name, shorter_name]),
+        **_emacswiki_packages(keywords),
     }
-    known_names = [name for name in known_packages if shorter_name in name]
-    if not known_names:
+    best_candidates = []
+    for candidate in all_candidates:
+        if any(keyword in candidate for keyword in keywords):
+            best_candidates.append(candidate)
+    if not best_candidates:
         return
     _note('### Similarly named ###\n', CLR_INFO)
-    for name in known_names[:10]:
-        print(f"- {name}: {known_packages[name]}")
-    if package_name in known_packages:
+    for name in best_candidates[:10]:
+        print(f"- {name}: {all_candidates[name]}")
+    if package_name in all_candidates:
         _fail(f"- Error: a package called '{package_name}' exists", highlight='Error:')
     print()
 
