@@ -336,7 +336,9 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
 
 
 def _check_license_github(clone_address: str) -> bool:
-    """Use the GitHub API to check for a license."""
+    """Use the GitHub API to check for a license.
+    Return False if unable to check (e.g. it's not on GitHub).
+    """
     # TODO: gitlab also has a license API -- support it?
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
     repo_info = repo_info_github(clone_address)
@@ -351,10 +353,10 @@ def _check_license_github(clone_address: str) -> bool:
         if license_.get('name') == 'Other':
             _note('  - Try to use a standard format for your license file.', CLR_WARN)
             print('    See: https://github.com/licensee/licensee')
-        return False
-    _fail('- Use a LICENSE file that GitHub can detect (e.g. no markup) if possible')
+        return True
+    _fail('- Add a LICENSE file that GitHub can detect (e.g. no markup) if possible')
     print('  See: https://github.com/licensee/licensee')
-    return False
+    return True
 
 
 @functools.lru_cache()
@@ -379,7 +381,7 @@ def _check_repo_for_license(elisp_dir: str) -> bool:
             with open(os.path.join(elisp_dir, license_)) as stream:
                 print(f"<!-- {license_} excerpt: `{stream.readline().strip()}...` -->")
             return True
-    _fail('- Please add a LICENSE or COPYING file to the repository')
+    _fail('- Add a LICENSE or COPYING file to the repository')
     return False
 
 
@@ -394,7 +396,7 @@ def _check_files_for_license_boilerplate(files: List[str]) -> bool:
         basename = os.path.basename(file)
         if not license_:
             _fail(
-                '- Please add license boilerplate or an [SPDX-License-Identifier]'
+                '- Add license boilerplate or an [SPDX-License-Identifier]'
                 '(https://spdx.org/using-spdx-license-identifier)'
                 f" to {basename}"
             )
@@ -440,8 +442,8 @@ def print_packaging(
     if clone_address and repo_info_github(clone_address).get('archived'):
         _fail('- GitHub repository is archived')
     _check_recipe(files, recipe, use_default_recipe)
-    _print_package_requires(files, recipe)
     _check_license(files, elisp_dir, clone_address)
+    _print_package_requires(files, recipe)
     _print_package_files(files)
     print()
 
@@ -466,8 +468,8 @@ def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
 
 def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
     repo_licensed = False
-    if clone_address:
-        repo_licensed = _check_license_github(clone_address)
+    if clone_address and _check_license_github(clone_address):
+        return
     if not repo_licensed:
         repo_licensed = _check_repo_for_license(elisp_dir)
     individual_files_licensed = _check_files_for_license_boilerplate(files)
@@ -487,9 +489,9 @@ def _check_recipe(files: List[str], recipe: str, use_default_recipe: bool):
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':files' in recipe and ':defaults' not in recipe:
-        _note('- Prefer the default recipe if possible', CLR_WARN)
+        _note('- Prefer the default recipe if possible.', CLR_WARN)
         if use_default_recipe:
-            _fail(f"  - It is in fact equivalent: `{_default_recipe(recipe)}`")
+            _fail(f"  It seems to be equivalent: `{_default_recipe(recipe)}`")
 
 
 def _print_package_requires(files: List[str], recipe: str):
@@ -694,7 +696,7 @@ def check_melpa_pr(pr_url: str):
         _fail(f"{pr_url} does not appear to be a MELPA PR: {pr_data}")
         return
     if int(pr_data['changed_files']) != 1:
-        _note('Please only add one recipe per pull request', CLR_ERROR)
+        _note('Only add one recipe per pull request', CLR_ERROR)
         return
     filename, recipe = _filename_and_recipe(pr_data['diff_url'])
     if not filename or not recipe:
