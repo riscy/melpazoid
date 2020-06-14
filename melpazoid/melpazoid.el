@@ -282,7 +282,7 @@ OBJECTS are objects to interpolate into the string using `format'."
 
   ;; check whether FILENAMEs can be simply loaded (TODO: offer backtrace)
   (melpazoid-insert "\n### Loadability ###\n")
-  (melpazoid-insert "Checking ability to #'load each file:")
+  (melpazoid-insert "Verifying ability to #'load each file:")
   (melpazoid-insert "```")
   (let ((filename nil) (filenames (directory-files ".")))
     (while filenames

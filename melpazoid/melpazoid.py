@@ -654,8 +654,9 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         # If a package's repository doesn't use the master branch, then the
         # MELPA recipe must specify the branch using the :branch keyword
         # https://github.com/melpa/melpa/pull/6712
-        options = ['--branch', branch if branch else 'master']
-        options += ['--single-branch']
+        options = ['--single-branch']
+        if branch:
+            options += ['--branch', branch]
         if fetcher in {'github', 'gitlab', 'bitbucket'}:
             options += ['--depth', '1']
     elif scm == 'hg':
