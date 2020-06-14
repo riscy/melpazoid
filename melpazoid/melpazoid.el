@@ -183,6 +183,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should not occur")
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "Many `read-string` prompts should end with a space" t)
   (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
+  (melpazoid-misc "(add-hook [^ ]+ [^ ]+--[^ ]+" "Hooks should be public, not '--private'" t)
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)")
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
   (melpazoid-misc "^(bind-keys" "Top-level bind-keys can overwrite user keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`")
