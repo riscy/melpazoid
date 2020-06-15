@@ -329,7 +329,7 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
     '((emacs "24.4"))'
     """
     for line in el_file.readlines():
-        match = re.match('[; ]*Package-Requires:(.*)$', line, re.I)
+        match = re.match(r'[; ]*Package-Requires:[ ]*(.*)$', line, re.I)
         if match:
             return match.groups()[0].strip()
     return ''
@@ -412,14 +412,14 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     'GPL'
     """
     text = el_file.read()
-    match = re.search('SPDX-License-Identifier:[ ]+(.*)', text, flags=re.I)
+    match = re.search(r'SPDX-License-Identifier:[ ]+(.*)', text, flags=re.I)
     if match:
         return match.groups()[0].strip()
     # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
     fingerprints = [
         ('GPL', r'GNU.* General Public License'),
-        ('ISC', r'Permission to use, copy, modify, and/or'),
-        ('MIT', r'Permission is hereby granted, free of charge, to any person'),
+        ('ISC', 'Permission to use, copy, modify, and/or'),
+        ('MIT', 'Permission is hereby granted, free of charge, to any person'),
         ('Unlicense', 'This is free and unencumbered software released into'),
         ('Apache 2.0', 'Licensed under the Apache License, Version 2.0'),
         ('BSD 3-Clause', 'Redistribution and use in source and binary forms'),
