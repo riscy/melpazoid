@@ -549,6 +549,7 @@ def print_similar_packages(package_name: str):
     all_candidates = {
         **_known_packages(),
         **_emacswiki_packages(keywords),
+        **_emacsattic_packages(keywords),
     }
     best_candidates = []
     for candidate in all_candidates:
@@ -566,6 +567,7 @@ def print_similar_packages(package_name: str):
 
 @functools.lru_cache()
 def _known_packages() -> dict:
+    """Return all known packages in MELPA _and_ the Emacsmirror."""
     melpa_packages = {
         package: f"https://melpa.org/#/{package}"
         for package in requests.get('http://melpa.org/archive.json').json()
@@ -590,6 +592,16 @@ def _emacswiki_packages(keywords: List[str]) -> dict:
     for keyword in keywords:
         el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
+        if requests.get(pkg).ok:
+            packages[keyword] = pkg
+    return packages
+
+
+def _emacsattic_packages(keywords: List[str]) -> dict:
+    """Check (obsolete) packages on Emacsattic."""
+    packages = {}
+    for keyword in keywords:
+        pkg = f"https://github.com/emacsattic/{keyword}"
         if requests.get(pkg).ok:
             packages[keyword] = pkg
     return packages
