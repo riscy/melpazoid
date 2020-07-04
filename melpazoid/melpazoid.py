@@ -15,7 +15,6 @@ import tempfile
 import time
 from typing import Iterator, List, TextIO, Tuple
 
-DEBUG = False  # eagerly load installed packages, etc.
 _RETURN_CODE = 0  # eventual return code when run as script
 _PKG_SUBDIR = 'pkg'  # name of directory for package's files
 
@@ -279,8 +278,6 @@ def _write_requirements(files: List[str], recipe: str):
                 # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
                 requirements_el.write(f"(package-install '{req})\n")
-                if DEBUG:
-                    requirements_el.write(f"(require '{req})\n")
         requirements_el.write(') ; end let')
 
 
