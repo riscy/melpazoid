@@ -173,8 +173,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
   (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
-  (melpazoid-misc "(s-starts-with-p" "`string-prefix-p` may help to drop `s` dependency")
-  (melpazoid-misc "(s-ends-with-p" "`string-suffix-p` may help to drop `s` dependency")
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork or is this copy-pasted?" nil t)
   (melpazoid-misc "This file is part of GNU Emacs." "Incorrectly copy-pasted?" nil t)
   (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space")
@@ -276,7 +274,8 @@ OBJECTS are objects to interpolate into the string using `format'."
     (while filenames
       (setq filename (car filenames) filenames (cdr filenames))
       (and (not (string= (file-name-base filename) "melpazoid"))
-           (not (string-match ".*-pkg.el" filename))
+           (not (string-match ".*-pkg.el$" filename))
+           (not (string-match ".el~$" filename))  ; file-name-extension misses these
            (string= (file-name-extension filename) "el")
            (melpazoid filename))))
 
@@ -289,6 +288,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       (setq filename (car filenames) filenames (cdr filenames))
       (when (and (not (string= (file-name-base filename) "melpazoid"))
                  (not (string-match ".*-pkg.el" filename))
+                 (not (string-match ".el~$" filename))  ; file-name-extension misses these
                  (string= (file-name-extension filename) "el"))
         (melpazoid-insert "Loading %s" filename)
         (unless (ignore-errors (load (expand-file-name filename) nil t t))
