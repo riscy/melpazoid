@@ -660,11 +660,11 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         if branch:
             _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
-    scm = 'hg' if fetcher == 'hg' else 'git'
     if not requests.get(repo).ok:
         _fail(f"Unable to locate {repo}")
         return False
     subprocess.run(['mkdir', '-p', into])
+    scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
         # If a package's repository doesn't use the master branch, then the
         # MELPA recipe must specify the branch using the :branch keyword
@@ -679,11 +679,9 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
     else:
         _fail(f"Unrecognized SCM: {scm}")
         return False
-    git_command = [scm, 'clone', *options, repo, into]
-    # git clone prints to stderr, oddly enough:
-    result = subprocess.run(git_command, check=True)
-    if result.returncode != 0:
-        _fail(f"Unable to clone:\n  {' '.join(git_command)}")
+    scm_command = [scm, 'clone', *options, repo, into]
+    if subprocess.run(scm_command).returncode != 0:
+        _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
         return False
     return True
 
