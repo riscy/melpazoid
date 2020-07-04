@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Entrypoint to melpazoid."""
+"""Main orchestrator for melpazoid (a MELPA review tool) checks.
+
+Usage:
+  python melpazoid.py
+  pytest --doctest-modules melpazoid.py
+"""
 import configparser
 import functools
 import glob
@@ -121,6 +126,7 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
 
 
 def check_containerized_build(files: List[str], recipe: str):
+    """Build a Docker container with the package installed."""
     print(f"Building container for {package_name(recipe)}... 🐳")
     if len([file for file in files if file.endswith('.el')]) > 1:
         main_file = os.path.basename(_main_file(files, recipe))
@@ -789,6 +795,8 @@ def run_build_script(script: str) -> str:
     """Run an elisp script in a package-build context.
     >>> run_build_script('(send-string-to-terminal "Hello world")')
     'Hello world'
+    >>> run_build_script("(require 'package-build) (require 'package-recipe)")
+    ''
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
