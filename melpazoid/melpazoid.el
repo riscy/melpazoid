@@ -27,8 +27,7 @@
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
   ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-  (let ((version (caddr (split-string (emacs-version)))))
-    (melpazoid-insert "byte-compile (using Emacs %s):" version))
+  (melpazoid-insert "byte-compile (using Emacs %s):" emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
   (cl-letf (((symbol-function 'message) #'ignore))
@@ -145,6 +144,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
     (melpazoid-misc "(apply-partially '[^,]" msg)
     (melpazoid-misc "(apply '[^,]" msg)
+    (melpazoid-misc "(cancel-function-timers '[^,]" msg)
     (melpazoid-misc "(seq-mapcat '[^,]" msg)
     (melpazoid-misc "(seq-map '[^,]" msg)
     (melpazoid-misc "(seq-mapn '[^,]" msg)
@@ -179,6 +179,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space")
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should not occur")
+  (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "Many `read-string` prompts should end with a space" t)
   (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
   (melpazoid-misc "(add-hook [^ ]+ [^ ]+--[^ ]+" "Hooks should be public, not '--private'" t)
@@ -292,7 +293,8 @@ OBJECTS are objects to interpolate into the string using `format'."
                  (string= (file-name-extension filename) "el"))
         (melpazoid-insert "Loading %s" filename)
         (unless (ignore-errors (load (expand-file-name filename) nil t t))
-          (melpazoid-insert "%s:Error: Emacs errored during load" filename)))))
+          (melpazoid-insert "%s:Error: Emacs %s errored during load"
+                            filename emacs-version)))))
   (melpazoid-insert "Done.")
   (melpazoid-insert "```"))
 
