@@ -376,11 +376,11 @@ def repo_info_github(clone_address: str) -> dict:
     return dict(response.json())
 
 
-def _check_repo_for_license(elisp_dir: str) -> bool:
+def _check_license_file(elisp_dir: str) -> bool:
     """Scan any COPYING or LICENSE files."""
     for license_ in glob.glob(os.path.join(elisp_dir, '*')):
         license_ = os.path.basename(license_)
-        if license_.startswith('LICENSE') or license_.startswith('COPYING'):
+        if re.match('LICENSE|COPYING|UNLICENSE', license_, flags=re.I):
             with open(os.path.join(elisp_dir, license_)) as stream:
                 print(f"<!-- {license_} excerpt: `{stream.readline().strip()}...` -->")
             return True
@@ -470,11 +470,9 @@ def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
 
 
 def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
-    repo_licensed = False
-    if clone_address and _check_license_github(clone_address):
-        return
-    if not repo_licensed:
-        repo_licensed = _check_repo_for_license(elisp_dir)
+    repo_licensed = _check_license_file(elisp_dir)
+    if clone_address:
+        repo_licensed |= _check_license_github(clone_address)
     individual_files_licensed = _check_files_for_license_boilerplate(files)
     if not repo_licensed and not individual_files_licensed:
         _fail('- Use a GPL-compatible license.')
