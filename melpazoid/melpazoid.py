@@ -132,9 +132,12 @@ def check_containerized_build(files: List[str], recipe: str):
         main_file = os.path.basename(_main_file(files, recipe))
     else:
         main_file = ''  # no need to specify main file if it's the only file
-    output = subprocess.run(
-        ['make', 'test', f"PACKAGE_MAIN={main_file}"], stdout=subprocess.PIPE,
-    ).stdout
+    run = subprocess.run(
+        ['make', 'test', f"PACKAGE_MAIN={main_file}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    output = run.stdout + run.stderr
     for line in output.decode().strip().split('\n'):
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in line or ': error: ' in line:
