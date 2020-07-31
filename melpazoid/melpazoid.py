@@ -385,7 +385,7 @@ def _check_license_file(elisp_dir: str) -> bool:
         license_ = os.path.basename(license_)
         if re.match('LICENSE|COPYING|UNLICENSE', license_, flags=re.I):
             with open(os.path.join(elisp_dir, license_)) as stream:
-                print(f"<!-- {license_} excerpt: `{stream.readline().strip()}...` -->")
+                print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
     _fail('- Add a LICENSE or COPYING file to the repository')
     return False
@@ -445,21 +445,19 @@ def print_packaging(
 ):
     """Print additional details (how it's licensed, what files, etc.)"""
     _note('### Package ###\n', CLR_INFO)
-    if clone_address and repo_info_github(clone_address).get('archived'):
-        _fail('- GitHub repository is archived')
     _check_recipe(files, recipe, use_default_recipe)
     _check_license(files, elisp_dir, clone_address)
-    _print_package_requires(files, recipe)
     _print_package_files(files)
+    _print_package_requires(files, recipe)
     print()
 
 
 def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
     _note('<!-- ### Footnotes ###', CLR_INFO, highlight='### Footnotes ###')
     repo_info = repo_info_github(clone_address)
-    print(
-        '```\n' + ' '.join(recipe.split()).replace(' :', '\n  :') + '\n```'
-    )  # prettify
+    print('```')
+    print(' '.join(recipe.split()).replace(' :', '\n  :'))
+    print('```')
     if repo_info:
         if repo_info.get('archived'):
             _fail('- GitHub repository is archived')
@@ -473,9 +471,8 @@ def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
 
 
 def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
-    repo_licensed = _check_license_file(elisp_dir)
-    if clone_address:
-        repo_licensed |= _check_license_github(clone_address)
+    repo_licensed = clone_address and _check_license_github(clone_address)
+    repo_licensed = repo_licensed or _check_license_file(elisp_dir)
     individual_files_licensed = _check_files_for_license_boilerplate(files)
     if not repo_licensed and not individual_files_licensed:
         _fail('- Use a GPL-compatible license.')
@@ -487,7 +484,7 @@ def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
 def _check_recipe(files: List[str], recipe: str, use_default_recipe: bool):
     if ':branch' in recipe:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
-    if 'gitlab' in recipe and (':repo' not in recipe or ':url' in recipe):
+    if _fetcher(recipe) == 'gitlab' and (':repo' not in recipe or ':url' in recipe):
         # TODO: recipes that do this are failing much higher in the pipeline
         _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     if not _main_file(files, recipe):
@@ -503,7 +500,7 @@ def _print_package_requires(files: List[str], recipe: str):
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
     """
-    print('- Package-Requires: ', end='')
+    print('- Requires: ', end='')
     main_requirements = requirements(files, recipe, with_versions=True)
     print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
     for file in files:
