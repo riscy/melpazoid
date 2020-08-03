@@ -838,7 +838,7 @@ def _package_recipe_el() -> str:
 def _check_melpa_pr_loop() -> None:
     """Check MELPA pull requests in a loop."""
     for pr_url in _fetch_pull_requests():
-        print(f"Found MELPA PR {pr_url}")
+        print(f"Checking {pr_url}")
         check_melpa_pr(pr_url)
         if _return_code() != 0:
             _fail('<!-- This PR failed -->')
@@ -849,15 +849,18 @@ def _check_melpa_pr_loop() -> None:
 
 def _fetch_pull_requests() -> Iterator[str]:
     """Repeatedly yield PR URL's."""
-    # TODO: only supports macOS (needs pbpaste or equivalents)
     previous_pr_url = None
     while True:
         while True:
-            match = re.search(MELPA_PR, subprocess.check_output('pbpaste').decode())
+            if shutil.which('pbpaste'):
+                print('Watching clipboard for MELPA PR...', end='\r')
+                possible_pr = subprocess.check_output('pbpaste').decode()
+            else:
+                possible_pr = input("Enter URL for MELPA PR: ")
+            match = re.search(MELPA_PR, possible_pr)
             pr_url = match.string[: match.end()] if match else None
             if match and pr_url and pr_url != previous_pr_url:
                 break
-            print('Watching clipboard for MELPA PR... ', end='\r')
             time.sleep(1)
         previous_pr_url = pr_url
         yield pr_url
