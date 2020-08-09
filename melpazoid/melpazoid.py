@@ -893,6 +893,7 @@ def _parse_recipe(recipe: str) -> str:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--license', action='store_true')
     parser.add_argument('--recipe', type=_parse_recipe)
     parser.add_argument('target', nargs='?', type=_parse_target)
     pargs = parser.parse_args()
