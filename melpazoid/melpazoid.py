@@ -703,7 +703,7 @@ def _branch(recipe: str) -> str:
 def check_melpa_pr(pr_url: str):
     """Check a PR on MELPA."""
     _return_code(0)
-    match = re.search(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
+    match = re.match(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
 
     pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
@@ -860,7 +860,7 @@ def _fetch_pull_requests() -> Iterator[str]:
                 possible_pr = subprocess.check_output('pbpaste').decode()
             else:
                 possible_pr = input("Enter URL for MELPA PR: ")
-            match = re.search(MELPA_PR, possible_pr)
+            match = re.match(MELPA_PR, possible_pr)
             pr_url = match.string[: match.end()] if match else None
             if match and pr_url and pr_url != previous_pr_url:
                 break
