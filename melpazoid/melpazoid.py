@@ -79,8 +79,21 @@ def _run_checks(
     if os.environ.get('EXIST_OK', '').lower() != 'true':
         print_similar_packages(package_name(recipe))
     print_packaging(files, recipe, use_default_recipe, elisp_dir, clone_address)
-    if clone_address and pr_data:
-        _print_pr_footnotes(clone_address, pr_data, recipe)
+    print('<!--')
+    _note('### Footnotes ###', CLR_INFO)
+    print('- ' + ' '.join(recipe.split()))
+    repo_info = repo_info_github(clone_address)
+    if pr_data:
+        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
+    if repo_info:
+        if repo_info.get('archived'):
+            _fail('- GitHub repository is archived')
+        print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
+        print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
+        print(f"- Watched: {repo_info.get('watchers_count')}")
+        if pr_data and pr_data['user']['login'] not in repo_info['html_url']:
+            _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
+    print('-->\n')
 
 
 def _return_code(return_code: int = None) -> int:
@@ -453,24 +466,6 @@ def print_packaging(
     _print_package_files(files)
     _print_package_requires(files, recipe)
     print()
-
-
-def _print_pr_footnotes(clone_address: str, pr_data: dict, recipe: str):
-    _note('<!-- ### Footnotes ###', CLR_INFO, highlight='### Footnotes ###')
-    repo_info = repo_info_github(clone_address)
-    print('```')
-    print(' '.join(recipe.split()).replace(' :', '\n  :'))
-    print('```')
-    if repo_info:
-        if repo_info.get('archived'):
-            _fail('- GitHub repository is archived')
-        print(f"- Watched: {repo_info.get('watchers_count')}")
-        print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
-        print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
-    print(f"- PR by {pr_data['user']['login']}: {clone_address}")
-    if pr_data['user']['login'].lower() not in clone_address.lower():
-        _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
-    print('-->\n')
 
 
 def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
