@@ -864,7 +864,7 @@ def _fetch_pull_requests() -> Iterator[str]:
         yield pr_url
 
 
-def _parse_target(target: str) -> str:
+def _argparse_target(target: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
     if re.match(MELPA_PR, target):
         os.environ['MELPA_PR_URL'] = target
@@ -877,7 +877,7 @@ def _parse_target(target: str) -> str:
     return target
 
 
-def _parse_recipe(recipe: str) -> str:
+def _argparse_recipe(recipe: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
     if validate_recipe(recipe):
         os.environ['RECIPE'] = recipe
@@ -888,12 +888,14 @@ def _parse_recipe(recipe: str) -> str:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--license', action='store_true')
-    parser.add_argument('--recipe', type=_parse_recipe)
-    parser.add_argument('target', nargs='?', type=_parse_target)
+    parser.add_argument('--license', help='Only check licenses', action='store_true')
+    parser.add_argument('--recipe', help='A valid MELPA recipe', type=_argparse_recipe)
+    parser.add_argument('target', help='Build target', nargs='?', type=_argparse_target)
     pargs = parser.parse_args()
 
-    if 'MELPA_PR_URL' in os.environ:
+    if pargs.license:
+        raise NotImplementedError
+    elif 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
         sys.exit(_return_code())
     elif 'RECIPE' in os.environ:
