@@ -5,6 +5,7 @@ Usage:
   python melpazoid.py
   pytest --doctest-modules melpazoid.py
 """
+import argparse
 import configparser
 import functools
 import glob
@@ -868,7 +869,34 @@ def _fetch_pull_requests() -> Iterator[str]:
         yield pr_url
 
 
+def _parse_target(target: str) -> str:
+    """For near-term backward compatibility this parser just sets env vars."""
+    if re.match(MELPA_PR, target):
+        os.environ['MELPA_PR_URL'] = target
+    elif os.path.isfile(target):
+        os.environ['RECIPE_FILE'] = target
+    elif os.path.isdir(target):
+        os.environ['LOCAL_REPO'] = target
+    else:
+        raise argparse.ArgumentTypeError("%r must be a MELPA PR URL or path" % target)
+    return target
+
+
+def _parse_recipe(recipe: str) -> str:
+    """For near-term backward compatibility this parser just sets env vars."""
+    if validate_recipe(recipe):
+        os.environ['RECIPE'] = recipe
+    else:
+        raise argparse.ArgumentTypeError("%r must be a valid MELPA recipe" % recipe)
+    return recipe
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--recipe', type=_parse_recipe)
+    parser.add_argument('target', nargs='?', type=_parse_target)
+    pargs = parser.parse_args()
+
     if 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
         sys.exit(_return_code())
