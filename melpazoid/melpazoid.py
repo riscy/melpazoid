@@ -55,7 +55,6 @@ VALID_LICENSES_GITHUB = {
 def _run_checks(
     recipe: str,  # e.g. of the form (my-package :repo ...)
     elisp_dir: str,  # where the package is on this machine
-    clone_address: str = None,  # optional repo address
     pr_data: dict = None,  # optional data from the PR
 ):
     """Entrypoint for running all checks."""
@@ -78,13 +77,13 @@ def _run_checks(
     check_containerized_build(files, recipe)
     if os.environ.get('EXIST_OK', '').lower() != 'true':
         print_similar_packages(package_name(recipe))
-    print_packaging(files, recipe, use_default_recipe, elisp_dir, clone_address)
+    print_packaging(files, recipe, use_default_recipe, elisp_dir)
     print('<!--')
     _note('### Footnotes ###', CLR_INFO)
     print('- ' + ' '.join(recipe.split()))
-    repo_info = repo_info_github(clone_address)
+    repo_info = repo_info_github(_clone_address(recipe))
     if pr_data:
-        print(f"- PR by {pr_data['user']['login']}: {clone_address}")
+        print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
     if repo_info:
         if repo_info.get('archived'):
             _fail('- GitHub repository is archived')
@@ -453,13 +452,10 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
 
 
 def print_packaging(
-    files: List[str],
-    recipe: str,
-    use_default_recipe: bool,
-    elisp_dir: str,
-    clone_address: str = None,
+    files: List[str], recipe: str, use_default_recipe: bool, elisp_dir: str,
 ):
     """Print additional details (how it's licensed, what files, etc.)"""
+    clone_address = _clone_address(recipe)
     _note('### Package ###\n', CLR_INFO)
     _check_recipe(files, recipe, use_default_recipe)
     _check_license(files, elisp_dir, clone_address)
@@ -627,7 +623,7 @@ def check_melpa_recipe(recipe: str):
             subprocess.run(['cp', '-r', _local_repo(), elisp_dir])
             _run_checks(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
-            _run_checks(recipe, elisp_dir, clone_address)
+            _run_checks(recipe, elisp_dir)
 
 
 def _fetcher(recipe: str) -> str:
@@ -715,18 +711,16 @@ def check_melpa_pr(pr_url: str):
     if filename != package_name(recipe):
         _fail(f"Recipe filename '{filename}' does not match '{package_name(recipe)}'")
         return
-
-    clone_address: str = _clone_address(recipe)
     with tempfile.TemporaryDirectory() as elisp_dir:
         # package-build prefers the directory to be named after the package:
         elisp_dir = os.path.join(elisp_dir, package_name(recipe))
         if _clone(
-            clone_address,
+            _clone_address(recipe),
             into=elisp_dir,
             branch=_branch(recipe),
             fetcher=_fetcher(recipe),
         ):
-            _run_checks(recipe, elisp_dir, clone_address, pr_data)
+            _run_checks(recipe, elisp_dir, pr_data)
 
 
 @functools.lru_cache()
