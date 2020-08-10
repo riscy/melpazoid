@@ -11,8 +11,7 @@ The ambition is checks that run in a "clean" environment, either through CI or
 through a container on your local machine.
 
 This is a work in progress -- feedback and pull requests are welcome ([[https://github.com/riscy/melpazoid/search?q=TODO&unscoped_q=TODO][search for
-TODO]]s, [[https://github.com/riscy/melpazoid/issues][raise an issue]], whatever). Note my current aim is to make this code
-simpler before I make it any more complicated.
+TODO]]s, [[https://github.com/riscy/melpazoid/issues][raise an issue]], whatever).
 
 The checks are a combination of:
 1. [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Byte-Compilation.html#Byte-Compilation][byte-compile-file]]
@@ -83,8 +82,4 @@ foolproof, sometimes opinionated, and may raise false positives.
     Instead of cloning from ~riscy/shx-for-emacs~ in this example, melpazoid
     will use the files in ~LOCAL_REPO~.
 *** Run in an unending loop
-    This currently only works in macOS; it monitors the clipboard
-    for MELPA PR's, then automatically runs the checks.
-    #+begin_src bash
-    make
-    #+end_src
+    Just run melpazoid.py directly, or use ~make~ by itself.
