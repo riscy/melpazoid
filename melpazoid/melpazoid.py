@@ -882,9 +882,9 @@ def _argparse_recipe(recipe: str) -> str:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--license', help='Only check licenses', action='store_true')
-    parser.add_argument('--recipe', help='A valid MELPA recipe', type=_argparse_recipe)
-    parser.add_argument('target', help='Build target', nargs='?', type=_argparse_target)
+    parser.add_argument('--license', help='only check licenses', action='store_true')
+    parser.add_argument('--recipe', help='a valid MELPA recipe', type=_argparse_recipe)
+    parser.add_argument('target', help='build target', nargs='?', type=_argparse_target)
     pargs = parser.parse_args()
 
     if pargs.license:
