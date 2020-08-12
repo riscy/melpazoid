@@ -52,47 +52,13 @@ VALID_LICENSES_GITHUB = {
 }
 
 
-def _run_checks(
-    recipe: str,  # e.g. of the form (my-package :repo ...)
-    elisp_dir: str,  # where the package is on this machine
-    pr_data: dict = None,  # optional data from the PR
-):
+def _run_checks(recipe: str, elisp_dir: str):
     """Entrypoint for running all checks."""
     if not validate_recipe(recipe):
         _fail(f"Recipe '{recipe}' appears to be invalid")
         return
-    try:
-        shutil.rmtree(_PKG_SUBDIR)
-    except FileNotFoundError:
-        pass
-    files = _files_in_recipe(recipe, elisp_dir)
-    use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
-    for ii, file in enumerate(files):
-        target = os.path.basename(file) if file.endswith('.el') else file
-        target = os.path.join(_PKG_SUBDIR, target)
-        os.makedirs(os.path.join(_PKG_SUBDIR, os.path.dirname(file)), exist_ok=True)
-        subprocess.run(['mv', os.path.join(elisp_dir, file), target])
-        files[ii] = target
-    _write_requirements(files, recipe)
-    check_containerized_build(files, recipe)
-    if os.environ.get('EXIST_OK', '').lower() != 'true':
-        print_similar_packages(package_name(recipe))
-    print_packaging(files, recipe, use_default_recipe, elisp_dir)
-    print('<!--')
-    _note('### Footnotes ###', CLR_INFO)
-    print('- ' + ' '.join(recipe.split()))
-    repo_info = repo_info_github(_clone_address(recipe))
-    if pr_data:
-        print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
-    if repo_info:
-        if repo_info.get('archived'):
-            _fail('- GitHub repository is archived')
-        print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
-        print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
-        print(f"- Watched: {repo_info.get('watchers_count')}")
-        if pr_data and pr_data['user']['login'] not in repo_info['html_url']:
-            _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
-    print('-->\n')
+    check_containerized_build(recipe, elisp_dir)
+    print_packaging(recipe, elisp_dir)
 
 
 def _return_code(return_code: int = None) -> int:
@@ -138,13 +104,20 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
     _return_code(2)
 
 
-def check_containerized_build(files: List[str], recipe: str):
+def check_containerized_build(recipe: str, elisp_dir: str):
     """Build a Docker container with the package installed."""
     print(f"Building container for {package_name(recipe)}... 🐳")
-    if len([file for file in files if file.endswith('.el')]) > 1:
-        main_file = os.path.basename(_main_file(files, recipe))
-    else:
-        main_file = ''  # no need to specify main file if it's the only file
+    # first, copy over only the recipe's files:
+    shutil.rmtree(_PKG_SUBDIR, ignore_errors=True)
+    files = _files_in_recipe(recipe, elisp_dir)
+    for ii, file in enumerate(files):
+        target = os.path.basename(file) if file.endswith('.el') else file
+        target = os.path.join(_PKG_SUBDIR, target)
+        os.makedirs(os.path.join(_PKG_SUBDIR, os.path.dirname(file)), exist_ok=True)
+        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target])
+        files[ii] = target
+    _write_requirements(files, recipe)
+    main_file = os.path.basename(_main_file(files, recipe))
     run_result = subprocess.run(
         ['make', 'test', f"PACKAGE_MAIN={main_file}"],
         stdout=subprocess.PIPE,
@@ -166,7 +139,8 @@ def check_containerized_build(files: List[str], recipe: str):
     print()
 
 
-def _files_in_recipe(recipe: str, elisp_dir: str) -> list:
+def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
+    """Return a file listing, relative to elisp_dir."""
     files = run_build_script(
         f"""
         (require 'package-build)
@@ -406,8 +380,9 @@ def _check_license_file(elisp_dir: str) -> bool:
     return False
 
 
-def _check_files_for_license_boilerplate(files: List[str]) -> bool:
+def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
     """Check a list of elisp files for license boilerplate."""
+    files = [os.path.join(elisp_dir, ff) for ff in _files_in_recipe(recipe, elisp_dir)]
     individual_files_licensed = True
     for file in files:
         if not file.endswith('.el') or file.endswith('-pkg.el'):
@@ -451,23 +426,20 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     return ''
 
 
-def print_packaging(
-    files: List[str], recipe: str, use_default_recipe: bool, elisp_dir: str,
-):
+def print_packaging(recipe: str, elisp_dir: str):
     """Print additional details (how it's licensed, what files, etc.)"""
-    clone_address = _clone_address(recipe)
     _note('### Package ###\n', CLR_INFO)
-    _check_recipe(files, recipe, use_default_recipe)
-    _check_license(files, elisp_dir, clone_address)
-    _print_package_files(files)
-    _print_package_requires(files, recipe)
+    _check_recipe(recipe, elisp_dir)
+    _check_license(recipe, elisp_dir)
+    _print_package_files(recipe, elisp_dir)
     print()
 
 
-def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
+def _check_license(recipe: str, elisp_dir: str):
+    clone_address = _clone_address(recipe)
     repo_licensed = clone_address and _check_license_github(clone_address)
     repo_licensed = repo_licensed or _check_license_file(elisp_dir)
-    individual_files_licensed = _check_files_for_license_boilerplate(files)
+    individual_files_licensed = _check_files_for_license_boilerplate(recipe, elisp_dir)
     if not repo_licensed and not individual_files_licensed:
         _fail('- Use a GPL-compatible license.')
         print(
@@ -475,7 +447,10 @@ def _check_license(files: List[str], elisp_dir: str, clone_address: str = None):
         )
 
 
-def _check_recipe(files: List[str], recipe: str, use_default_recipe: bool):
+def _check_recipe(recipe: str, elisp_dir: str):
+    files = _files_in_recipe(recipe, elisp_dir)
+    use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
+    files = [os.path.join(elisp_dir, ff) for ff in files]
     if ':branch' in recipe:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
     if _fetcher(recipe) == 'gitlab' and (':repo' not in recipe or ':url' in recipe):
@@ -489,11 +464,12 @@ def _check_recipe(files: List[str], recipe: str, use_default_recipe: bool):
             _fail(f"  It seems to be equivalent: `{_default_recipe(recipe)}`")
 
 
-def _print_package_requires(files: List[str], recipe: str):
+def _print_package_requires(recipe: str, elisp_dir: str):
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
     """
+    files = [os.path.join(elisp_dir, ff) for ff in _files_in_recipe(recipe, elisp_dir)]
     print('- Requires: ', end='')
     main_requirements = requirements(files, recipe, with_versions=True)
     print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
@@ -506,16 +482,18 @@ def _print_package_requires(files: List[str], recipe: str):
             )
 
 
-def _print_package_files(files: List[str]):
+def _print_package_files(recipe: str, elisp_dir: str):
+    files = [os.path.join(elisp_dir, ff) for ff in _files_in_recipe(recipe, elisp_dir)]
     for file in files:
+        basename = os.path.basename(file)
         if os.path.isdir(file):
-            print(f"- {CLR_ULINE}{file}{CLR_OFF} -- directory")
+            print(f"- {CLR_ULINE}{basename}{CLR_OFF} -- directory")
             continue
         if not file.endswith('.el'):
-            print(f"- {CLR_ULINE}{file}{CLR_OFF} -- not elisp")
+            print(f"- {CLR_ULINE}{basename}{CLR_OFF} -- not elisp")
             continue
         if file.endswith('-pkg.el'):
-            _note(f"- {file} -- consider excluding this; MELPA creates one", CLR_WARN)
+            _note(f"- {basename} -- consider excluding; MELPA creates one", CLR_WARN)
             continue
         with open(file) as stream:
             try:
@@ -527,12 +505,10 @@ def _print_package_files(files: List[str]):
                 header = f"{CLR_ERROR}(no header){CLR_OFF}"
                 _return_code(2)
             print(
-                f"- {CLR_ULINE}{file}{CLR_OFF}"
+                f"- {CLR_ULINE}{basename}{CLR_OFF}"
                 f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
                 + (f" -- {header}" if header else "")
             )
-        if file.endswith('-pkg.el'):
-            _note('  - Consider excluding this file; MELPA will create one', CLR_WARN)
 
 
 def print_similar_packages(package_name: str):
@@ -556,7 +532,7 @@ def print_similar_packages(package_name: str):
     for name in best_candidates[:10]:
         print(f"- {name}: {all_candidates[name]}")
     if package_name in all_candidates:
-        _fail(f"- Error: a package called '{package_name}' exists", highlight='Error:')
+        _fail(f"- Error: package '{package_name}' already exists!", highlight='Error:')
     print()
 
 
@@ -720,7 +696,26 @@ def check_melpa_pr(pr_url: str):
             branch=_branch(recipe),
             fetcher=_fetcher(recipe),
         ):
-            _run_checks(recipe, elisp_dir, pr_data)
+            _run_checks(recipe, elisp_dir)
+            # extra MELPA PR-only checks
+            if os.environ.get('EXIST_OK', '').lower() != 'true':
+                print_similar_packages(package_name(recipe))
+            print('<!--')
+            _note('### Footnotes ###', CLR_INFO)
+            print('- ' + ' '.join(recipe.split()))
+            _print_package_requires(recipe, elisp_dir)
+            repo_info = repo_info_github(_clone_address(recipe))
+            if pr_data:
+                print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
+            if repo_info:
+                if repo_info.get('archived'):
+                    _fail('- GitHub repository is archived')
+                print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
+                print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
+                print(f"- Watched: {repo_info.get('watchers_count')}")
+                if pr_data and pr_data['user']['login'] not in repo_info['html_url']:
+                    _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
+            print('-->\n')
 
 
 @functools.lru_cache()
