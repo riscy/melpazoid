@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Main orchestrator for melpazoid (a MELPA review tool) checks.
+"""
+usage: melpazoid.py [-h] [--license] [--recipe RECIPE] [target]
 
-Usage:
-  python melpazoid.py
-  pytest --doctest-modules melpazoid.py
+positional arguments:
+  target           a MELPA PR URL, or a local path to a recipe or package
+
+optional arguments:
+  -h, --help       show this help message and exit
+  --license        only check licenses
+  --recipe RECIPE  a valid MELPA recipe
 """
 import argparse
 import configparser
@@ -22,7 +27,7 @@ import time
 from typing import Iterator, List, TextIO, Tuple
 
 _RETURN_CODE = 0  # eventual return code when run as script
-_PKG_SUBDIR = 'pkg'  # name of directory for package's files
+_PKG_SUBDIR = os.path.join(os.path.dirname(__file__), '..', 'pkg')
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -282,6 +287,10 @@ def _write_requirements(files: List[str], recipe: str):
 def requirements(
     files: List[str], recipe: str = None, with_versions: bool = False
 ) -> set:
+    """Pull the requirements out of a listing of files.
+    If a recipe is given, only look in the package's "main" file;
+    otherwise scan every .el file for requirements.
+    """
     reqs = []
     if recipe:
         main_file = _main_file(files, recipe)
@@ -381,7 +390,7 @@ def _check_license_file(elisp_dir: str) -> bool:
 
 
 def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
-    """Check a list of elisp files for license boilerplate."""
+    """Check a recipe for license boilerplate."""
     files = _files_in_recipe(recipe, elisp_dir)
     individual_files_licensed = True
     for file in files:
@@ -431,7 +440,6 @@ def print_packaging(recipe: str, elisp_dir: str):
     _note('### Package ###\n', CLR_INFO)
     _check_recipe(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
-    _print_package_files(recipe, elisp_dir)
     print()
 
 
@@ -445,6 +453,31 @@ def _check_license(recipe: str, elisp_dir: str):
         print(
             '  See: https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
         )
+    for file in _files_in_recipe(recipe, elisp_dir):
+        relpath = os.path.relpath(file, elisp_dir)
+        if os.path.isdir(file):
+            print(f"- {relpath} -- directory")
+            continue
+        if not file.endswith('.el'):
+            print(f"- {relpath} -- not elisp")
+            continue
+        if file.endswith('-pkg.el'):
+            _note(f"- {relpath} -- consider excluding; MELPA creates one", CLR_WARN)
+            continue
+        with open(file) as stream:  # definitely an elisp file
+            try:
+                header = stream.readline()
+                header = header.split('-*-')[0]
+                header = header.split(' --- ')[1]
+                header = header.strip()
+            except (IndexError, UnicodeDecodeError):
+                header = f"{CLR_ERROR}(no header){CLR_OFF}"
+                _return_code(2)
+            print(
+                f"- {relpath}"
+                f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
+                + (f" -- {header}" if header else "")
+            )
 
 
 def _check_recipe(recipe: str, elisp_dir: str):
@@ -478,34 +511,6 @@ def _print_package_requires(recipe: str, elisp_dir: str):
             _fail(
                 f"  - Package-Requires mismatch between {os.path.basename(file)} and "
                 f"{os.path.basename(_main_file(files, recipe))}!"
-            )
-
-
-def _print_package_files(recipe: str, elisp_dir: str):
-    for file in _files_in_recipe(recipe, elisp_dir):
-        relpath = os.path.relpath(file, elisp_dir)
-        if os.path.isdir(file):
-            print(f"- {relpath} -- directory")
-            continue
-        if not file.endswith('.el'):
-            print(f"- {relpath} -- not elisp")
-            continue
-        if file.endswith('-pkg.el'):
-            _note(f"- {relpath} -- consider excluding; MELPA creates one", CLR_WARN)
-            continue
-        with open(file) as stream:  # definitely an elisp file
-            try:
-                header = stream.readline()
-                header = header.split('-*-')[0]
-                header = header.split(' --- ')[1]
-                header = header.strip()
-            except (IndexError, UnicodeDecodeError):
-                header = f"{CLR_ERROR}(no header){CLR_OFF}"
-                _return_code(2)
-            print(
-                f"- {relpath}"
-                f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
-                + (f" -- {header}" if header else "")
             )
 
 
@@ -600,6 +605,22 @@ def check_melpa_recipe(recipe: str):
             _run_checks(recipe, elisp_dir)
 
 
+def check_license(recipe: str):
+    """Check licenses (only)."""
+    # TODO: DRY up wrt check_melpa_recipe
+    _return_code(0)
+    with tempfile.TemporaryDirectory() as elisp_dir:
+        # package-build prefers the directory to be named after the package:
+        elisp_dir = os.path.join(elisp_dir, package_name(recipe))
+        clone_address = _clone_address(recipe)
+        if _local_repo():
+            print(f"Using local repository at {_local_repo()}")
+            subprocess.run(['cp', '-r', _local_repo(), elisp_dir])
+            _check_license(recipe, elisp_dir)
+        elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
+            _check_license(recipe, elisp_dir)
+
+
 def _fetcher(recipe: str) -> str:
     tokenized_recipe = _tokenize_expression(recipe)
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
@@ -613,7 +634,10 @@ def _local_repo() -> str:
 
 def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
     """Try to clone the repository; return whether we succeeded."""
-    print(f"Checking out {repo}" + (f" ({branch} branch)" if branch else ""))
+    print(
+        f"Checking out {repo}" + (f" ({branch} branch)" if branch else ""),
+        file=sys.stderr,
+    )
 
     # check if we're being used in GitHub CI -- if so, modify the branch
     if not branch and 'RECIPE' in os.environ:
@@ -646,8 +670,10 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         _fail(f"Unrecognized SCM: {scm}")
         return False
     scm_command = [scm, 'clone', *options, repo, into]
-    if subprocess.run(scm_command).returncode != 0:
+    run_result = subprocess.run(scm_command, stderr=subprocess.PIPE)
+    if run_result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
+        _fail(run_result.stderr.decode())
         return False
     return True
 
@@ -856,11 +882,15 @@ def _argparse_target(target: str) -> str:
     if re.match(MELPA_PR, target):
         os.environ['MELPA_PR_URL'] = target
     elif os.path.isfile(target):
-        os.environ['RECIPE_FILE'] = target
+        with open(target) as file:
+            potential_recipe = file.read()
+        if validate_recipe(potential_recipe):
+            os.environ['RECIPE'] = potential_recipe
+            os.environ['RECIPE_FILE'] = target
     elif os.path.isdir(target):
         os.environ['LOCAL_REPO'] = target
     else:
-        raise argparse.ArgumentTypeError("%r must be a MELPA PR URL or path" % target)
+        raise argparse.ArgumentTypeError("%r must be a MELPA PR or local path" % target)
     return target
 
 
@@ -875,22 +905,24 @@ def _argparse_recipe(recipe: str) -> str:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    target_help = 'a MELPA PR URL, or a local path to a recipe or package'
+    parser.add_argument('target', help=target_help, nargs='?', type=_argparse_target)
     parser.add_argument('--license', help='only check licenses', action='store_true')
     parser.add_argument('--recipe', help='a valid MELPA recipe', type=_argparse_recipe)
-    parser.add_argument('target', help='build target', nargs='?', type=_argparse_target)
     pargs = parser.parse_args()
 
     if pargs.license:
-        raise NotImplementedError
+        if not os.environ.get('RECIPE'):
+            _fail('Set env var RECIPE or specify a recipe with: [--recipe RECIPE]')
+        else:
+            check_license(os.environ['RECIPE'])
     elif 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
-        sys.exit(_return_code())
     elif 'RECIPE' in os.environ:
         check_melpa_recipe(os.environ['RECIPE'])
-        sys.exit(_return_code())
     elif 'RECIPE_FILE' in os.environ:
         with open(os.environ['RECIPE_FILE'], 'r') as file:
             check_melpa_recipe(file.read())
-        sys.exit(_return_code())
     else:
         _check_melpa_pr_loop()
+    sys.exit(_return_code())

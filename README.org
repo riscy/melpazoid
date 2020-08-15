@@ -62,11 +62,12 @@ foolproof, sometimes opinionated, and may raise false positives.
    default, it will be run with no network access. The output scroll will report
    any discovered issues.
 *** Test an open MELPA PR
-    If you've already opened a PR against MELPA you can use:
+    If you've already opened a PR against MELPA, you can use the Makefile.
     #+begin_src bash
     MELPA_PR_URL=https://github.com/melpa/melpa/pull/6718 make
     #+end_src
 *** Test a recipe
+    If you just have a recipe, you can use the Makefile:
     #+begin_src bash
     RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' make
     #+end_src
@@ -75,11 +76,20 @@ foolproof, sometimes opinionated, and may raise false positives.
     RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github :branch "develop")' make
     #+end_src
 *** Test a recipe for a package on your machine
+    Use the Makefile:
     #+begin_src bash
     RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' \
         LOCAL_REPO='~/my-emacs-packages/shx-for-emacs' make
     #+end_src
     Instead of cloning from ~riscy/shx-for-emacs~ in this example, melpazoid
     will use the files in ~LOCAL_REPO~.
+*** Only test a package's licenses
+    If you only wish to use melpazoid's (very basic) license checks, refer to the
+    following examples:
+
+    #+begin_src bash
+    python3 melpazoid/melpazoid.py --license ../melpa/recipes/magit  # a recipe file
+    python3 melpazoid/melpazoid.py --license --recipe='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
+    #+end
 *** Run in an unending loop
     Just run melpazoid.py directly, or use ~make~ by itself.
