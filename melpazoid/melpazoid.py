@@ -109,17 +109,16 @@ def check_containerized_build(recipe: str, elisp_dir: str):
     print(f"Building container for {package_name(recipe)}... 🐳")
     # first, copy over only the recipe's files:
     shutil.rmtree(_PKG_SUBDIR, ignore_errors=True)
-    files = _files_in_recipe(recipe, elisp_dir)
+    files = [os.path.relpath(f, elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_SUBDIR, target)
-        os.makedirs(os.path.join(_PKG_SUBDIR, os.path.dirname(file)), exist_ok=True)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target])
         files[ii] = target
     _write_requirements(files, recipe)
-    main_file = os.path.basename(_main_file(files, recipe))
     run_result = subprocess.run(
-        ['make', 'test', f"PACKAGE_MAIN={main_file}"],
+        ['make', 'test', f"PACKAGE_MAIN={os.path.basename(_main_file(files, recipe))}"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -151,7 +150,8 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
                        (package-build--expand-source-file-list rcp) "\n")))
         """
     ).split('\n')
-    return sorted(f for f in files if os.path.exists(os.path.join(elisp_dir, f)))
+    files = [os.path.join(elisp_dir, file) for file in files]
+    return sorted(file for file in files if os.path.exists(file))
 
 
 def _files_in_default_recipe(recipe: str, elisp_dir: str) -> list:
@@ -382,7 +382,7 @@ def _check_license_file(elisp_dir: str) -> bool:
 
 def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
     """Check a list of elisp files for license boilerplate."""
-    files = [os.path.join(elisp_dir, ff) for ff in _files_in_recipe(recipe, elisp_dir)]
+    files = _files_in_recipe(recipe, elisp_dir)
     individual_files_licensed = True
     for file in files:
         if not file.endswith('.el') or file.endswith('-pkg.el'):
@@ -450,7 +450,6 @@ def _check_license(recipe: str, elisp_dir: str):
 def _check_recipe(recipe: str, elisp_dir: str):
     files = _files_in_recipe(recipe, elisp_dir)
     use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
-    files = [os.path.join(elisp_dir, ff) for ff in files]
     if ':branch' in recipe:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
     if _fetcher(recipe) == 'gitlab' and (':repo' not in recipe or ':url' in recipe):
@@ -469,7 +468,7 @@ def _print_package_requires(recipe: str, elisp_dir: str):
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
     """
-    files = [os.path.join(elisp_dir, ff) for ff in _files_in_recipe(recipe, elisp_dir)]
+    files = _files_in_recipe(recipe, elisp_dir)
     print('- Requires: ', end='')
     main_requirements = requirements(files, recipe, with_versions=True)
     print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
@@ -483,19 +482,18 @@ def _print_package_requires(recipe: str, elisp_dir: str):
 
 
 def _print_package_files(recipe: str, elisp_dir: str):
-    files = [os.path.join(elisp_dir, ff) for ff in _files_in_recipe(recipe, elisp_dir)]
-    for file in files:
-        basename = os.path.basename(file)
+    for file in _files_in_recipe(recipe, elisp_dir):
+        relpath = os.path.relpath(file, elisp_dir)
         if os.path.isdir(file):
-            print(f"- {CLR_ULINE}{basename}{CLR_OFF} -- directory")
+            print(f"- {relpath} -- directory")
             continue
         if not file.endswith('.el'):
-            print(f"- {CLR_ULINE}{basename}{CLR_OFF} -- not elisp")
+            print(f"- {relpath} -- not elisp")
             continue
         if file.endswith('-pkg.el'):
-            _note(f"- {basename} -- consider excluding; MELPA creates one", CLR_WARN)
+            _note(f"- {relpath} -- consider excluding; MELPA creates one", CLR_WARN)
             continue
-        with open(file) as stream:
+        with open(file) as stream:  # definitely an elisp file
             try:
                 header = stream.readline()
                 header = header.split('-*-')[0]
@@ -505,7 +503,7 @@ def _print_package_files(recipe: str, elisp_dir: str):
                 header = f"{CLR_ERROR}(no header){CLR_OFF}"
                 _return_code(2)
             print(
-                f"- {CLR_ULINE}{basename}{CLR_OFF}"
+                f"- {relpath}"
                 f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
                 + (f" -- {header}" if header else "")
             )
