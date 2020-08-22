@@ -27,7 +27,8 @@ import time
 from typing import Iterator, List, TextIO, Tuple
 
 _RETURN_CODE = 0  # eventual return code when run as script
-_PKG_SUBDIR = os.path.join(os.path.dirname(__file__), '..', 'pkg')
+_MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
+_PKG_SUBDIR = os.path.join(_MELPAZOID_ROOT, 'pkg')
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -122,8 +123,9 @@ def check_containerized_build(recipe: str, elisp_dir: str):
         subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target])
         files[ii] = target
     _write_requirements(files, recipe)
+    package_main = os.path.basename(_main_file(files, recipe))
     run_result = subprocess.run(
-        ['make', 'test', f"PACKAGE_MAIN={os.path.basename(_main_file(files, recipe))}"],
+        ['make', '-C', _MELPAZOID_ROOT, 'test', f"PACKAGE_MAIN={package_main}"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
