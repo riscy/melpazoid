@@ -48,10 +48,13 @@
   "Warn about lack of lexical binding."
   (save-excursion
     (goto-char (point-min))
-    (unless (re-search-forward "lexical-binding:[[:blank:]]*t" nil t)
-      (melpazoid-insert "- Per CONTRIBUTING.org, consider using lexical binding.")
-      (melpazoid-insert "  See: https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#fixing-typical-problems")
-      (melpazoid-insert "- Lexical binding will be used in what follows"))))
+    (let ((regexp "lexical-binding:[[:blank:]]*t"))
+      (unless (re-search-forward regexp (point-at-eol) t)
+        (if (re-search-forward regexp nil t)
+            (melpazoid--annotate-line "Move `lexical-binding: t` to the first line")
+          (melpazoid-insert "- Consider using lexical binding.")
+          (melpazoid-insert "  See: https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#fixing-typical-problems")
+          (melpazoid-insert "- Lexical binding will be used in what follows"))))))
 
 (defun melpazoid--remove-no-compile ()
   "Warn about and remove `no-byte-compile' directive."
@@ -220,10 +223,14 @@ then also scan comments for REGEXP."
         (unless melpazoid--misc-header-printed-p
           (melpazoid-insert "Suggestions/experimental static checks:")
           (setq melpazoid--misc-header-printed-p t))
-        (melpazoid-insert "- %s#L%s: %s"
-                          (file-name-nondirectory (buffer-file-name))
-                          (line-number-at-pos)
-                          msg)))))
+        (melpazoid--annotate-line msg)))))
+
+(defun melpazoid--annotate-line (msg)
+  "Annotate the current line with MSG."
+  (melpazoid-insert "- %s#L%s: %s"
+                    (file-name-nondirectory (buffer-file-name))
+                    (line-number-at-pos)
+                    msg))
 
 (defun melpazoid-insert (f-str &rest objects)
   "Insert F-STR in a way determined by whether we're in script mode.
