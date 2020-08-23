@@ -653,9 +653,6 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         if branch:
             _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
-    if not requests.get(repo).ok:
-        _fail(f"Unable to locate {repo}")
-        return False
     subprocess.run(['mkdir', '-p', into])
     scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
