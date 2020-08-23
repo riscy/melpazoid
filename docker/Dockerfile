@@ -1,44 +1,21 @@
-# Based on https://github.com/JAremko/docker-emacs
+FROM ubuntu:20.04
 
-ARG VERSION=latest
-FROM ubuntu:$VERSION
-
-# Fix "Couldn't register with accessibility bus" error message
-ENV NO_AT_BRIDGE=1
-
-ENV DEBIAN_FRONTEND noninteractive
-
-# basic stuff
-RUN echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf \
-    && apt-get update && apt-get install \
-    bash \
-    build-essential \
-    git \
-    gzip \
-    language-pack-en-base \
-    libgl1-mesa-glx \
-    make \
-    sudo \
-    tar \
-    unzip \
-# Cleanup
-    && apt-get purge build-essential \
-    && apt-get autoremove \
-    && rm -rf /tmp/* /var/lib/apt/lists/* /root/.cache/*
-
-# Emacs
-RUN apt-get update && apt-get install software-properties-common \
-    && apt-add-repository ppa:kelleyk/emacs \
-    && apt-get update && apt-get install emacs26 \
-# Cleanup
-    && apt-get purge software-properties-common \
-    && rm -rf /tmp/* /var/lib/apt/lists/* /root/.cache/*
+RUN apt-get update \
+        && apt-get install -y --no-install-recommends make tar gzip git curl ca-certificates gcc libgnutls28-dev libncurses-dev \
+        && curl -O https://ftp.gnu.org/pub/gnu/emacs/emacs-27.1.tar.gz \
+        && tar -xzf emacs-27.1.tar.gz \
+        && cd emacs-27.1 \
+        && LIBGNUTLS_CFLAGS='-I/usr/include' LIBGNUTLS_LIBS='-L/usr/lib/x86_64-linux-gnu -lgnutls' ./configure --without-makeinfo --with-modules \
+        && make install \
+        && apt-get autoremove \
+        && rm -rf /emacs-27.1 /var/lib/apt/lists/* /root/.cache/*
 
 ENV WORKSPACE "/workspace"
 ENV ELISP_PATH "${WORKSPACE}/pkg"
 
-RUN useradd emacser -d $WORKSPACE
-RUN mkdir -p $ELISP_PATH && chown -R emacser $WORKSPACE
+RUN useradd emacser -d $WORKSPACE \
+        && mkdir -p $ELISP_PATH \
+        && chown -R emacser $WORKSPACE
 USER emacser:emacser
 
 COPY docker/requirements.el $WORKSPACE
@@ -55,4 +32,4 @@ ARG PACKAGE_MAIN
 ENV PACKAGE_MAIN "${PACKAGE_MAIN}"
 
 WORKDIR $ELISP_PATH
-CMD ["/usr/bin/emacs", "--script", "melpazoid.el"]
+CMD ["emacs", "--script", "melpazoid.el"]
