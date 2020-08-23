@@ -90,6 +90,6 @@ foolproof, sometimes opinionated, and may raise false positives.
     #+begin_src bash
     python3 melpazoid/melpazoid.py --license ../melpa/recipes/magit  # a recipe file
     python3 melpazoid/melpazoid.py --license --recipe='(shx :repo "riscy/shx-for-emacs" :fetcher github)'
-    #+end
+    #+end_src
 *** Run in an unending loop
     Just run melpazoid.py directly, or use ~make~ by itself.
