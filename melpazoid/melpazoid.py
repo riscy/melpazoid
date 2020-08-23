@@ -519,6 +519,7 @@ def _print_package_requires(recipe: str, elisp_dir: str):
 def print_similar_packages(package_name: str):
     """Print list of similar, or at least similarly named, packages."""
     keywords = [package_name]
+    keywords += [re.sub(r'[0-9]', '', package_name)]
     keywords += [package_name[:-5]] if package_name.endswith('-mode') else []
     keywords += ['org-' + package_name[3:]] if package_name.startswith('ox-') else []
     keywords += ['ox-' + package_name[4:]] if package_name.startswith('org-') else []
