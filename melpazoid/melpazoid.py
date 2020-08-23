@@ -819,7 +819,7 @@ def run_build_script(script: str) -> str:
         )
         if result.returncode != 0:
             raise ChildProcessError(result.stderr.decode())
-        return result.stdout.decode().strip()
+        return str(result.stdout.decode()).strip()
 
 
 @functools.lru_cache()
