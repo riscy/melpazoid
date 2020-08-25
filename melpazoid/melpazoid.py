@@ -524,9 +524,11 @@ def print_similar_packages(package_name: str):
     keywords += ['org-' + package_name[3:]] if package_name.startswith('ox-') else []
     keywords += ['ox-' + package_name[4:]] if package_name.startswith('org-') else []
     all_candidates = {
-        **_known_packages(),
-        **_emacswiki_packages(keywords),
-        **_emacsattic_packages(keywords),
+        **emacsattic_packages(keywords),
+        **emacswiki_packages(keywords),
+        **emacsmirror_packages(),
+        **elpa_packages(),
+        **melpa_packages(),
     }
     best_candidates = []
     for candidate in all_candidates:
@@ -542,31 +544,36 @@ def print_similar_packages(package_name: str):
     print()
 
 
-@functools.lru_cache()
-def _known_packages() -> dict:
-    """Return all known packages in MELPA _and_ the Emacsmirror."""
-    melpa_packages = {
-        package: f"https://melpa.org/#/{package}"
-        for package in requests.get('http://melpa.org/archive.json').json()
-    }
-    epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
-    epkgs_parser = configparser.ConfigParser()
-    epkgs_parser.read_string(requests.get(epkgs).text)
-    epkgs_packages = {
-        epkg.split('"')[1]: 'https://' + data['url'].replace(':', '/')[4:]
-        for epkg, data in epkgs_parser.items()
-        if epkg != 'DEFAULT'
-    }
-    return {**epkgs_packages, **melpa_packages}
-
-
-def _emacswiki_packages(keywords: List[str]) -> dict:
-    """Check mirrored emacswiki.org for 'keywords'.
-    >>> _emacswiki_packages(keywords=['newpaste'])
-    {'newpaste': 'https://github.com/emacsmirror/emacswiki.org/blob/master/newpaste.el'}
+def emacsattic_packages(keywords: list) -> dict:
+    """(Obsolete) packages on Emacsattic matching 'keywords'.
+    >>> emacsattic_packages(keywords=('sos',))
+    {'sos': 'https://github.com/emacsattic/sos'}
     """
+    return _emacsattic_packages(frozenset(keywords))
+
+
+@functools.lru_cache()
+def _emacsattic_packages(keywords: frozenset) -> dict:
     packages = {}
     for keyword in keywords:
+        pkg = f"https://github.com/emacsattic/{keyword}"
+        if requests.get(pkg).ok:
+            packages[keyword] = pkg
+    return packages
+
+
+def emacswiki_packages(keywords: list) -> dict:
+    """Packages on emacswiki.org mirror matching 'keywords'.
+    >>> emacswiki_packages(keywords=('rss',))
+    {'rss': 'https://github.com/emacsmirror/emacswiki.org/blob/master/rss.el'}
+    """
+    return _emacswiki_packages(frozenset(keywords))
+
+
+@functools.lru_cache()
+def _emacswiki_packages(keywords: frozenset) -> dict:
+    packages = {}
+    for keyword in set(keywords):
         el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
         if requests.get(pkg).ok:
@@ -574,14 +581,44 @@ def _emacswiki_packages(keywords: List[str]) -> dict:
     return packages
 
 
-def _emacsattic_packages(keywords: List[str]) -> dict:
-    """Check (obsolete) packages on Emacsattic."""
-    packages = {}
-    for keyword in keywords:
-        pkg = f"https://github.com/emacsattic/{keyword}"
-        if requests.get(pkg).ok:
-            packages[keyword] = pkg
-    return packages
+@functools.lru_cache()
+def emacsmirror_packages() -> dict:
+    """All mirrored packages."""
+    epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
+    epkgs_parser = configparser.ConfigParser()
+    epkgs_parser.read_string(requests.get(epkgs).text)
+    return {
+        epkg.split('"')[1]: 'https://' + data['url'].replace(':', '/')[4:]
+        for epkg, data in epkgs_parser.items()
+        if epkg != 'DEFAULT'
+    }
+
+
+@functools.lru_cache()
+def elpa_packages() -> dict:
+    """ELPA packages."""
+    # q.v. http://elpa.gnu.org/packages/archive-contents
+    elpa_packages = run_build_script(
+        '''
+        (package-initialize)
+        (package-refresh-contents)
+        (prin1 (mapcar #'car package-archive-contents))
+        '''
+    )
+    elpa_packages = elpa_packages.lstrip('(').rstrip(')')
+    return {
+        package: f"https://elpa.gnu.org/packages/{package}.html"
+        for package in elpa_packages.split()
+    }
+
+
+@functools.lru_cache()
+def melpa_packages() -> dict:
+    """MELPA packages."""
+    return {
+        package: f"https://melpa.org/#/{package}"
+        for package in requests.get('http://melpa.org/archive.json').json()
+    }
 
 
 def yes_p(text: str) -> bool:
