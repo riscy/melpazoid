@@ -265,8 +265,7 @@ def _write_requirements(files: List[str], recipe: str):
             (require 'package)
             (package-initialize)
             (setq package-archives nil)
-            ;; FIXME: is it still necessary to use GNU elpa mirror?
-            (add-to-list 'package-archives '("gnu"   . "http://mirrors.163.com/elpa/gnu/"))
+            (add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/"))
             (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
             (add-to-list 'package-archives '("org"   . "http://orgmode.org/elpa/"))
             (package-refresh-contents)
