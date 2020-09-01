@@ -17,13 +17,14 @@ import glob
 import operator
 import os
 import re
-import requests
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from typing import Iterator, List, TextIO, Tuple
+from typing import Any, Dict, Iterator, List, TextIO, Tuple
+
+import requests
 
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -160,7 +161,7 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
     return sorted(file for file in files if os.path.exists(file))
 
 
-def _files_in_default_recipe(recipe: str, elisp_dir: str) -> list:
+def _files_in_default_recipe(recipe: str, elisp_dir: str) -> List[str]:
     try:
         return _files_in_recipe(_default_recipe(recipe), elisp_dir)
     except ChildProcessError:
@@ -367,7 +368,7 @@ def _check_license_github(clone_address: str) -> bool:
 
 
 @functools.lru_cache()
-def repo_info_github(clone_address: str) -> dict:
+def repo_info_github(clone_address: str) -> Dict[str, Any]:
     """What does the GitHub API say about the repo?"""
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
@@ -546,7 +547,7 @@ def print_similar_packages(package_name: str):
     print()
 
 
-def emacsattic_packages(keywords: list) -> dict:
+def emacsattic_packages(keywords: List[str]) -> Dict[str, str]:
     """(Obsolete) packages on Emacsattic matching 'keywords'.
     >>> emacsattic_packages(keywords=['sos'])
     {'sos': 'https://github.com/emacsattic/sos'}
@@ -555,7 +556,7 @@ def emacsattic_packages(keywords: list) -> dict:
 
 
 @functools.lru_cache()
-def _emacsattic_packages(keywords: frozenset) -> dict:
+def _emacsattic_packages(keywords: frozenset) -> Dict[str, str]:
     packages = {}
     for keyword in keywords:
         pkg = f"https://github.com/emacsattic/{keyword}"
@@ -564,7 +565,7 @@ def _emacsattic_packages(keywords: frozenset) -> dict:
     return packages
 
 
-def emacswiki_packages(keywords: list) -> dict:
+def emacswiki_packages(keywords: List[str]) -> Dict[str, str]:
     """Packages on emacswiki.org mirror matching 'keywords'.
     >>> emacswiki_packages(keywords=['rss'])
     {'rss': 'https://github.com/emacsmirror/emacswiki.org/blob/master/rss.el'}
@@ -573,7 +574,7 @@ def emacswiki_packages(keywords: list) -> dict:
 
 
 @functools.lru_cache()
-def _emacswiki_packages(keywords: frozenset) -> dict:
+def _emacswiki_packages(keywords: frozenset) -> Dict[str, str]:
     packages = {}
     for keyword in set(keywords):
         el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
@@ -584,7 +585,7 @@ def _emacswiki_packages(keywords: frozenset) -> dict:
 
 
 @functools.lru_cache()
-def emacsmirror_packages() -> dict:
+def emacsmirror_packages() -> Dict[str, str]:
     """All mirrored packages."""
     epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
     epkgs_parser = configparser.ConfigParser()
@@ -597,7 +598,7 @@ def emacsmirror_packages() -> dict:
 
 
 @functools.lru_cache()
-def elpa_packages() -> dict:
+def elpa_packages() -> Dict[str, str]:
     """ELPA packages."""
     # q.v. http://elpa.gnu.org/packages/archive-contents
     elpa_packages = run_build_script(
@@ -615,7 +616,7 @@ def elpa_packages() -> dict:
 
 
 @functools.lru_cache()
-def melpa_packages() -> dict:
+def melpa_packages() -> Dict[str, str]:
     """MELPA packages."""
     return {
         package: f"https://melpa.org/#/{package}"
@@ -794,7 +795,7 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
         return '', ''
     with tempfile.TemporaryDirectory() as tmpdir:
         with subprocess.Popen(
-            ['patch', '-s', '-o', os.path.join(tmpdir, 'patch')], stdin=subprocess.PIPE,
+            ['patch', '-s', '-o', os.path.join(tmpdir, 'patch')], stdin=subprocess.PIPE
         ) as process:
             assert process.stdin  # pacifies type-checker
             process.stdin.write(diff_text.encode())
@@ -860,7 +861,7 @@ def run_build_script(script: str) -> str:
 
 
 @functools.lru_cache()
-def _package_build_files() -> dict:
+def _package_build_files() -> Dict[str, str]:
     """Grab the required package-build files from the MELPA repo."""
     return {
         filename: requests.get(

@@ -20,5 +20,5 @@ image:
 .PHONY: test-melpazoid
 test-melpazoid:
 	mypy --warn-return-any melpazoid
-	black -S --check .
 	pytest --doctest-modules
+	black -S --check .
