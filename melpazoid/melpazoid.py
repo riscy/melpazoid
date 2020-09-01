@@ -123,12 +123,10 @@ def check_containerized_build(recipe: str, elisp_dir: str):
         subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target])
         files[ii] = target
     _write_requirements(files, recipe)
-    package_main = os.path.basename(_main_file(files, recipe))
-    run_result = subprocess.run(
-        ['make', '-C', _MELPAZOID_ROOT, 'test', f"PACKAGE_MAIN={package_main}"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
+    if len(glob.glob(os.path.join(_PKG_SUBDIR, '*.el'))) > 1:
+        cmd.append(f"PACKAGE_MAIN={os.path.basename(_main_file(files, recipe))}")
+    run_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
         lines += ['```', run_result.stderr.decode().strip(), '```']
@@ -902,19 +900,17 @@ def _fetch_pull_requests() -> Iterator[str]:
     """Repeatedly yield PR URL's."""
     previous_pr_url = None
     while True:
-        while True:
-            if shutil.which('pbpaste'):
-                print('Watching clipboard for MELPA PR...', end='\r')
-                possible_pr = subprocess.check_output('pbpaste').decode()
-            else:
-                possible_pr = input("Enter URL for MELPA PR: ")
-            match = re.match(MELPA_PR, possible_pr)
-            pr_url = match.string[: match.end()] if match else None
-            if match and pr_url and pr_url != previous_pr_url:
-                break
-            time.sleep(1)
-        previous_pr_url = pr_url
-        yield pr_url
+        if shutil.which('pbpaste'):
+            print('Watching clipboard for MELPA PR...', end='\r')
+            possible_pr = subprocess.check_output('pbpaste').decode()
+        else:
+            possible_pr = input("Enter URL for MELPA PR: ")
+        match = re.match(MELPA_PR, possible_pr)
+        pr_url = match.string[: match.end()] if match else None
+        if match and pr_url and pr_url != previous_pr_url:
+            previous_pr_url = pr_url
+            yield pr_url
+        time.sleep(1)
 
 
 def _argparse_target(target: str) -> str:
