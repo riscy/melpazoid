@@ -175,6 +175,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(string= major-mode" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
+  (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist")
   (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork or is this copy-pasted?" nil t)
   (melpazoid-misc "This file is part of GNU Emacs." "Copy-paste error?" nil t)
