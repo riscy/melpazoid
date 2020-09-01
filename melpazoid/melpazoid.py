@@ -14,7 +14,6 @@ import argparse
 import configparser
 import functools
 import glob
-import io  # noqa: F401 -- used by doctests
 import operator
 import os
 import re
@@ -111,7 +110,7 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
 
 
 def check_containerized_build(recipe: str, elisp_dir: str):
-    """Build a Docker container with the package installed."""
+    """Build a Docker container to run checks on elisp_dir, given a recipe."""
     print(f"Building container for {package_name(recipe)}... 🐳")
     # first, copy over only the recipe's files:
     shutil.rmtree(_PKG_SUBDIR, ignore_errors=True)
@@ -318,8 +317,10 @@ def requirements(
 
 def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     """Pull the requirements out of a -pkg.el file.
-    >>> _reqs_from_pkg_el(io.StringIO('''(define-package "x" "1.2" "A pkg." '((emacs "31.5") (xyz "123.4")))'''))
-    '( ( emacs "31.5" ) ( xyz "123.4" ) )'
+    >>> import io
+    >>> _reqs_from_pkg_el(io.StringIO(
+    ...   '''(define-package "x" "1.2" "A pkg." '((a "31.5") (b "12.4")))'''))
+    '( ( a "31.5" ) ( b "12.4" ) )'
     """
     reqs = pkg_el.read()
     reqs = ' '.join(_tokenize_expression(reqs))
@@ -330,6 +331,7 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
 
 def _reqs_from_el_file(el_file: TextIO) -> str:
     """Hacky function to pull the requirements out of an elisp file.
+    >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
     '((emacs "24.4"))'
     """
@@ -412,7 +414,8 @@ def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
 
 def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     """Check an elisp file for some license boilerplate.
-    >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier:  ISC '))
+    >>> import io
+    >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
     'ISC'
     >>> _check_file_for_license_boilerplate(io.StringIO('GNU General Public License'))
     'GPL'
@@ -545,7 +548,7 @@ def print_similar_packages(package_name: str):
 
 def emacsattic_packages(keywords: list) -> dict:
     """(Obsolete) packages on Emacsattic matching 'keywords'.
-    >>> emacsattic_packages(keywords=('sos',))
+    >>> emacsattic_packages(keywords=['sos'])
     {'sos': 'https://github.com/emacsattic/sos'}
     """
     return _emacsattic_packages(frozenset(keywords))
@@ -563,7 +566,7 @@ def _emacsattic_packages(keywords: frozenset) -> dict:
 
 def emacswiki_packages(keywords: list) -> dict:
     """Packages on emacswiki.org mirror matching 'keywords'.
-    >>> emacswiki_packages(keywords=('rss',))
+    >>> emacswiki_packages(keywords=['rss'])
     {'rss': 'https://github.com/emacsmirror/emacswiki.org/blob/master/rss.el'}
     """
     return _emacswiki_packages(frozenset(keywords))
@@ -645,7 +648,7 @@ def check_melpa_recipe(recipe: str):
 
 
 def check_license(recipe: str):
-    """Check licenses (only)."""
+    """Check license for a given recipe."""
     # TODO: DRY up wrt check_melpa_recipe
     _return_code(0)
     with tempfile.TemporaryDirectory() as elisp_dir:
