@@ -188,7 +188,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space")
   (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space")
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
-  (melpazoid-misc "(fmakunbound" "`fmakunbound` should not occur")
+  (melpazoid-misc "(fmakunbound" "`fmakunbound` should only _very rarely_ occur in packages")
   (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "Many `read-string` prompts should end with a space" t)
   (melpazoid-misc ";;;###autoload\n(add-hook" "Don't autoload `add-hook`")
@@ -197,8 +197,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(bind-keys" "Top-level bind-keys can overwrite user keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`")
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private")
-  (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s built-in NOERROR argument")
-  (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s built-in NOERROR argument")
+  (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument")
+  (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument")
   (melpazoid-misc "(user-error (format" "No `format` required; user-errors are already f-strings")
   (melpazoid-misc "(message (format" "No `format` required; messages are already f-strings")
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`")
@@ -225,7 +225,7 @@ then also scan comments for REGEXP."
                 (not (comment-only-p (point-at-bol) (point-at-eol))))
         ;; print a header unless it's already been printed:
         (unless melpazoid--misc-header-printed-p
-          (melpazoid-insert "Suggestions/experimental static checks:")
+          (melpazoid-insert "Other possible lints:")
           (setq melpazoid--misc-header-printed-p t))
         (melpazoid--annotate-line msg)))))
 

@@ -675,10 +675,7 @@ def _local_repo() -> str:
 
 def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
     """Try to clone the repository; return whether we succeeded."""
-    print(
-        f"Checking out {repo}" + (f" ({branch} branch)" if branch else ""),
-        file=sys.stderr,
-    )
+    sys.stderr.write(f"Cloning {repo} {'@' + branch if branch else ''}\n")
 
     # check if we're being used in GitHub CI -- if so, modify the branch
     if not branch and 'RECIPE' in os.environ:
