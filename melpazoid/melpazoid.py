@@ -387,7 +387,7 @@ def _check_license_file(elisp_dir: str) -> bool:
             with open(os.path.join(elisp_dir, license_)) as stream:
                 print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
-    _fail('- Add a LICENSE or COPYING file to the repository')
+    _fail('- Add a LICENSE file to the repository')
     return False
 
 
@@ -420,7 +420,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     'GPL'
     """
     text = el_file.read()
-    match = re.search(r'SPDX-License-Identifier:[ ]+(.*)', text, flags=re.I)
+    match = re.search(r'SPDX-License-Identifier:[ ]*(.*)', text, flags=re.I)
     if match:
         return match.groups()[0].strip()
     # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
