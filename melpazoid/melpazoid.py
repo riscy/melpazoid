@@ -144,15 +144,19 @@ def check_containerized_build(recipe: str, elisp_dir: str):
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
-    """Return a file listing, relative to elisp_dir."""
+    """Return a file listing, relative to elisp_dir.
+    >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', 'melpazoid')
+    ['melpazoid/melpazoid.el']
+    """
     files = run_build_script(
         f"""
         (require 'package-build)
+        (setq package-build-working-dir "{os.path.dirname(elisp_dir)}")
+        (setq rcp {_recipe_struct_elisp(recipe)})
         (send-string-to-terminal
-          (let* ((package-build-working-dir "{os.path.dirname(elisp_dir)}")
-                 (rcp {_recipe_struct_elisp(recipe)}))
-            (mapconcat (lambda (x) (format "%s" x))
-                       (package-build--expand-source-file-list rcp) "\n")))
+            (mapconcat
+                (lambda (x) (format "%s" x))
+                (package-build--expand-source-file-list rcp) "\n"))
         """
     ).split('\n')
     files = [os.path.join(elisp_dir, file) for file in files]
@@ -826,8 +830,8 @@ def _recipe_struct_elisp(recipe: str) -> str:
         return run_build_script(
             f"""
             (require 'package-recipe)
-            (let ((package-build-recipes-dir "{tmpdir}"))
-              (send-string-to-terminal (format "%S" (package-recipe-lookup "{name}"))))
+            (setq package-build-recipes-dir "{tmpdir}")
+            (send-string-to-terminal (format "%S" (package-recipe-lookup "{name}")))
             """
         )
 
