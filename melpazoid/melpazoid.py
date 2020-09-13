@@ -408,7 +408,7 @@ def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
         if not license_:
             _fail(
                 '- Add license boilerplate or an [SPDX-License-Identifier]'
-                '(https://spdx.org/using-spdx-license-identifier)'
+                '(https://spdx.dev/ids/)'
                 f" to {basename}"
             )
             individual_files_licensed = False
