@@ -21,7 +21,7 @@
 (declare-function package-lint-current-buffer "ext:package-lint.el" t t)
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
-(defvar melpazoid-can-modify-buffers t "Whether melpazoid can modify buffers.")
+(defvar melpazoid-can-modify-buffers nil "Whether melpazoid can modify buffers.")
 (defvar melpazoid-error-p nil)
 
 (defun melpazoid-byte-compile (filename)
@@ -293,6 +293,8 @@ OBJECTS are objects to interpolate into the string using `format'."
 
 (when noninteractive
   ;; Check every elisp file in `default-directory' (except melpazoid.el)
+  (setq melpazoid-can-modify-buffers t)
+
   (add-to-list 'load-path ".")
   (let ((filename nil) (filenames (directory-files ".")))
     (while filenames
