@@ -215,23 +215,26 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`")
   (melpazoid-misc "(when (not " "Consider `unless ...` instead of `when (not ...)`")
   (melpazoid-misc "(when (null " "Consider `unless ...` instead of `when (null ...)`")
-  (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t)
+  (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t)
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
   ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
   )
 
-(defun melpazoid-misc (regexp msg &optional no-smart-space include-comments)
+(defun melpazoid-misc (regexp msg &optional no-smart-space include-comments include-strings)
   "If a search for REGEXP passes, report MSG as a misc check.
 If NO-SMART-SPACE is nil, use smart spaces -- i.e. replace all
 SPC characters in REGEXP with [[:space:]]+.  If INCLUDE-COMMENTS
-then also scan comments for REGEXP."
+then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
   (unless no-smart-space
     (setq regexp (replace-regexp-in-string " " "[[:space:]]+" regexp)))
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward regexp nil t)
-      (when (or include-comments
-                (not (comment-only-p (point-at-bol) (point-at-eol))))
+      (when (save-excursion
+              (goto-char (match-beginning 0))
+              (and
+               (or include-comments (not (nth 4 (syntax-ppss))))
+               (or include-strings (not (nth 3 (syntax-ppss))))))
         ;; print a header unless it's already been printed:
         (unless melpazoid--misc-header-printed-p
           (melpazoid-insert "Other possible lints:")
