@@ -30,7 +30,7 @@
   (melpazoid-insert "byte-compile (using Emacs %s):" emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
-  (cl-letf (((symbol-function 'message) #'ignore))
+  (let ((inhibit-message t))
     (melpazoid--check-lexical-binding)
     (let ((lexical-binding t)) (byte-compile-file filename)))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
@@ -81,8 +81,7 @@
   (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
         (checkdoc-common-verbs-wrong-voice nil))
-    (cl-letf (((symbol-function 'message) #'ignore))
-      (ignore-errors (checkdoc-file filename))))
+    (let ((inhibit-message t)) (ignore-errors (checkdoc-file filename))))
   (if (not (get-buffer "*Warnings*"))
       (melpazoid-insert "- No issues!")
     (with-current-buffer "*Warnings*"
