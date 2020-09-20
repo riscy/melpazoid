@@ -292,31 +292,35 @@ OBJECTS are objects to interpolate into the string using `format'."
   (setq melpazoid-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
+(defun melpazoid--check-file-p (filename)
+  "Return non-nil if FILENAME should be checked."
+  (and
+   (not (string= (file-name-base filename) "melpazoid"))
+   (not (string-match ".*-pkg[.]el$" filename))
+   (not (string-match "[.]el~$" filename))  ; file-name-extension misses these
+   (not (string-match "^[.]#" filename))    ; file storing unsaved changes
+   (string= (file-name-extension filename) "el")))
+
 (when noninteractive
   ;; Check every elisp file in `default-directory' (except melpazoid.el)
   (setq melpazoid-can-modify-buffers t)
-
   (add-to-list 'load-path ".")
+
   (let ((filename nil) (filenames (directory-files ".")))
     (while filenames
       (setq filename (car filenames) filenames (cdr filenames))
-      (and (not (string= (file-name-base filename) "melpazoid"))
-           (not (string-match ".*-pkg.el$" filename))
-           (not (string-match ".el~$" filename))  ; file-name-extension misses these
-           (string= (file-name-extension filename) "el")
-           (melpazoid filename))))
+      (when (melpazoid--check-file-p filename)
+       (melpazoid filename))))
 
   ;; check whether FILENAMEs can be simply loaded (TODO: offer backtrace)
   (melpazoid-insert "\n### Loadability ###\n")
   (melpazoid-insert "Verifying ability to #'load each file:")
   (melpazoid-insert "```")
+
   (let ((filename nil) (filenames (directory-files ".")))
     (while filenames
       (setq filename (car filenames) filenames (cdr filenames))
-      (when (and (not (string= (file-name-base filename) "melpazoid"))
-                 (not (string-match ".*-pkg.el" filename))
-                 (not (string-match ".el~$" filename))  ; file-name-extension misses these
-                 (string= (file-name-extension filename) "el"))
+      (when (melpazoid--check-file-p filename)
         (melpazoid-insert "Loading %s" filename)
         (unless (ignore-errors (load (expand-file-name filename) nil t t))
           (melpazoid-insert "%s:Error: Emacs %s errored during load"
