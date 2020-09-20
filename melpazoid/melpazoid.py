@@ -546,6 +546,10 @@ def print_similar_packages(package_name: str):
         print(f"- {name}: {all_candidates[name]}")
     if package_name in all_candidates:
         _fail(f"- Error: package '{package_name}' already exists!", highlight='Error:')
+    # helm asks some add-on functions use a `helm-source-` prefix
+    # and org-mode asks some add-on packages to use a `ox-` prefix:
+    if package_name.startswith('helm-source') or package_name == 'ox':
+        _fail(f"- Error: {package_name} is implicitly in use")
     print()
 
 
