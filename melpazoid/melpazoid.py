@@ -932,7 +932,6 @@ def _argparse_target(target: str) -> str:
         with open(target) as file:
             potential_recipe = file.read()
         if validate_recipe(potential_recipe):
-            os.environ['RECIPE'] = potential_recipe
             os.environ['RECIPE_FILE'] = target
     elif os.path.isdir(target):
         os.environ['LOCAL_REPO'] = target
@@ -959,6 +958,9 @@ if __name__ == '__main__':
     pargs = parser.parse_args()
 
     if pargs.license:
+        if os.environ.get('RECIPE_FILE'):
+            with open(os.environ['RECIPE_FILE']) as file_:
+                os.environ['RECIPE'] = file_.read()
         if not os.environ.get('RECIPE'):
             _fail('Set env var RECIPE or specify a recipe with: [--recipe RECIPE]')
         else:
