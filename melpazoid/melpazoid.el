@@ -1,4 +1,4 @@
-;;; melpazoid.el --- A MELPA review tool  ; lexical-binding: t
+;;; melpazoid.el --- A MELPA review tool  ; -*- lexical-binding: t -*-
 
 ;; Authors: Chris Rayner (dchrisrayner@gmail.com)
 ;; Created: June 9 2019
