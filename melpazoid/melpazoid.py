@@ -886,15 +886,6 @@ def _package_build_files() -> Dict[str, str]:
     }
 
 
-@functools.lru_cache()
-def _package_recipe_el() -> str:
-    """Grab the source code for MELPA's package-build/package-recipe.el"""
-    return requests.get(
-        'https://raw.githubusercontent.com/melpa/melpa/master/'
-        'package-build/package-recipe.el'
-    ).text
-
-
 def _check_melpa_pr_loop() -> None:
     """Check MELPA pull requests in a loop."""
     for pr_url in _fetch_pull_requests():
