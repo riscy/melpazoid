@@ -155,7 +155,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(seq-map-indexed '[^,]" msg)
     (melpazoid-misc "(seq-mapn '[^,]" msg)
     (melpazoid-misc "(mapconcat '[^,]" msg)
-    (melpazoid-misc "(functionp '[^,]" msg)
     (melpazoid-misc "(setq indent-line-function '[^,]" msg)
     (melpazoid-misc "(setq-local indent-line-function '[^,]" msg)
     (melpazoid-misc "(map-filter '[^,]" msg)
@@ -218,6 +217,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency")
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t)
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
+  (melpazoid-misc "(concat (format" "Can the `format` and `concat` be combined?")
+  (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?")
   ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
   )
 
