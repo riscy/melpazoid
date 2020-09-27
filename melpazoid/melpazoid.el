@@ -228,7 +228,7 @@ If NO-SMART-SPACE is nil, use smart spaces -- i.e. replace all
 SPC characters in REGEXP with [[:space:]]+.  If INCLUDE-COMMENTS
 then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
   (unless no-smart-space
-    (setq regexp (replace-regexp-in-string " " "[[:space:]]+" regexp)))
+    (setq regexp (replace-regexp-in-string " " "[[:space:]\n]+" regexp)))
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward regexp nil t)
