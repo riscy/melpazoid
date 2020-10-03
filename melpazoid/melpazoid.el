@@ -166,7 +166,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(callf '[^,]" msg)
     (melpazoid-misc "(run-at-time[^(#]*[^#]'" msg)
     (melpazoid-misc "(seq-find '" msg)
-    (melpazoid-misc "(add-hook '[^[:space:]]+ '" msg)
+    (melpazoid-misc "(add-hook '[^[:space:]]+ '[^(]" msg)
     (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
     (melpazoid-misc "(advice-add '[^#)]*)" msg)
     (melpazoid-misc "(defalias '[^#()]*)" msg)
