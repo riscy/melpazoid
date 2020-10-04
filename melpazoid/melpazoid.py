@@ -301,10 +301,10 @@ def requirements(
             files = [main_file]
     for filename in (f for f in files if os.path.isfile(f)):
         if filename.endswith('-pkg.el'):
-            with open(filename, 'r') as pkg_el:
+            with open(filename, errors='replace') as pkg_el:
                 reqs.append(_reqs_from_pkg_el(pkg_el))
         elif filename.endswith('.el'):
-            with open(filename, 'r') as el_file:
+            with open(filename, errors='replace') as el_file:
                 reqs.append(_reqs_from_el_file(el_file))
     reqs = sum((req.split('(')[1:] for req in reqs), [])
     reqs = [req.replace(')', '').strip().lower() for req in reqs if req.strip()]
@@ -388,7 +388,7 @@ def _check_license_file(elisp_dir: str) -> bool:
     for license_ in glob.glob(os.path.join(elisp_dir, '*')):
         license_ = os.path.basename(license_)
         if re.match('LICENSE|COPYING|UNLICENSE', license_, flags=re.I):
-            with open(os.path.join(elisp_dir, license_)) as stream:
+            with open(os.path.join(elisp_dir, license_), errors='replace') as stream:
                 print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
     _fail('- Add a LICENSE file to the repository')
@@ -402,7 +402,7 @@ def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
     for file in files:
         if not file.endswith('.el') or file.endswith('-pkg.el'):
             continue
-        with open(file) as stream:
+        with open(file, errors='replace') as stream:
             license_ = _check_file_for_license_boilerplate(stream)
         basename = os.path.basename(file)
         if not license_:
@@ -471,13 +471,13 @@ def _check_license(recipe: str, elisp_dir: str):
         if file.endswith('-pkg.el'):
             _note(f"- {relpath} -- consider excluding; MELPA creates one", CLR_WARN)
             continue
-        with open(file) as stream:  # definitely an elisp file
+        with open(file, errors='replace') as stream:  # definitely an elisp file
             try:
                 header = stream.readline()
                 header = header.split('-*-')[0]
                 header = header.split(' --- ')[1]
                 header = header.strip()
-            except (IndexError, UnicodeDecodeError):
+            except IndexError:
                 header = f"{CLR_ERROR}(no header){CLR_OFF}"
                 _return_code(2)
             print(
