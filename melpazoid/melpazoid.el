@@ -170,6 +170,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
     (melpazoid-misc "(advice-add '[^#)]*)" msg)
     (melpazoid-misc "(defalias '[^#()]*)" msg)
+    (melpazoid-misc "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
 (defun melpazoid-check-misc ()
