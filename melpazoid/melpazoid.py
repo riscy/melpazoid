@@ -248,8 +248,13 @@ def _main_file(files: List[str], recipe: str) -> str:
     try:
         return next(
             el
+            # the code in #'package-build--build-multi-file-package that
+            # determines the 'main' file is not quite exposed but it first
+            # looks for name-pkg.el, then name-pkg.el.in, and then name.el,
+            # which happens to match sorted() order:
             for el in sorted(files)
             if os.path.basename(el) == f"{name}-pkg.el"
+            or os.path.basename(el) == f"{name}-pkg.el.in"
             or os.path.basename(el) == f"{name}.el"
         )
     except StopIteration:
