@@ -189,8 +189,8 @@ def _set_branch(recipe: str, branch_name: str) -> str:
 
 def _default_recipe(recipe: str) -> str:
     """Simplify the given recipe, usually to the default.
-    # >>> _default_recipe('(recipe :repo a/b :fetcher hg :branch na :files ("*.el"))')
-    # '(recipe :repo a/b :fetcher hg :branch na)'
+    >>> _default_recipe('(recipe :repo a/b :fetcher hg :branch na :files ("*.el"))')
+    '(recipe :repo a/b :fetcher hg :branch na)'
     >>> _default_recipe('(recipe :fetcher hg :url "a/b")')
     '(recipe :url "a/b" :fetcher hg)'
     """
@@ -347,7 +347,11 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
 
 def _check_license_github(clone_address: str) -> bool:
     """Use the GitHub API to check for a license.
+    Prints out the particular license as a side effect.
     Return False if unable to check (e.g. it's not on GitHub).
+    >>> _check_license_github('https://github.com/riscy/elfmt')
+    - GitHub API found `GNU General Public License v3.0`
+    True
     """
     # TODO: gitlab also has a license API -- support it?
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
@@ -396,7 +400,7 @@ def _check_license_file(elisp_dir: str) -> bool:
 
 
 def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
-    """Check a recipe for license boilerplate."""
+    """Check the files in a recipe for license boilerplate."""
     files = _files_in_recipe(recipe, elisp_dir)
     individual_files_licensed = True
     for file in files:
@@ -677,6 +681,10 @@ def check_license(recipe: str):
 
 
 def _fetcher(recipe: str) -> str:
+    """Get the 'fetcher' property from a recipe.
+    >>> _fetcher('(recipe :repo a/b :fetcher hg)')
+    'hg'
+    """
     tokenized_recipe = _tokenize_expression(recipe)
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
 
