@@ -80,8 +80,9 @@
   (ignore-errors (kill-buffer "*Warnings*"))
   (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
-        (checkdoc-common-verbs-wrong-voice nil))
-    (let ((inhibit-message t)) (ignore-errors (checkdoc-file filename))))
+        (checkdoc-common-verbs-wrong-voice nil)
+        (inhibit-message t))
+    (ignore-errors (checkdoc-file filename)))
   (if (not (get-buffer "*Warnings*"))
       (melpazoid-insert "- No issues!")
     (with-current-buffer "*Warnings*"
@@ -233,16 +234,16 @@ then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward regexp nil t)
-      (when (save-excursion
-              (goto-char (match-beginning 0))
-              (and
+      (save-excursion
+        (goto-char (match-beginning 0))
+        (when (and
                (or include-comments (not (nth 4 (syntax-ppss))))
-               (or include-strings (not (nth 3 (syntax-ppss))))))
-        ;; print a header unless it's already been printed:
-        (unless melpazoid--misc-header-printed-p
-          (melpazoid-insert "Other possible lints:")
-          (setq melpazoid--misc-header-printed-p t))
-        (melpazoid--annotate-line msg)))))
+               (or include-strings (not (nth 3 (syntax-ppss)))))
+          ;; print a header unless it's already been printed:
+          (unless melpazoid--misc-header-printed-p
+            (melpazoid-insert "Other possible lints:")
+            (setq melpazoid--misc-header-printed-p t))
+          (melpazoid--annotate-line msg))))))
 
 (defun melpazoid--annotate-line (msg)
   "Annotate the current line with MSG."
@@ -278,7 +279,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       (set-buffer (find-file filename))
       (melpazoid-byte-compile filename)
       (melpazoid-checkdoc filename)
-      ;; (melpazoid--check-declare)
+      ;; (melpazoid-check-declare)
       (melpazoid-package-lint)
       (melpazoid-check-sharp-quotes)
       (melpazoid-check-misc))

@@ -253,9 +253,8 @@ def _main_file(files: List[str], recipe: str) -> str:
             # looks for name-pkg.el, then name-pkg.el.in, and then name.el,
             # which happens to match sorted() order:
             for el in sorted(files)
-            if os.path.basename(el) == f"{name}-pkg.el"
-            or os.path.basename(el) == f"{name}-pkg.el.in"
-            or os.path.basename(el) == f"{name}.el"
+            if os.path.basename(el)
+            in (f"{name}-pkg.el", f"{name}-pkg.el.in", f"{name}.el")
         )
     except StopIteration:
         return ''
@@ -715,7 +714,7 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         if branch:
             _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
-    subprocess.run(['mkdir', '-p', into])
+    os.makedirs(into, exist_ok=True)
     scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
         # If a package's repository doesn't use the master branch, then the
