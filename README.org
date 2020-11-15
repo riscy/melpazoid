@@ -3,7 +3,7 @@
 #+AUTHOR: Chris Rayner
 #+EMAIL: dchrisrayner@gmail.com
 
-[[https://travis-ci.org/riscy/melpazoid][https://travis-ci.org/riscy/melpazoid.svg?branch=master]]
+[[https://github.com/riscy/melpazoid/actions][https://github.com/riscy/melpazoid/workflows/test/badge.svg]]
 
 /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
 submissions to [[https://github.com/melpa/][MELPA]]. I've been using this to help check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]].
@@ -24,8 +24,7 @@ there is any byte-compile or package-lint =error= -- leeway is given for any
 are not foolproof, sometimes opinionated, and may raise false positives.
 
 * Usage
-  The best way to use melpazoid is to add it to your CI (GitHub actions,
-  Travis, etc.), but you can also use it locally.
+  You can add melpazoid to your CI and use it locally.
 ** Add it to GitHub actions
    The very easiest is if your package is hosted on GitHub. Just run the
    following from your project root:
@@ -36,22 +35,6 @@ are not foolproof, sometimes opinionated, and may raise false positives.
    #+end_src
    then edit the file (~.github/workflows/melpazoid.yml~) and change the values
    of ~RECIPE~ and ~EXIST_OK~ to fit.  Instructions are in the file.
-** Add it to a Travis build
-   If you use Travis, the following is an example ~.travis.yml~ that runs
-   melpazoid on a recipe:
-   #+begin_src yaml
-   language: python
-   python: ['3.6']
-   install:
-     - git clone https://github.com/riscy/melpazoid.git ~/melpazoid
-     - pip install ~/melpazoid
-   env:
-     # NOTE: set EXIST_OK to false if the package is not yet on MELPA:
-     - RECIPE='(shx :repo "riscy/shx-for-emacs" :fetcher github)' EXIST_OK=true
-   script:
-     - make -C ~/melpazoid
-   #+end_src
-   remembering to modify ~RECIPE~ and ~EXIST_OK~ accordingly.
 ** Use it locally
    You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. An image
    will be built with (hopefully) all of your requirements installed. By
