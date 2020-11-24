@@ -86,7 +86,10 @@ def validate_recipe(recipe: str) -> bool:
     >>> validate_recipe('??')
     False
     """
-    tokenized_recipe = _tokenize_expression(recipe)
+    try:
+        tokenized_recipe = _tokenize_expression(recipe)
+    except ChildProcessError:
+        return False
     valid = (
         tokenized_recipe[0] == '('
         and tokenized_recipe[-1] == ')'
@@ -940,6 +943,8 @@ def _argparse_target(target: str) -> str:
             potential_recipe = file.read()
         if validate_recipe(potential_recipe):
             os.environ['RECIPE_FILE'] = target
+        else:
+            raise argparse.ArgumentTypeError('%r contains an invalid recipe' % target)
     elif os.path.isdir(target):
         os.environ['LOCAL_REPO'] = target
     else:
