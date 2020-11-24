@@ -120,13 +120,15 @@ def check_containerized_build(recipe: str, elisp_dir: str):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_SUBDIR, target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target])
+        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target], check=True)
         files[ii] = target
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
     if len(glob.glob(os.path.join(_PKG_SUBDIR, '*.el'))) > 1:
         cmd.append(f"PACKAGE_MAIN={os.path.basename(_main_file(files, recipe))}")
-    run_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    run_result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
         lines += ['```', run_result.stderr.decode().strip(), '```']
@@ -662,7 +664,7 @@ def check_melpa_recipe(recipe: str):
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            subprocess.run(['cp', '-r', _local_repo(), elisp_dir])
+            subprocess.run(['cp', '-r', _local_repo(), elisp_dir], check=True)
             _run_checks(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _run_checks(recipe, elisp_dir)
@@ -678,7 +680,7 @@ def check_license(recipe: str):
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            subprocess.run(['cp', '-r', _local_repo(), elisp_dir])
+            subprocess.run(['cp', '-r', _local_repo(), elisp_dir], check=True)
             _check_license(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _check_license(recipe, elisp_dir)
@@ -731,7 +733,9 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
         _fail(f"Unrecognized SCM: {scm}")
         return False
     scm_command = [scm, 'clone', *options, repo, into]
-    run_result = subprocess.run(scm_command, stderr=subprocess.PIPE)
+    run_result = subprocess.run(
+        scm_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
     if run_result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
         _fail(run_result.stderr.decode())
@@ -858,7 +862,6 @@ def _recipe_struct_elisp(recipe: str) -> str:
         )
 
 
-@functools.lru_cache()
 def run_build_script(script: str) -> str:
     """Run an elisp script in a package-build context.
     >>> run_build_script('(send-string-to-terminal "Hello world")')
@@ -875,9 +878,10 @@ def run_build_script(script: str) -> str:
             ['emacs', '--batch', '--eval', script],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            check=False,
         )
         if result.returncode != 0:
-            raise ChildProcessError(result.stderr.decode())
+            raise ChildProcessError(f"Emacs crashed: {result.stderr.decode()}")
         return str(result.stdout.decode()).strip()
 
 
