@@ -956,7 +956,7 @@ def _argparse_recipe(recipe: str) -> str:
     return recipe
 
 
-if __name__ == '__main__':
+def _main():
     parser = argparse.ArgumentParser()
     target_help = 'a MELPA PR URL, or a local path to a recipe or package'
     parser.add_argument('target', help=target_help, nargs='?', type=_argparse_target)
@@ -981,4 +981,8 @@ if __name__ == '__main__':
             check_melpa_recipe(file.read())
     else:
         _check_melpa_pr_loop()
+
+
+if __name__ == '__main__':
+    _main()
     sys.exit(_return_code())
