@@ -511,7 +511,7 @@ def _check_recipe(recipe: str, elisp_dir: str):
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':files' in recipe and ':defaults' not in recipe:
-        _note('- Prefer the default recipe if possible.', CLR_WARN)
+        _note('- Prefer the default recipe or use `:defaults`, if possible.', CLR_WARN)
         if use_default_recipe:
             _fail(f"  It seems to be equivalent: `{_default_recipe(recipe)}`")
 
