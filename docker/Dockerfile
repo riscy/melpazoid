@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
         && apt-get -y --no-install-recommends install software-properties-common \
         && apt-add-repository -y ppa:kelleyk/emacs \
-        && apt-get -y --no-install-recommends install emacs27-nox \
+        && apt-get -y --no-install-recommends install emacs27 \
         && apt-get -y purge software-properties-common \
         && apt-get -y autoremove \
         && rm -rf /var/lib/apt/lists/* /root/.cache/*
