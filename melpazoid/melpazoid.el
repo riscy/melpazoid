@@ -22,7 +22,6 @@
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-can-modify-buffers nil "Whether melpazoid can modify buffers.")
-(defvar melpazoid-error-p nil)
 
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
@@ -40,8 +39,7 @@
       (melpazoid-insert "```")
       (melpazoid-insert
        (melpazoid--newline-trim (buffer-substring (point) (point-max))))
-      (melpazoid-insert "```")
-      (setq melpazoid-error-p t)))
+      (melpazoid-insert "```")))
   (melpazoid-insert ""))
 
 (defun melpazoid--check-lexical-binding ()
@@ -89,8 +87,7 @@
       (melpazoid-insert "```")
       (melpazoid-insert
        (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
-      (melpazoid-insert "```")
-      (setq melpazoid-error-p t)))
+      (melpazoid-insert "```")))
   (melpazoid-insert ""))
 
 (defun melpazoid-package-lint ()
@@ -112,8 +109,7 @@
          (if (string= output "")
              "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
            output))
-        (melpazoid-insert "```")
-        (setq melpazoid-error-p t))))
+        (melpazoid-insert "```"))))
   (melpazoid-insert ""))
 
 (defun melpazoid--package-lint-main-file ()
@@ -135,8 +131,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
         (melpazoid-insert "- No issues!")
       (melpazoid-insert "```")
       (melpazoid-insert (buffer-substring (point-min) (point-max)))
-      (melpazoid-insert "```")
-      (setq melpazoid-error-p t)))
+      (melpazoid-insert "```")))
   (melpazoid-insert ""))
 
 (defun melpazoid-check-sharp-quotes ()
@@ -295,7 +290,6 @@ OBJECTS are objects to interpolate into the string using `format'."
   (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
   (package-initialize)
   (setq melpazoid--misc-header-printed-p nil)
-  (setq melpazoid-error-p nil)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 (defun melpazoid--check-file-p (filename)
