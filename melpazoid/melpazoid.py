@@ -534,13 +534,13 @@ def _print_package_requires(recipe: str, elisp_dir: str):
             )
 
 
-def print_similar_packages(package_name: str):
+def print_similar_packages(name: str):
     """Print list of similar, or at least similarly named, packages."""
-    keywords = [package_name]
-    keywords += [re.sub(r'[0-9]', '', package_name)]
-    keywords += [package_name[:-5]] if package_name.endswith('-mode') else []
-    keywords += ['org-' + package_name[3:]] if package_name.startswith('ox-') else []
-    keywords += ['ox-' + package_name[4:]] if package_name.startswith('org-') else []
+    keywords = [name]
+    keywords += [re.sub(r'[0-9]', '', name)]
+    keywords += [name[:-5]] if name.endswith('-mode') else []
+    keywords += ['org-' + name[3:]] if name.startswith('ox-') else []
+    keywords += ['ox-' + name[4:]] if name.startswith('org-') else []
     all_candidates = {
         **emacsattic_packages(keywords),
         **emacswiki_packages(keywords),
@@ -548,21 +548,22 @@ def print_similar_packages(package_name: str):
         **elpa_packages(keywords),
         **melpa_packages(keywords),
     }
-    best_candidates = []
-    for candidate in all_candidates:
-        if any(keyword in candidate for keyword in keywords):
-            best_candidates.append(candidate)
-    if not best_candidates:
+    top_candidates = [
+        (name_, url)
+        for name_, url in all_candidates.items()
+        if any(keyword in name_ for keyword in keywords)
+    ][:10]
+    if not top_candidates:
         return
     _note('### Similarly named ###\n', CLR_INFO)
-    for name in best_candidates[:10]:
-        print(f"- {name}: {all_candidates[name]}")
-    if package_name in all_candidates:
-        _fail(f"- Error: package '{package_name}' already exists!", highlight='Error:')
+    for name_, url in top_candidates:
+        print(f"- {name_}: {url}")
+    if name in all_candidates:
+        _fail(f"- Error: package '{name}' already exists!", highlight='Error:')
     # helm asks some add-on functions use a `helm-source-` prefix
     # and org-mode asks some add-on packages to use a `ox-` prefix:
-    if package_name.startswith('helm-source') or package_name == 'ox':
-        _fail(f"- Error: {package_name} is implicitly in use")
+    if name.startswith('helm-source') or name == 'ox':
+        _fail(f"- Error: {name} is implicitly in use")
     print()
 
 
