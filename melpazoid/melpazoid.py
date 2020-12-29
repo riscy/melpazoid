@@ -404,7 +404,7 @@ def _check_license_file(elisp_dir: str) -> bool:
             with open(os.path.join(elisp_dir, license_), errors='replace') as stream:
                 print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
             return True
-    _fail('- Add a LICENSE file to the repository')
+    _fail('- Add a LICENSE (or COPYING) file to the repository')
     return False
 
 
@@ -443,7 +443,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
     fingerprints = [
         ('GPL', r'GNU.* General Public License'),
-        ('ISC', 'Permission to use, copy, modify, and/or'),
+        ('ISC', 'Permission to use, copy, modify, and/or distribute this'),
         ('MIT', 'Permission is hereby granted, free of charge, to any person'),
         ('Unlicense', 'This is free and unencumbered software released into'),
         ('Apache 2.0', 'Licensed under the Apache License, Version 2.0'),
