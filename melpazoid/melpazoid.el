@@ -239,7 +239,8 @@ then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
                (or include-strings (not (nth 3 (syntax-ppss)))))
           ;; print a header unless it's already been printed:
           (unless melpazoid--misc-header-printed-p
-            (melpazoid-insert "Other possible lints:")
+            (melpazoid-insert
+             "Other [lints](https://github.com/riscy/melpazoid):")
             (setq melpazoid--misc-header-printed-p t))
           (melpazoid--annotate-line msg))))))
 
