@@ -217,6 +217,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`")
   (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`")
   (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`")
+  (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)")
+  (melpazoid-misc "(not (not " "This double negation can be collapsed")
   (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here")
   (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency")
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t)
