@@ -35,7 +35,8 @@
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)
         (melpazoid-insert "- No issues!")
-      (goto-char (point-min)) (forward-line 2)
+      (goto-char (point-min))
+      (forward-line 2)
       (melpazoid-insert "```")
       (melpazoid-insert
        (melpazoid--newline-trim (buffer-substring (point) (point-max))))
@@ -71,6 +72,8 @@
   "Return non-nil if current buffer is 'almost' empty."
   (<= (- (point-max) (point)) 3))
 
+(defvar checkdoc-proper-noun-list)         ; compiler pacifier
+(defvar checkdoc-common-verbs-wrong-voice) ; compiler pacifier
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
@@ -90,6 +93,7 @@
       (melpazoid-insert "```")))
   (melpazoid-insert ""))
 
+(defvar package-lint-main-file)         ; compiler pacifier
 (defun melpazoid-package-lint ()
   "Wrapper for running `package-lint' against the current buffer."
   (require 'package-lint)    ; to retain cleaner byte-compilation in script mode
