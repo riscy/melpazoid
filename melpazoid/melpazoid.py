@@ -292,7 +292,7 @@ def _write_requirements(files: List[str], recipe: str):
             elif req != 'emacs':
                 # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
-                requirements_el.write(f"(package-install '{req})\n")
+                requirements_el.write(f"(ignore-errors (package-install '{req}))\n")
         requirements_el.write(') ; end let')
 
 
