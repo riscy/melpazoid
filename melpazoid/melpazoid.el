@@ -209,9 +209,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`")
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument")
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument")
-  (melpazoid-misc "(error (format" "No `format` required; errors are already f-strings")
-  (melpazoid-misc "(user-error (format" "No `format` required; user-errors are already f-strings")
-  (melpazoid-misc "(message (format" "No `format` required; messages are already f-strings")
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t)
   (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`")
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`")
@@ -223,8 +220,17 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency")
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t)
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
-  (melpazoid-misc "(concat (format" "Can the `format` and `concat` be combined?")
-  (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?")
+  ;; simpler expressions around strings:
+  (melpazoid-misc "(error (format" "No `format` required; `error` takes an f-string") ; nofmt
+  (melpazoid-misc "(error (concat" "`concat` may be unneeded; `error` takes an f-string") ; nofmt
+  (melpazoid-misc "(message (format" "No `format` required; `message` takes an f-string") ; nofmt
+  (melpazoid-misc "(message (concat" "`concat` may be unneeded; `message` takes an f-string") ; nofmt
+  (melpazoid-misc "(user-error (format" "No `format` required; user-error takes an f-string") ; nofmt
+  (melpazoid-misc "(user-error (concat" "`concat` may be unneeded; `user-error` takes an f-string") ; nofmt
+  (melpazoid-misc "(warn (format" "No `format` required; `warn` takes an f-string") ; nofmt
+  (melpazoid-misc "(warn (concat" "`concat` may be unneeded; `warn` takes an f-string") ; nofmt
+  (misc-melpazoid "(concat (format" "Can the `format` and `concat` be combined?") ; nofmt
+  (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
   )
 
