@@ -607,7 +607,9 @@ def emacsmirror_packages() -> Dict[str, str]:
     epkgs_parser = configparser.ConfigParser()
     epkgs_parser.read_string(requests.get(epkgs).text)
     return {
-        epkg.split('"')[1]: 'https://' + data['url'].replace(':', '/')[4:]
+        epkg.split('"')[1]: 'https://'
+        + data['url'].replace(':', '/')[4:]
+        + ' (via emacsmirror)'
         for epkg, data in epkgs_parser.items()
         if epkg != 'DEFAULT'
     }
