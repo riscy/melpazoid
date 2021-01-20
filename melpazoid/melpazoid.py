@@ -513,7 +513,7 @@ def _check_recipe(recipe: str, elisp_dir: str):
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe or use `:defaults`, if possible.', CLR_WARN)
         if use_default_recipe:
-            _fail(f"  It seems to be equivalent: `{_default_recipe(recipe)}`")
+            _fail(f"  This appears to be equivalent: `{_default_recipe(recipe)}`")
 
 
 def _print_package_requires(recipe: str, elisp_dir: str):
@@ -771,7 +771,7 @@ def check_melpa_pr(pr_url: str):
         _fail(f"{pr_url} does not appear to be a MELPA PR: {pr_data}")
         return
     if int(pr_data['changed_files']) != 1:
-        _note('Only add one recipe per pull request', CLR_ERROR)
+        _note('This script can only check PRs with one recipe', CLR_ERROR)
         return
     filename, recipe = _filename_and_recipe(pr_data['diff_url'])
     if not filename or not recipe:
@@ -816,11 +816,10 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
     diff_text = requests.get(pr_data_diff_url).text
-    if (
-        'new file mode' not in diff_text
-        or 'a/recipes' not in diff_text
-        or 'b/recipes' not in diff_text
-    ):
+    if 'a/recipes' not in diff_text or 'b/recipes' not in diff_text:
+        _fail('New recipes should be added to the `recipes` subdirectory')
+        return '', ''
+    if 'new file mode' not in diff_text:
         return '', ''
     with tempfile.TemporaryDirectory() as tmpdir:
         with subprocess.Popen(
@@ -975,7 +974,7 @@ def _main():
             with open(os.environ['RECIPE_FILE']) as file_:
                 os.environ['RECIPE'] = file_.read()
         if not os.environ.get('RECIPE'):
-            _fail('Set env var RECIPE or specify a recipe with: [--recipe RECIPE]')
+            _fail('Set a recipe using `target` or with: [--recipe RECIPE]')
         else:
             check_license(os.environ['RECIPE'])
     elif 'MELPA_PR_URL' in os.environ:
