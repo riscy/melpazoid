@@ -513,7 +513,7 @@ def _check_recipe(recipe: str, elisp_dir: str):
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe or use `:defaults`, if possible.', CLR_WARN)
         if use_default_recipe:
-            _fail(f"  It seems to be equivalent: `{_default_recipe(recipe)}`")
+            _fail(f"  This appears to be equivalent: `{_default_recipe(recipe)}`")
 
 
 def _print_package_requires(recipe: str, elisp_dir: str):
@@ -816,11 +816,10 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
     diff_text = requests.get(pr_data_diff_url).text
-    if (
-        'new file mode' not in diff_text
-        or 'a/recipes' not in diff_text
-        or 'b/recipes' not in diff_text
-    ):
+    if 'a/recipes' not in diff_text or 'b/recipes' not in diff_text:
+        _fail('New recipes should be added to the `recipes` subdirectory')
+        return '', ''
+    if 'new file mode' not in diff_text:
         return '', ''
     with tempfile.TemporaryDirectory() as tmpdir:
         with subprocess.Popen(
