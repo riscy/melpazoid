@@ -229,7 +229,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(user-error (concat" "`concat` may be unneeded; `user-error` takes an f-string") ; nofmt
   (melpazoid-misc "(warn (format" "No `format` required; `warn` takes an f-string") ; nofmt
   (melpazoid-misc "(warn (concat" "`concat` may be unneeded; `warn` takes an f-string") ; nofmt
-  (misc-melpazoid "(concat (format" "Can the `format` and `concat` be combined?") ; nofmt
+  (melpazoid-misc "(concat (format" "Can the `format` and `concat` be combined?") ; nofmt
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
   )
