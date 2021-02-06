@@ -442,12 +442,13 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
         return match.groups()[0].strip()
     # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
     fingerprints = [
+        ('FSFAP', 'Copying and distribution of this file, with or without'),
         ('GPL', r'GNU.* General Public License'),
         ('ISC', 'Permission to use, copy, modify, and/or distribute this'),
         ('MIT', 'Permission is hereby granted, free of charge, to any person'),
         ('Unlicense', 'This is free and unencumbered software released into'),
         ('Apache 2.0', 'Licensed under the Apache License, Version 2.0'),
-        ('BSD 3-Clause', 'Redistribution and use in source and binary forms'),
+        ('BSD', 'Redistribution and use in source and binary forms'),
     ]
     for license_key, license_text in fingerprints:
         if re.search(license_text, text):
