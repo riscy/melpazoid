@@ -116,6 +116,22 @@
         (melpazoid-insert "```"))))
   (melpazoid-insert ""))
 
+(defun melpazoid-elint ()
+  "Experimental elint call."
+  (melpazoid-insert "elint (experimental):")
+  (ignore-errors (kill-buffer "*Elint*"))
+  (elint-file (buffer-file-name))
+  (with-current-buffer "*Elint*"
+    (goto-char (point-min))
+    (forward-line 3)
+    (if (melpazoid--buffer-almost-empty-p)
+        (melpazoid-insert "- No issues!")
+      (forward-line)
+      (melpazoid-insert "```")
+      (melpazoid-insert (buffer-substring (point) (point-max)))
+      (melpazoid-insert "```")))
+  (melpazoid-insert ""))
+
 (defun melpazoid--package-lint-main-file ()
   "Return suitable value for `package-lint-main-file'."
   (let ((package-main (getenv "PACKAGE_MAIN")))
@@ -292,6 +308,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       (melpazoid-checkdoc filename)
       ;; (melpazoid-check-declare)
       (melpazoid-package-lint)
+      ;; (melpazoid-elint)
       (melpazoid-check-sharp-quotes)
       (melpazoid-check-misc))
     (pop-to-buffer melpazoid-buffer)
