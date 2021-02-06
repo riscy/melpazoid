@@ -191,51 +191,54 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
-  (melpazoid-misc "(string-equal major-mode" "Prefer `(eq major-mode 'xyz)`")
-  (melpazoid-misc "(setq major-mode" "Prefer `define-derived-mode`")
-  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.")
-  (melpazoid-misc "(setq-default " "Packages should use `defvar-local`, not `setq-default`")
-  (melpazoid-misc "(string= major-mode" "Prefer `(eq major-mode 'xyz)`")
-  (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
-  (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`")
-  (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist")
-  (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code")
-  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork or is this copy-pasted?" nil t)
+  (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
+  (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here") ; nofmt
+  (melpazoid-misc "(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
+  (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code") ; nofmt
+  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork or is this copy-pasted?" nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "Copy-paste error?" nil t)
-  (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space" t)
-  (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space" t)
-  (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`")
-  (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages")
-  (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
-  (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "`read-string` prompts should often end with a space" t)
-  (melpazoid-misc ";;;###autoload\n(add-hook" "Loading a package should rarely add hooks" nil t)
-  (melpazoid-misc ";;;###autoload\n(advice-add" "Loading a package should rarely add advice" nil t)
-  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t)
-  (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?")
-  (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this point/point-min comparison use `bobp`?")
-  (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this point/point-at-bol comparison use `bolp`?")
-  (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?")
-  (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/point-at-bol comparison use `bolp`?")
-  (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/point-at-eol comparison use `eolp`?")
-  (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`")
-  (melpazoid-misc "^(bind-keys" "Top-level bind-keys can overwrite user keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`")
-  (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols")
-  (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t)
-  (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`")
-  (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`")
-  (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument")
-  (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument")
-  (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t)
-  (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`")
-  (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`")
-  (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`")
-  (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`")
-  (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)")
-  (melpazoid-misc "(not (not " "This double negation can be collapsed")
-  (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here")
-  (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency")
-  (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t)
+  (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`") ; nofmt
+  (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
+  (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "`read-string` prompts should often end with a space" t) ; nofmt
+  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t) ; nofmt
+  (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
+  (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
+  (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
+  (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
+  (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
+  ;; simplified conditionals
+  (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this point/point-min comparison use `bobp`?") ; nofmt
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
+  (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
+  (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt
+  (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`") ; nofmt
+  (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
+  (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
+  (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`") ; nofmt
+  ;; working with modes
+  (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
+  (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
+  (melpazoid-misc "(setq major-mode" "Prefer `define-derived-mode`")
+  (melpazoid-misc "(string-equal major-mode" "Prefer `(eq major-mode 'xyz)`")
+  (melpazoid-misc "(string= major-mode" "Prefer `(eq major-mode 'xyz)`")
+  (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
+  (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space" t)
+  ;; modifying Emacs on load
+  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
+  (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
+  (melpazoid-misc "^(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
+  (melpazoid-misc "^(advice-add" "Loading a package should rarely add advice" nil t) ; nofmt
+  (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency") ; nofmt
+  (melpazoid-misc "^(bind-keys" "Top-level bind-keys can overwrite user keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
+  (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
+  (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
   ;; simpler expressions around strings:
   (melpazoid-misc "(error (format" "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(error (concat" "`concat` may be unneeded; `error` takes an f-string") ; nofmt
