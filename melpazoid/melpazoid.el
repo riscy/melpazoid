@@ -105,7 +105,8 @@
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
     (ignore-errors (package-lint-current-buffer)))
   (with-current-buffer (get-buffer-create "*Package-Lint*")
-    (let ((output (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
+    (let ((output
+           (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
       (if (string= "No issues found." output)
           (melpazoid-insert "- No issues!")
         (melpazoid-insert "```")
@@ -135,9 +136,12 @@
 (defun melpazoid--package-lint-main-file ()
   "Return suitable value for `package-lint-main-file'."
   (let ((package-main (getenv "PACKAGE_MAIN")))
-    (cond ((eq package-main nil) nil)
-          ((string= package-main "") nil)
-          (t package-main))))
+    (cond
+     ((eq package-main nil)
+      nil)
+     ((string= package-main "")
+      nil)
+     (t package-main))))
 
 (defun melpazoid-check-declare ()
   "Wrapper for `melpazoid' check-declare.
@@ -156,8 +160,10 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-sharp-quotes ()
   "Check for missing sharp quotes."
-  (melpazoid-misc "#'(lambda " "There is no need to quote lambdas (neither #' nor ')")
-  (melpazoid-misc "[^#]'(lambda " "Quoting this lambda may prevent it from being compiled")
+  (melpazoid-misc
+   "#'(lambda " "There is no need to quote lambdas (neither #' nor ')")
+  (melpazoid-misc
+   "[^#]'(lambda " "Quoting this lambda may prevent it from being compiled")
   (let ((msg "It's safer to sharp-quote function names; use `#'`"))
     (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
     (melpazoid-misc "(apply-partially '[^,]" msg)
@@ -186,7 +192,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
     (melpazoid-misc "(advice-add '[^#)]*)" msg)
     (melpazoid-misc "(defalias '[^#()]*)" msg)
-    (melpazoid-misc "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
+    (melpazoid-misc
+     "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
 (defun melpazoid-check-misc ()
@@ -289,8 +296,7 @@ OBJECTS are objects to interpolate into the string using `format'."
          (str (apply #'format str objects)))
     (if noninteractive
         (send-string-to-terminal str)
-      (with-current-buffer (get-buffer-create melpazoid-buffer)
-        (insert str)))))
+      (with-current-buffer (get-buffer-create melpazoid-buffer) (insert str)))))
 
 (defun melpazoid--newline-trim (str)
   "Sanitize STR by removing newlines."
@@ -339,18 +345,19 @@ OBJECTS are objects to interpolate into the string using `format'."
   (setq melpazoid-can-modify-buffers t)
   (add-to-list 'load-path ".")
 
-  (let ((filename nil) (filenames (directory-files ".")))
+  (let ((filename nil)
+        (filenames (directory-files ".")))
     (while filenames
       (setq filename (car filenames) filenames (cdr filenames))
-      (when (melpazoid--check-file-p filename)
-       (melpazoid filename))))
+      (when (melpazoid--check-file-p filename) (melpazoid filename))))
 
   ;; check whether FILENAMEs can be simply loaded (TODO: offer backtrace)
   (melpazoid-insert "\n### Loadability ###\n")
   (melpazoid-insert "Verifying ability to #'load each file:")
   (melpazoid-insert "```")
 
-  (let ((filename nil) (filenames (directory-files ".")))
+  (let ((filename nil)
+        (filenames (directory-files ".")))
     (while filenames
       (setq filename (car filenames) filenames (cdr filenames))
       (when (melpazoid--check-file-p filename)
