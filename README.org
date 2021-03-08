@@ -31,7 +31,7 @@ are not foolproof, sometimes opinionated, and may raise false positives.
    #+begin_src bash
    mkdir -p .github/workflows
    curl -o .github/workflows/melpazoid.yml \
-     https://raw.githubusercontent.com/riscy/melpazoid/master/.github/workflows/melpazoid.yml
+     https://raw.githubusercontent.com/riscy/melpazoid/master/melpazoid.yml
    #+end_src
    then edit the file (~.github/workflows/melpazoid.yml~) and change the values
    of ~RECIPE~ and ~EXIST_OK~ to fit.  Instructions are in the file.
