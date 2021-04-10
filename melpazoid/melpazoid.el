@@ -56,16 +56,15 @@
           (melpazoid-insert "- Lexical binding will be used in what follows"))))))
 
 (defun melpazoid--remove-no-compile ()
-  "Warn about and remove `no-byte-compile' directive."
+  "Remove `no-byte-compile' directive.
+It only be set to t for themes."
   (save-excursion
-    (let ((melpazoid--misc-header-printed-p t))  ; HACK: don't print a header
-      (melpazoid-misc "no-byte-compile: t" "Don't set `no-byte-compile: t`." nil t))
     (when melpazoid-can-modify-buffers
       (goto-char (point-min))
       (while (re-search-forward "no-byte-compile:[\s\t]*t" nil t)
         (delete-char -1)
         (insert "nil")
-        (melpazoid-insert "  Byte-compiling is enabled in what follows")
+        (melpazoid-insert "- Temporarily ignoring `no-byte-compile` flag")
         (save-buffer)))))
 
 (defun melpazoid--buffer-almost-empty-p ()
