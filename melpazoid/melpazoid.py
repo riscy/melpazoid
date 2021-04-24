@@ -52,6 +52,7 @@ VALID_LICENSES_GITHUB = {
     'GNU General Public License v2.0',
     'GNU General Public License v3.0',
     'GNU Lesser General Public License v3.0',
+    'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
     'ISC License',
     'MIT License',
     'The Unlicense',
@@ -376,6 +377,8 @@ def _check_license_github(clone_address: str) -> bool:
         if license_.get('name') == 'Other':
             _note('  - Try to use a standard format for your license file.', CLR_WARN)
             print('    See: https://github.com/licensee/licensee')
+        else:
+            _note("  - License not in melpazoid's recognized list", CLR_WARN)
         return True
     _fail('- Add a LICENSE file that GitHub can detect (e.g. no markup) if possible')
     print('  See: https://github.com/licensee/licensee')
