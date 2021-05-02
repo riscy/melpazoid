@@ -202,7 +202,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
   (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code") ; nofmt
-  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork or is this copy-pasted?" nil t) ; nofmt
+  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "Copy-paste error?" nil t)
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
@@ -215,6 +215,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
+  ;; commentary
+  (melpazoid-misc "^;;; Commentary:\n;;\n" "Use empty lines instead of `;;` on a line by itself within your Commentary")
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
