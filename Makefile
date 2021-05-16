@@ -4,9 +4,10 @@ IMAGE_NAME = melpazoid
 run:
 	python melpazoid/melpazoid.py
 
+# https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
 .PHONY: test
 test: image
-	@docker run --rm --network none ${IMAGE_NAME}
+	@docker run --rm --cap-drop all --network=none --security-opt=no-new-privileges ${IMAGE_NAME}
 
 .PHONY: term
 term: image
