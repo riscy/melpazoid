@@ -29,9 +29,7 @@
   (melpazoid-insert "byte-compile (using Emacs %s):" emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
-  (let ((inhibit-message t))
-    (melpazoid--check-lexical-binding)
-    (let ((lexical-binding t)) (byte-compile-file filename)))
+  (let ((inhibit-message t)) (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)
         (melpazoid-insert "- No issues!")
@@ -42,18 +40,6 @@
        (melpazoid--newline-trim (buffer-substring (point) (point-max))))
       (melpazoid-insert "```")))
   (melpazoid-insert ""))
-
-(defun melpazoid--check-lexical-binding ()
-  "Warn about lack of lexical binding."
-  (save-excursion
-    (goto-char (point-min))
-    (let ((regexp "lexical-binding:[[:blank:]]*t"))
-      (unless (re-search-forward regexp (point-at-eol) t)
-        (if (re-search-forward regexp nil t)
-            (melpazoid--annotate-line "Move `lexical-binding: t` to the first line")
-          (melpazoid-insert "- Consider using lexical binding.")
-          (melpazoid-insert "  See: https://github.com/melpa/melpa/blob/master/CONTRIBUTING.org#fixing-typical-problems")
-          (melpazoid-insert "- Lexical binding will be used in what follows"))))))
 
 (defun melpazoid--remove-no-compile ()
   "Remove `no-byte-compile' directive.
@@ -198,6 +184,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
+  (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
   (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
