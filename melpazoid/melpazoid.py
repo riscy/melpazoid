@@ -73,7 +73,7 @@ def _return_code(return_code: int = None) -> int:
     If return_code matches env var EXPECT_ERROR, return 0 --
     this is useful for running CI checks on melpazoid itself.
     """
-    global _RETURN_CODE
+    global _RETURN_CODE  # pylint: disable=global-statement
     if return_code is not None:
         _RETURN_CODE = return_code
     expect_error = int(os.environ.get('EXPECT_ERROR', 0))
@@ -294,7 +294,7 @@ def _write_requirements(files: List[str], recipe: str):
                 # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
                 requirements_el.write(f"(ignore-errors (package-install '{req}))\n")
-        requirements_el.write(') ; end let')
+        requirements_el.write(')')  # end let
 
 
 def requirements(
@@ -739,9 +739,6 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
             options += ['--depth', '1']
     elif scm == 'hg':
         options = ['--branch', branch if branch else 'default']
-    else:
-        _fail(f"Unrecognized SCM: {scm}")
-        return False
     scm_command = [scm, 'clone', *options, repo, into]
     run_result = subprocess.run(
         scm_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
@@ -947,10 +944,9 @@ def _argparse_target(target: str) -> str:
     elif os.path.isfile(target):
         with open(target) as file:
             potential_recipe = file.read()
-        if validate_recipe(potential_recipe):
-            os.environ['RECIPE_FILE'] = target
-        else:
+        if not validate_recipe(potential_recipe):
             raise argparse.ArgumentTypeError('%r contains an invalid recipe' % target)
+        os.environ['RECIPE_FILE'] = target
     elif os.path.isdir(target):
         os.environ['LOCAL_REPO'] = target
     else:
@@ -960,10 +956,9 @@ def _argparse_target(target: str) -> str:
 
 def _argparse_recipe(recipe: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
-    if validate_recipe(recipe):
-        os.environ['RECIPE'] = recipe
-    else:
+    if not validate_recipe(recipe):
         raise argparse.ArgumentTypeError("%r must be a valid MELPA recipe" % recipe)
+    os.environ['RECIPE'] = recipe
     return recipe
 
 
