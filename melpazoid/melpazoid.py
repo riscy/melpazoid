@@ -22,7 +22,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, Iterator, List, TextIO, Tuple
+from typing import Any, Dict, Iterator, List, Set, TextIO, Tuple
 
 import requests
 
@@ -285,6 +285,7 @@ def _write_requirements(files: List[str], recipe: str):
             '''
         )
         for req in requirements(files, recipe):
+            req = req.split()[0].strip()  # remove the version suffix
             if req == 'org':
                 # TODO: is there a cleaner way to install a recent version of org?!
                 requirements_el.write(
@@ -297,11 +298,9 @@ def _write_requirements(files: List[str], recipe: str):
         requirements_el.write(')')  # end let
 
 
-def requirements(
-    files: List[str], recipe: str = None, with_versions: bool = False
-) -> set:
+def requirements(files: List[str], recipe: str = None) -> Set[str]:
     """Pull the requirements out of a listing of files.
-    If a recipe is given, only look in the package's "main" file;
+    If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
     """
     reqs = []
@@ -317,15 +316,7 @@ def requirements(
             with open(filename, errors='replace') as el_file:
                 reqs.append(_reqs_from_el_file(el_file))
     reqs = sum((req.split('(')[1:] for req in reqs), [])
-    reqs = [req.replace(')', '').strip().lower() for req in reqs if req.strip()]
-    if with_versions:
-        return set(reqs)
-    for ii, req in enumerate(reqs):
-        if '"' not in req:
-            _fail(f"Version in '{req}' must be a string!  Attempting patch")
-            package, version = reqs[ii].split()
-            reqs[ii] = f'{package} "{version}"'
-    return {req.split('"')[0].strip() for req in reqs}
+    return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
 
 
 def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
@@ -526,11 +517,11 @@ def _print_package_requires(recipe: str, elisp_dir: str):
     in the other files will be ignored.
     """
     files = _files_in_recipe(recipe, elisp_dir)
-    print('- Requires: ', end='')
-    main_requirements = requirements(files, recipe, with_versions=True)
+    print('- Package-Requires: ', end='')
+    main_requirements = requirements(files, recipe)
     print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
     for file in files:
-        file_requirements = set(requirements([file], with_versions=True))
+        file_requirements = requirements([file])
         if file_requirements and file_requirements > main_requirements:
             _fail(
                 f"  - Package-Requires mismatch between {os.path.basename(file)} and "
