@@ -200,6 +200,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "(setq inhibit-read-only" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
   ;; commentary
@@ -232,8 +233,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
   (melpazoid-misc "^(advice-add" "Loading a package should rarely add advice" nil t) ; nofmt
   (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency") ; nofmt
-  (melpazoid-misc "^(bind-keys" "Top-level bind-keys can overwrite user keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
-  (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
+  (melpazoid-misc "^(bind-keys" "Top-level bind-keys can sometimes overwrite user keybindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
+  (melpazoid-misc "^(define-key" "Top-level `define-key` can sometimes overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
   ;; simpler expressions around strings:
   (melpazoid-misc "(error (format" "No `format` required; `error` takes an f-string") ; nofmt
