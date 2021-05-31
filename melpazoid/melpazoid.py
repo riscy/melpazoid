@@ -276,12 +276,11 @@ def _write_requirements(files: List[str], recipe: str):
             '''
             (require 'package)
             (package-initialize)
-            (setq package-archives nil)
-            (add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/"))
             (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
             (add-to-list 'package-archives '("org"   . "http://orgmode.org/elpa/"))
             (package-refresh-contents)
-            (package-reinstall 'package-lint)
+            (package-install 'pkg-info)
+            (package-install 'package-lint)
             '''
         )
         for req in requirements(files, recipe):

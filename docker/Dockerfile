@@ -19,9 +19,6 @@ RUN useradd emacser -d $WORKSPACE \
         && chown -R emacser $WORKSPACE
 USER emacser:emacser
 
-COPY docker/requirements.el $WORKSPACE
-RUN emacs --script $WORKSPACE/requirements.el
-
 COPY _requirements.el $WORKSPACE
 RUN emacs --script $WORKSPACE/_requirements.el
 
