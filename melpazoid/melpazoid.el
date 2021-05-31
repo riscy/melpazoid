@@ -238,14 +238,10 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
   ;; simpler expressions around strings:
   (melpazoid-misc "(error (format" "No `format` required; `error` takes an f-string") ; nofmt
-  (melpazoid-misc "(error (concat" "`concat` may be unneeded; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format" "No `format` required; `message` takes an f-string") ; nofmt
-  (melpazoid-misc "(message (concat" "`concat` may be unneeded; `message` takes an f-string") ; nofmt
   (melpazoid-misc "(user-error (format" "No `format` required; user-error takes an f-string") ; nofmt
-  (melpazoid-misc "(user-error (concat" "`concat` may be unneeded; `user-error` takes an f-string") ; nofmt
   (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` can take multiple arguments") ; nofmt
   (melpazoid-misc "(warn (format" "No `format` required; `warn` takes an f-string") ; nofmt
-  (melpazoid-misc "(warn (concat" "`concat` may be unneeded; `warn` takes an f-string") ; nofmt
   ;; n.b. the opposite, (concat (format ...)), often can't be combined cleanly:
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
