@@ -536,11 +536,11 @@ def print_similar_packages(name: str):
     keywords += ['org-' + name[3:]] if name.startswith('ox-') else []
     keywords += ['ox-' + name[4:]] if name.startswith('org-') else []
     all_candidates = {
-        **emacsattic_packages(keywords),
-        **emacswiki_packages(keywords),
+        **emacsattic_packages(*keywords),
+        **emacswiki_packages(*keywords),
         **emacsmirror_packages(),
-        **elpa_packages(keywords),
-        **melpa_packages(keywords),
+        **elpa_packages(*keywords),
+        **melpa_packages(*keywords),
     }
     top_candidates = [
         (name_, url)
@@ -561,32 +561,24 @@ def print_similar_packages(name: str):
     print()
 
 
-def emacsattic_packages(keywords: List[str]) -> Dict[str, str]:
+@functools.lru_cache()
+def emacsattic_packages(*keywords: str) -> Dict[str, str]:
     """(Obsolete) packages on Emacsattic matching 'keywords'.
-    >>> emacsattic_packages(keywords=['sos'])
+    >>> emacsattic_packages('sos')
     {'sos': 'https://github.com/emacsattic/sos'}
     """
-    return _emacsattic_packages(frozenset(keywords))
-
-
-@functools.lru_cache()
-def _emacsattic_packages(keywords: frozenset) -> Dict[str, str]:
     packages = {kw: f"https://github.com/emacsattic/{kw}" for kw in keywords}
     return {kw: url for kw, url in packages.items() if requests.head(url).ok}
 
 
-def emacswiki_packages(keywords: List[str]) -> Dict[str, str]:
+@functools.lru_cache()
+def emacswiki_packages(*keywords: str) -> Dict[str, str]:
     """Packages on emacswiki.org mirror matching 'keywords'.
-    >>> emacswiki_packages(keywords=['rss'])
+    >>> emacswiki_packages('rss')
     {'rss': 'https://github.com/emacsmirror/emacswiki.org/blob/master/rss.el'}
     """
-    return _emacswiki_packages(frozenset(keywords))
-
-
-@functools.lru_cache()
-def _emacswiki_packages(keywords: frozenset) -> Dict[str, str]:
     packages = {}
-    for keyword in keywords:
+    for keyword in set(keywords):
         el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
         if requests.head(pkg).ok:
@@ -609,31 +601,23 @@ def emacsmirror_packages() -> Dict[str, str]:
     }
 
 
-def elpa_packages(keywords: List[str]) -> Dict[str, str]:
+@functools.lru_cache()
+def elpa_packages(*keywords: str) -> Dict[str, str]:
     """ELPA packages matching keywords.
-    >>> elpa_packages(keywords=['ahungry-theme'])
+    >>> elpa_packages('ahungry-theme')
     {'ahungry-theme': 'https://elpa.gnu.org/packages/ahungry-theme.html'}
     """
-    return _elpa_packages(frozenset(keywords))
-
-
-@functools.lru_cache()
-def _elpa_packages(keywords: frozenset) -> Dict[str, str]:
     # q.v. http://elpa.gnu.org/packages/archive-contents
     packages = {kw: f"https://elpa.gnu.org/packages/{kw}.html" for kw in keywords}
     return {kw: url for kw, url in packages.items() if requests.head(url).ok}
 
 
-def melpa_packages(keywords: List[str]) -> Dict[str, str]:
+@functools.lru_cache()
+def melpa_packages(*keywords: str) -> Dict[str, str]:
     """MELPA packages matching keywords.
-    >>> melpa_packages(keywords=['highlight-symbol'])
+    >>> melpa_packages('highlight-symbol')
     {'highlight-symbol': 'https://melpa.org/#/highlight-symbol'}
     """
-    return _melpa_packages(frozenset(keywords))
-
-
-@functools.lru_cache()
-def _melpa_packages(keywords: frozenset) -> Dict[str, str]:
     # q.v. 'http://melpa.org/archive.json'
     sources = {
         kw: f"https://github.com/melpa/melpa/blob/master/recipes/{kw}"
