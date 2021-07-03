@@ -124,7 +124,7 @@ def check_containerized_build(recipe: str, elisp_dir: str):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_SUBDIR, target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target], check=True)
+        shutil.copy(os.path.join(elisp_dir, file), target)
         files[ii] = target
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
@@ -664,7 +664,7 @@ def check_melpa_recipe(recipe: str):
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            subprocess.run(['cp', '-r', _local_repo(), elisp_dir], check=True)
+            shutil.copy(_local_repo(), elisp_dir)
             _run_checks(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _run_checks(recipe, elisp_dir)
@@ -680,7 +680,7 @@ def check_license(recipe: str):
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            subprocess.run(['cp', '-r', _local_repo(), elisp_dir], check=True)
+            shutil.copy(_local_repo(), elisp_dir)
             _check_license(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _check_license(recipe, elisp_dir)
