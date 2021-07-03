@@ -52,6 +52,7 @@ VALID_LICENSES_GITHUB = {
     'GNU General Public License v2.0',
     'GNU General Public License v3.0',
     'GNU Lesser General Public License v3.0',
+    'BSD 2-Clause "Simplified" License',
     'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
     'ISC License',
     'MIT License',
