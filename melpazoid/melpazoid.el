@@ -182,15 +182,22 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
      "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
+(defun melpazoid-check-picky ()
+  "Miscellaneous checker (picky edition)."
+  (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
+  (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
+  (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`") ; nofmt
+  (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
+  (melpazoid-misc "^;;; Commentary:\n;;\n" "Use a blank line instead of `;;` by itself under your `;;; Commentary` header"))
+
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
-  (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
   (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
   (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t) ; nofmt
-  (melpazoid-misc "This file is part of GNU Emacs." "Copy-paste error?" nil t)
+  (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t)
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "`read-string` prompts should often end with a space" t) ; nofmt
@@ -203,8 +210,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(setq inhibit-read-only" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
-  ;; commentary
-  (melpazoid-misc "^;;; Commentary:\n;;\n" "Use empty lines instead of `;;` on a line by itself within your Commentary")
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
@@ -217,8 +222,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt
   (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`") ; nofmt
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
-  (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
-  (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`") ; nofmt
   ;; working with modes
   (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
@@ -244,7 +247,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(warn (format" "No `format` required; `warn` takes an f-string") ; nofmt
   ;; n.b. the opposite, (concat (format ...)), often can't be combined cleanly:
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
-  ;; (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
   )
 
 (defun melpazoid-misc (regexp msg &optional no-smart-space include-comments include-strings)
