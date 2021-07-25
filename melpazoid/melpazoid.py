@@ -604,10 +604,10 @@ def emacsmirror_packages() -> Dict[str, str]:
 def elpa_packages(*keywords: str) -> Dict[str, str]:
     """ELPA packages matching keywords.
     >>> elpa_packages('ahungry-theme')
-    {'ahungry-theme': 'https://elpa.gnu.org/packages/ahungry-theme.html'}
+    {'ahungry-theme': 'https://elpa.gnu.org/devel/ahungry-theme.html'}
     """
     # q.v. http://elpa.gnu.org/packages/archive-contents
-    packages = {kw: f"https://elpa.gnu.org/packages/{kw}.html" for kw in keywords}
+    packages = {kw: f"https://elpa.gnu.org/devel/{kw}.html" for kw in keywords}
     return {kw: url for kw, url in packages.items() if requests.head(url).ok}
 
 
