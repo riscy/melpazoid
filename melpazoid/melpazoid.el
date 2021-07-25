@@ -66,9 +66,9 @@ It only be set to t for themes."
   (ignore-errors (kill-buffer "*Warnings*"))
   (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
-        (checkdoc-common-verbs-wrong-voice nil)
+        (checkdoc-verb-check-experimental-flag nil)
         (inhibit-message t))
-    (ignore-errors (checkdoc-file filename)))
+    (checkdoc-file filename))
   (if (not (get-buffer "*Warnings*"))
       (melpazoid-insert "- No issues!")
     (with-current-buffer "*Warnings*"
