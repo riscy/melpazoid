@@ -28,7 +28,7 @@ import requests
 
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
-_PKG_SUBDIR = os.path.join(_MELPAZOID_ROOT, 'pkg')
+_PKG_TMPDIR = os.path.join(_MELPAZOID_ROOT, 'pkg')
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -119,17 +119,17 @@ def check_containerized_build(recipe: str, elisp_dir: str):
     """Build a Docker container to run checks on elisp_dir, given a recipe."""
     print(f"Building container for {package_name(recipe)}... 🐳")
     # first, copy over only the recipe's files:
-    shutil.rmtree(_PKG_SUBDIR, ignore_errors=True)
+    shutil.rmtree(_PKG_TMPDIR, ignore_errors=True)
     files = [os.path.relpath(f, elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
-        target = os.path.join(_PKG_SUBDIR, target)
+        target = os.path.join(_PKG_TMPDIR, target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
         shutil.copy(os.path.join(elisp_dir, file), target)
         files[ii] = target
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
-    if len(glob.glob(os.path.join(_PKG_SUBDIR, '*.el'))) > 1:
+    if len(glob.glob(os.path.join(_PKG_TMPDIR, '*.el'))) > 1:
         cmd.append(f"PACKAGE_MAIN={os.path.basename(_main_file(files, recipe))}")
     run_result = subprocess.run(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
@@ -500,9 +500,6 @@ def _check_recipe(recipe: str, elisp_dir: str):
     use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
     if ':branch' in recipe:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
-    if _fetcher(recipe) == 'gitlab' and (':repo' not in recipe or ':url' in recipe):
-        # TODO: recipes that do this are failing much higher in the pipeline
-        _fail('- With the GitLab fetcher you MUST set :repo and you MUST NOT set :url')
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':files' in recipe and ':defaults' not in recipe:
@@ -758,9 +755,9 @@ def check_melpa_pr(pr_url: str):
     if filename != package_name(recipe):
         _fail(f"Recipe filename '{filename}' does not match '{package_name(recipe)}'")
         return
-    with tempfile.TemporaryDirectory() as elisp_dir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = os.path.join(elisp_dir, package_name(recipe))
+        elisp_dir = os.path.join(tmpdir, package_name(recipe))
         if _clone(
             _clone_address(recipe),
             into=elisp_dir,
