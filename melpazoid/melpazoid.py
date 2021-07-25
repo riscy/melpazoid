@@ -125,7 +125,8 @@ def check_containerized_build(recipe: str, elisp_dir: str):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_TMPDIR, target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        shutil.copy(os.path.join(elisp_dir, file), target)
+        # shutil.copy/copytree won't work here because file can be a file or a dir:
+        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target], check=True)
         files[ii] = target
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
@@ -646,7 +647,7 @@ def check_melpa_recipe(recipe: str):
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            shutil.copy(_local_repo(), elisp_dir)
+            shutil.copytree(_local_repo(), elisp_dir)
             _run_checks(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _run_checks(recipe, elisp_dir)
