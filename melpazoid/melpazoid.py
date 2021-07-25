@@ -318,7 +318,7 @@ def requirements(files: List[str], recipe: str = None) -> Set[str]:
         elif filename.endswith('.el'):
             with open(filename, errors='replace') as el_file:
                 reqs.append(_reqs_from_el_file(el_file))
-    reqs = sum((req.split('(')[1:] for req in reqs), [])
+    reqs = sum((re.split('[()]', req) for req in reqs), [])
     return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
 
 
@@ -326,8 +326,8 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     """Pull the requirements out of a -pkg.el file.
     >>> import io
     >>> _reqs_from_pkg_el(io.StringIO(
-    ...   '''(define-package "x" "1.2" "A pkg." '((a "31.5") (b "12.4")))'''))
-    '( ( a "31.5" ) ( b "12.4" ) )'
+    ...   '''(define-package "x" "1.2" "A pkg." '((a "31.5") b))'''))
+    '( ( a "31.5" ) b ) )'
     """
     reqs = pkg_el.read()
     reqs = ' '.join(_tokenize_expression(reqs))
