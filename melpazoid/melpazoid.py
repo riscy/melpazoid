@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from typing import Any, Dict, Iterator, List, Set, TextIO, Tuple
 
 import requests
@@ -91,6 +92,7 @@ def validate_recipe(recipe: str) -> bool:
     try:
         tokenized_recipe = _tokenize_expression(recipe)
     except ChildProcessError:
+        traceback.print_exc()
         return False
     valid = (
         tokenized_recipe[0] == '('
