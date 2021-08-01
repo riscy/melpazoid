@@ -20,6 +20,6 @@ image:
 
 .PHONY: test-melpazoid
 test-melpazoid:
-	mypy melpazoid || yes | mypy --install-types && mypy melpazoid
+	mypy --non-interactive --install-types melpazoid
 	pytest --doctest-modules
 	black -S --check .
