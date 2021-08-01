@@ -182,21 +182,6 @@ def _files_in_default_recipe(recipe: str, elisp_dir: str) -> List[str]:
         return []
 
 
-def _set_branch(recipe: str, branch_name: str) -> str:
-    """Set the branch on the given recipe.
-    >>> _set_branch('(abcdef :fetcher hg :url "a/b")', "feature1")
-    '(abcdef :fetcher hg :url "a/b" :branch "feature1")'
-    """
-    tokens = _tokenize_expression(recipe)
-    if ':branch' in tokens:
-        index = tokens.index(':branch')
-        tokens[index + 1] = branch_name
-    else:
-        tokens.insert(-1, ':branch')
-        tokens.insert(-1, f'"{branch_name}"')
-    return '(' + ' '.join(tokens[1:-1]) + ')'
-
-
 def _default_recipe(recipe: str) -> str:
     """Simplify the given recipe, usually to the default.
     >>> _default_recipe('(recipe :repo a/b :fetcher hg :branch na :files ("*.el"))')
