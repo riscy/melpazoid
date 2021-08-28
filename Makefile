@@ -21,5 +21,5 @@ image:
 .PHONY: test-melpazoid
 test-melpazoid:
 	mypy --non-interactive --install-types melpazoid
-	pytest --doctest-modules
+	pytest --doctest-modules --durations=5
 	black -S --check .
