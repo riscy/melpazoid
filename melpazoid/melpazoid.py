@@ -49,14 +49,16 @@ MELPA_RECIPES = f"{GITHUB_API}/melpa/melpa/contents/recipes"
 # TODO: complete this list!
 VALID_LICENSES_GITHUB = {
     'Apache License 2.0',
+    'BSD 2-Clause "Simplified" License',
+    'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
+    'Do What The F*ck You Want To Public License',
     'GNU Affero General Public License v3.0',
     'GNU General Public License v2.0',
     'GNU General Public License v3.0',
     'GNU Lesser General Public License v3.0',
-    'BSD 2-Clause "Simplified" License',
-    'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
     'ISC License',
     'MIT License',
+    'Mozilla Public License 2.0',
     'The Unlicense',
 }
 
@@ -419,7 +421,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     'GPL'
     """
     text = el_file.read()
-    match = re.search(r'SPDX-License-Identifier:[ ]*(.*)', text, flags=re.I)
+    match = re.search(r'SPDX-License-Identifier:[ ]*(.+)', text, flags=re.I)
     if match:
         return match.groups()[0].strip()
     # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
