@@ -106,16 +106,15 @@ def validate_recipe(recipe: str) -> bool:
     return valid
 
 
-def _note(message: str, color: str = None, highlight: str = None):
+def _note(message: str, color: str = '', highlight: str = ''):
     """Print a note, possibly in color, possibly highlighting specific text."""
-    color = color or ''
     if highlight:
         print(re.sub(f"({highlight})", f"{color}\\g<1>{CLR_OFF}", message))
     else:
         print(f"{color}{message}{CLR_OFF}")
 
 
-def _fail(message: str, color: str = CLR_ERROR, highlight: str = None):
+def _fail(message: str, color: str = CLR_ERROR, highlight: str = ''):
     _note(message, color, highlight)
     _return_code(2)
 
@@ -279,7 +278,7 @@ def _write_requirements(files: List[str], recipe: str):
         requirements_el.write(')')  # end let
 
 
-def requirements(files: List[str], recipe: str = None) -> Set[str]:
+def requirements(files: List[str], recipe: str = '') -> Set[str]:
     """Pull the requirements out of a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
@@ -915,7 +914,7 @@ def _argparse_recipe(recipe: str) -> str:
     return recipe
 
 
-def _main():
+def _main() -> None:
     parser = argparse.ArgumentParser()
     target_help = 'a MELPA PR URL, or a local path to a recipe or package'
     parser.add_argument('target', help=target_help, nargs='?', type=_argparse_target)
