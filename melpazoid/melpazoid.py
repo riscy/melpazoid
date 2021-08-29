@@ -17,6 +17,7 @@ import glob
 import operator
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -186,8 +187,8 @@ def _files_in_default_recipe(recipe: str, elisp_dir: str) -> List[str]:
 
 def _default_recipe(recipe: str) -> str:
     """Simplify the given recipe, usually to the default.
-    >>> _default_recipe('(recipe :repo a/b :fetcher hg :branch na :files ("*.el"))')
-    '(recipe :repo a/b :fetcher hg :branch na)'
+    >>> _default_recipe('(recipe :repo "a/b" :fetcher hg :branch na :files ("*.el"))')
+    '(recipe :repo "a/b" :fetcher hg :branch na)'
     >>> _default_recipe('(recipe :fetcher hg :url "a/b")')
     '(recipe :url "a/b" :fetcher hg)'
     """
@@ -202,26 +203,16 @@ def _default_recipe(recipe: str) -> str:
     return '(' + ' '.join(operator.itemgetter(*indices)(tokens)) + ')'
 
 
-@functools.lru_cache()
 def _tokenize_expression(expression: str) -> List[str]:
     """Turn an elisp expression into a list of tokens.
     >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
     ['(', 'shx', ':repo', '"riscy/xyz"', ':fetcher', 'github', ')']
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, 'scratch'), 'w') as scratch:
-            scratch.write(expression)
-        parsed_expression = run_build_script(
-            f"""
-            (send-string-to-terminal
-              (format "%S" (with-temp-buffer (insert-file-contents "{scratch.name}")
-                                             (read (current-buffer)))))
-            """
-        )
-    parsed_expression = parsed_expression.replace('(', ' ( ')
-    parsed_expression = parsed_expression.replace(')', ' ) ')
-    tokenized_expression = parsed_expression.split()
-    return tokenized_expression
+    lexer = shlex.shlex(expression)
+    lexer.quotes = '"'
+    lexer.commenters = ';'
+    lexer.wordchars = lexer.wordchars + ':-'
+    return list(lexer)
 
 
 def package_name(recipe: str) -> str:
