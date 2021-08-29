@@ -195,7 +195,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   "Miscellaneous checker."
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here") ; nofmt
-  (melpazoid-misc "(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
+  (melpazoid-misc "^(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
   (melpazoid-misc "/tmp\\>" "Use `temporary-file-directory` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t)
@@ -212,8 +212,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
   ;; simplified conditionals
-  (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/line-end-position comparison use `eolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?") ; nofmt
