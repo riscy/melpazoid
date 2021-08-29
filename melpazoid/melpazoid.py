@@ -303,12 +303,13 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     """Pull the requirements out of a -pkg.el file.
     >>> import io
     >>> _reqs_from_pkg_el(io.StringIO(
-    ...   '''(define-package "x" "1.2" "A pkg." '((a "31.5") b))'''))
-    '( ( a "31.5" ) b ) )'
+    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))'''))
+    '( a ( b "31.5" ) )'
     """
+    # TODO: fails if EXTRA-PROPERTIES args were given to #'define-package
     reqs = pkg_el.read()
-    reqs = ' '.join(_tokenize_expression(reqs))
-    reqs = reqs[reqs.find('( (') :]
+    reqs = ' '.join(_tokenize_expression(reqs)[5:-1])
+    reqs = reqs[reqs.find("' (") + 2 :]
     reqs = reqs[: reqs.find(') )') + 3]
     return reqs
 
