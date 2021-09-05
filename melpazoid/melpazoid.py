@@ -486,7 +486,7 @@ def _check_recipe(recipe: str, elisp_dir: str):
     if ':files' in recipe and ':defaults' not in recipe:
         _note('- Prefer the default recipe or use `:defaults`, if possible.', CLR_WARN)
         if use_default_recipe:
-            _fail(f"  This appears to be equivalent: `{_default_recipe(recipe)}`")
+            _note(f"  This would be equivalent: `{_default_recipe(recipe)}`", CLR_WARN)
 
 
 def _print_package_requires(recipe: str, elisp_dir: str):
