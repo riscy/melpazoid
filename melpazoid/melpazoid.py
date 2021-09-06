@@ -249,7 +249,7 @@ def _main_file(files: List[str], recipe: str) -> str:
 
 def _write_requirements(files: List[str], recipe: str):
     """Create a little elisp script that Docker will run as setup."""
-    with open('_requirements.el', 'w') as requirements_el:
+    with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
         # NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
         # which can disrupt the compilation of packages that use that variable:
         requirements_el.write('(let ((load-file-name nil))')
@@ -290,10 +290,10 @@ def requirements(files: List[str], recipe: str = '') -> Set[str]:
             files = [main_file]
     for filename in (f for f in files if os.path.isfile(f)):
         if filename.endswith('-pkg.el'):
-            with open(filename, errors='replace') as pkg_el:
+            with open(filename, encoding='utf-8', errors='replace') as pkg_el:
                 reqs.append(_reqs_from_pkg_el(pkg_el))
         elif filename.endswith('.el'):
-            with open(filename, errors='replace') as el_file:
+            with open(filename, encoding='utf-8', errors='replace') as el_file:
                 reqs.append(_reqs_from_el_file(el_file))
     reqs = sum((re.split('[()]', req) for req in reqs), [])
     return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
@@ -390,7 +390,7 @@ def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
     for file in files:
         if not file.endswith('.el') or file.endswith('-pkg.el'):
             continue
-        with open(file, errors='replace') as stream:
+        with open(file, encoding='utf-8', errors='replace') as stream:
             license_ = _check_file_for_license_boilerplate(stream)
         basename = os.path.basename(file)
         if not license_:
@@ -460,7 +460,7 @@ def _check_license(recipe: str, elisp_dir: str):
         if file.endswith('-pkg.el'):
             _note(f"- {relpath} -- consider excluding; MELPA creates one", CLR_WARN)
             continue
-        with open(file, errors='replace') as stream:  # definitely an elisp file
+        with open(file, encoding='utf-8', errors='replace') as stream:
             try:
                 header = stream.readline()
                 header = header.split('-*-')[0]
@@ -774,7 +774,7 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
         ) as process:
             assert process.stdin  # pacifies type-checker
             process.stdin.write(diff_text.encode())
-        with open(os.path.join(tmpdir, 'patch')) as patch_file:
+        with open(os.path.join(tmpdir, 'patch'), encoding='utf-8') as patch_file:
             basename = diff_text.split('\n')[0].split('/')[-1]
             return basename, patch_file.read().strip()
 
@@ -801,7 +801,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
     """Turn the recipe into a serialized 'package-recipe' object."""
     name = package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, name), 'w') as file:
+        with open(os.path.join(tmpdir, name), 'w', encoding='utf-8') as file:
             file.write(recipe)
         return run_build_script(
             f"""
@@ -821,7 +821,7 @@ def run_build_script(script: str) -> str:
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
-            with open(os.path.join(tmpdir, filename), 'w') as file:
+            with open(os.path.join(tmpdir, filename), 'w', encoding='utf-8') as file:
                 file.write(content)
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
         result = subprocess.run(
@@ -886,7 +886,7 @@ def _argparse_target(target: str) -> str:
     if re.match(MELPA_PR, target):
         os.environ['MELPA_PR_URL'] = target
     elif os.path.isfile(target):
-        with open(target) as file:
+        with open(target, encoding='utf-8') as file:
             potential_recipe = file.read()
         if not validate_recipe(potential_recipe):
             raise argparse.ArgumentTypeError('%r contains an invalid recipe' % target)
@@ -916,7 +916,7 @@ def _main() -> None:
 
     if pargs.license:
         if os.environ.get('RECIPE_FILE'):
-            with open(os.environ['RECIPE_FILE']) as file_:
+            with open(os.environ['RECIPE_FILE'], encoding='utf-8') as file_:
                 os.environ['RECIPE'] = file_.read()
         if not os.environ.get('RECIPE'):
             _fail('Set a recipe using `target` or with: [--recipe RECIPE]')
@@ -927,7 +927,7 @@ def _main() -> None:
     elif 'RECIPE' in os.environ:
         check_melpa_recipe(os.environ['RECIPE'])
     elif 'RECIPE_FILE' in os.environ:
-        with open(os.environ['RECIPE_FILE'], 'r') as file:
+        with open(os.environ['RECIPE_FILE'], encoding='utf-8') as file:
             check_melpa_recipe(file.read())
     else:
         _check_melpa_pr_loop()
