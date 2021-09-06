@@ -609,15 +609,6 @@ def melpa_packages(*keywords: str) -> Dict[str, str]:
     }
 
 
-def yes_p(text: str) -> bool:
-    """Ask user a yes/no question."""
-    while True:
-        keep = input(f"{text} [y/n] ").strip().lower()
-        if keep.startswith('y') or keep.startswith('n'):
-            break
-    return not keep.startswith('n')
-
-
 def check_melpa_recipe(recipe: str):
     """Check a MELPA recipe definition."""
     _return_code(0)
