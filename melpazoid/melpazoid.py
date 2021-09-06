@@ -673,9 +673,6 @@ def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
     os.makedirs(into, exist_ok=True)
     scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
-        # If a package's repository doesn't use the master branch, then the
-        # MELPA recipe must specify the branch using the :branch keyword
-        # https://github.com/melpa/melpa/pull/6712
         options = ['--single-branch']
         if branch:
             options += ['--branch', branch]
