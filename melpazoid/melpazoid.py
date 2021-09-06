@@ -374,12 +374,12 @@ def repo_info_github(clone_address: str) -> Dict[str, Any]:
 def _check_license_file(elisp_dir: str) -> bool:
     """Scan any COPYING or LICENSE files."""
     for license_ in glob.glob(os.path.join(elisp_dir, '*')):
-        license_ = os.path.basename(license_)
-        if re.match('LICENSE|COPYING|UNLICENSE', license_, flags=re.I):
-            with open(os.path.join(elisp_dir, license_), errors='replace') as stream:
-                print(f"- {license_} excerpt: `{stream.readline().strip()}...`")
+        license_basename = os.path.basename(license_)
+        if license_basename.upper() in ('LICENSE', 'COPYING', 'UNLICENSE'):
+            with open(license_, encoding='utf-8', errors='replace') as stream:
+                print(f"- {license_basename} excerpt: `{stream.readline().strip()}...`")
             return True
-    _fail('- Add a LICENSE (or COPYING) file to the repository')
+    _fail('- Add a LICENSE file to the repository')
     return False
 
 
