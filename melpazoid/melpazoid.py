@@ -23,7 +23,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import traceback
 from typing import Any, Dict, Iterator, List, Set, TextIO, Tuple
 
 import requests
@@ -93,17 +92,9 @@ def validate_recipe(recipe: str) -> bool:
     False
     """
     try:
-        tokenized_recipe = _tokenize_expression(recipe)
+        return bool(_recipe_struct_elisp(recipe))
     except ChildProcessError:
-        traceback.print_exc()
         return False
-    valid = (
-        tokenized_recipe[0] == '('
-        and tokenized_recipe[-1] == ')'
-        and len([pp for pp in tokenized_recipe if pp == '('])
-        == len([pp for pp in tokenized_recipe if pp == ')'])
-    )
-    return valid
 
 
 def _note(message: str, color: str = '', highlight: str = ''):
@@ -795,7 +786,11 @@ def _clone_address(recipe: str) -> str:
 
 @functools.lru_cache()
 def _recipe_struct_elisp(recipe: str) -> str:
-    """Turn the recipe into a serialized 'package-recipe' object."""
+    """Turn the recipe into a serialized 'package-recipe' object.
+    Throw a ChildProcessError if Emacs encounters a problem.
+    >>> _recipe_struct_elisp('(melpazoid :fetcher github :repo "xyz")')
+    '#s(package-github-recipe "melpazoid" nil "xyz" nil nil nil nil nil nil)'
+    """
     name = package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, name), 'w', encoding='utf-8') as file:
