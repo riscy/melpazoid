@@ -886,19 +886,19 @@ def _argparse_target(target: str) -> str:
         with open(target, encoding='utf-8') as file:
             potential_recipe = file.read()
         if not validate_recipe(potential_recipe):
-            raise argparse.ArgumentTypeError('%r contains an invalid recipe' % target)
+            raise argparse.ArgumentTypeError(f"{target!r} contains an invalid recipe")
         os.environ['RECIPE_FILE'] = target
     elif os.path.isdir(target):
         os.environ['LOCAL_REPO'] = target
     else:
-        raise argparse.ArgumentTypeError("%r must be a MELPA PR or local path" % target)
+        raise argparse.ArgumentTypeError(f"{target!r} must be a MELPA PR or local path")
     return target
 
 
 def _argparse_recipe(recipe: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
     if not validate_recipe(recipe):
-        raise argparse.ArgumentTypeError("%r must be a valid MELPA recipe" % recipe)
+        raise argparse.ArgumentTypeError(f"{recipe!r} must be a valid MELPA recipe")
     os.environ['RECIPE'] = recipe
     return recipe
 
