@@ -646,7 +646,7 @@ def _local_repo() -> str:
     return local_repo
 
 
-def _clone(repo: str, into: str, branch: str, fetcher: str = 'github') -> bool:
+def _clone(repo: str, into: str, branch: str, fetcher: str) -> bool:
     """Try to clone the repository; return whether we succeeded."""
     sys.stderr.write(f"Cloning {repo} {'@' + branch if branch else ''}\n")
 
