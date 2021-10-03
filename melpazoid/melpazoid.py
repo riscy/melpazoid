@@ -241,11 +241,13 @@ def _main_file(files: List[str], recipe: str) -> str:
 def _write_requirements(files: List[str], recipe: str):
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
-        # NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
-        # which can disrupt the compilation of packages that use that variable:
-        requirements_el.write('(let ((load-file-name nil))')
         requirements_el.write(
             '''
+            ;; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
+            ;; which can disrupt the compilation of packages that use that variable:
+            (setq load-file-name nil)
+            (setq debug-on-error t)
+            ;; (setq network-security-level 'low)  ; expired certs last resort
             (require 'package)
             (package-initialize)
             (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
@@ -266,7 +268,6 @@ def _write_requirements(files: List[str], recipe: str):
                 # TODO check if we need to reinstall outdated package?
                 # e.g. (package-installed-p 'map (version-to-list "2.0"))
                 requirements_el.write(f"(ignore-errors (package-install '{req}))\n")
-        requirements_el.write(')')  # end let
 
 
 def requirements(files: List[str], recipe: str = '') -> Set[str]:
