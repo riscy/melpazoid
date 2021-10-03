@@ -922,6 +922,8 @@ def _main() -> None:
     elif 'RECIPE_FILE' in os.environ:
         with open(os.environ['RECIPE_FILE'], encoding='utf-8') as file:
             check_melpa_recipe(file.read())
+    elif 'LOCAL_REPO' in os.environ:  # and RECIPE/RECIPE_FILE aren't set
+        _fail('Set a recipe with: [--recipe RECIPE]')
     else:
         _check_melpa_pr_loop()
 
