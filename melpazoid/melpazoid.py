@@ -46,7 +46,7 @@ MELPA_PULL_API = f"{GITHUB_API}/melpa/melpa/pulls"
 MELPA_RECIPES = f"{GITHUB_API}/melpa/melpa/contents/recipes"
 
 # Valid licenses and their names according to the GitHub API
-# TODO: complete this list!
+# TODO: complete these lists or use https://github.com/emacscollective/elx
 VALID_LICENSES_GITHUB = {
     'Apache License 2.0',
     'BSD 2-Clause "Simplified" License',
@@ -61,6 +61,16 @@ VALID_LICENSES_GITHUB = {
     'Mozilla Public License 2.0',
     'The Unlicense',
 }
+# Excerpts from the boilerplate associated with valid licenses:
+VALID_LICENSES_BOILERPLATE = [
+    ('Apache License 2.0', 'Licensed under the Apache License, Version 2.0'),
+    ('BSD*', 'Redistribution and use in source and binary forms'),
+    ('FSFAP', 'Copying and distribution of this file, with or without'),
+    ('GPL*', 'This program is free software.* you can redistribute it'),
+    ('ISC License', 'Permission to use, copy, modify, and/or distribute this'),
+    ('MIT License', 'Permission is hereby granted, free of charge, to any person'),
+    ('The Unlicense', 'This is free and unencumbered software released into'),
+]
 
 
 def _run_checks(recipe: str, elisp_dir: str):
@@ -247,7 +257,7 @@ def _write_requirements(files: List[str], recipe: str):
             ;; which can disrupt the compilation of packages that use that variable:
             (setq load-file-name nil)
             (setq debug-on-error t)
-            ;; (setq network-security-level 'low)  ; expired certs last resort
+            (setq network-security-level 'low)  ; expired certs last resort
             (require 'package)
             (package-initialize)
             (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
@@ -400,24 +410,15 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     >>> import io
     >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
     'ISC'
-    >>> _check_file_for_license_boilerplate(io.StringIO('GNU General Public License'))
-    'GPL'
+    >>> _check_file_for_license_boilerplate(
+    ...   io.StringIO('This program is free software: you can redistribute it'))
+    'GPL*'
     """
     text = el_file.read()
     match = re.search(r'SPDX-License-Identifier:[ ]*(.+)', text, flags=re.I)
     if match:
         return match.groups()[0].strip()
-    # otherwise, look for fingerprints (consider <https://github.com/emacscollective/elx>)
-    fingerprints = [
-        ('FSFAP', 'Copying and distribution of this file, with or without'),
-        ('GPL', r'GNU.* General Public License'),
-        ('ISC', 'Permission to use, copy, modify, and/or distribute this'),
-        ('MIT', 'Permission is hereby granted, free of charge, to any person'),
-        ('Unlicense', 'This is free and unencumbered software released into'),
-        ('Apache 2.0', 'Licensed under the Apache License, Version 2.0'),
-        ('BSD', 'Redistribution and use in source and binary forms'),
-    ]
-    for license_key, license_text in fingerprints:
+    for license_key, license_text in VALID_LICENSES_BOILERPLATE:
         if re.search(license_text, text):
             return license_key
     return ''
