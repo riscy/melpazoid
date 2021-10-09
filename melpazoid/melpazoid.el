@@ -352,9 +352,11 @@ OBJECTS are objects to interpolate into the string using `format'."
       (setq filename (car filenames) filenames (cdr filenames))
       (when (melpazoid--check-file-p filename)
         (melpazoid-insert "Loading %s" filename)
-        (unless (ignore-errors (load (expand-file-name filename) nil t t))
-          (melpazoid-insert "%s:Error: Emacs %s errored during load"
-                            filename emacs-version)))))
+        (condition-case err
+            (load (expand-file-name filename) nil t t)
+          (error
+           (melpazoid-insert "  %s:Error: Emacs %s couldn't load:\n  %S"
+                             filename emacs-version err))))))
   (melpazoid-insert "Done.")
   (melpazoid-insert "```"))
 
