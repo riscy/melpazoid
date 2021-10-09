@@ -2,7 +2,7 @@ IMAGE_NAME = melpazoid
 
 .PHONY: run
 run:
-	python melpazoid/melpazoid.py
+	python3 melpazoid/melpazoid.py
 
 # https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
 .PHONY: test
