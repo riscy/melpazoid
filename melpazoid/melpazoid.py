@@ -257,12 +257,10 @@ def _write_requirements(files: List[str], recipe: str):
             ;; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
             ;; which can disrupt the compilation of packages that use that variable:
             (setq load-file-name nil)
-            (setq debug-on-error t)
-            (setq network-security-level 'low)  ; expired certs last resort
+            ;; (setq network-security-level 'low)  ; expired certs last resort
             (require 'package)
             (package-initialize)
             (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-            (add-to-list 'package-archives '("org"   . "http://orgmode.org/elpa/"))
             (package-refresh-contents)
             (package-install 'pkg-info)
             (package-install 'package-lint)
