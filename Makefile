@@ -1,4 +1,5 @@
 IMAGE_NAME = melpazoid
+DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges
 
 .PHONY: run
 run:
@@ -7,11 +8,11 @@ run:
 # https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
 .PHONY: test
 test: image
-	@docker run --rm --cap-drop all --network=none --security-opt=no-new-privileges ${IMAGE_NAME}
+	@docker run --rm --network=none ${DOCKER_OPTIONS} ${IMAGE_NAME}
 
 .PHONY: term
 term: image
-	docker run -it --rm --entrypoint=/bin/bash ${IMAGE_NAME}
+	docker run -it --rm --entrypoint=/bin/bash ${DOCKER_OPTIONS} ${IMAGE_NAME}
 
 .PHONY: image
 image:
