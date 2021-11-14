@@ -205,6 +205,7 @@ def _default_recipe(recipe: str) -> str:
 
 def _tokenize_expression(expression: str) -> List[str]:
     """Turn an elisp expression into a list of tokens.
+    Raise ValueError if the expression can't be parsed.
     >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
     ['(', 'shx', ':repo', '"riscy/xyz"', ':fetcher', 'github', ')']
     """
@@ -361,7 +362,9 @@ def _check_license_github(clone_address: str) -> bool:
 
 @functools.lru_cache()
 def repo_info_github(clone_address: str) -> Dict[str, Any]:
-    """What does the GitHub API say about the repo?"""
+    """What does the GitHub API say about the repo?
+    Raise ConnectionError if API request fails.
+    """
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
@@ -369,7 +372,7 @@ def repo_info_github(clone_address: str) -> Dict[str, Any]:
         return {}
     response = requests.get(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}")
     if not response.ok:
-        return {}
+        raise ConnectionError(f"GitHub API error on {clone_address}")
     return dict(response.json())
 
 
