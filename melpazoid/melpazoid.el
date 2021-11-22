@@ -60,8 +60,9 @@ It should only be set to t for themes."
   "Return non-nil if current buffer is 'almost' empty."
   (<= (- (point-max) (point)) 3))
 
-(defvar checkdoc-proper-noun-list)         ; compiler pacifier
-(defvar checkdoc-common-verbs-wrong-voice) ; compiler pacifier
+(defvar checkdoc-proper-noun-list)             ; compiler pacifier
+(defvar checkdoc-common-verbs-wrong-voice)     ; compiler pacifier
+(defvar checkdoc-verb-check-experimental-flag) ; compiler pacifier
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
@@ -235,6 +236,10 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this point/point-min comparison use `bobp`?") ; nofmt
+  (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`")
+  (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
+  (melpazoid-misc "(goto-char (line-beginning-position))" "Consider `beginning-of-line`") ; nofmt
+  (melpazoid-misc "(goto-char (line-end-position))" "Consider `end-of-line`")
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
   (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
   (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt

@@ -66,7 +66,7 @@ VALID_LICENSES_BOILERPLATE = [
     ('Apache License 2.0', 'Licensed under the Apache License, Version 2.0'),
     ('BSD*', 'Redistribution and use in source and binary forms'),
     ('FSFAP', 'Copying and distribution of this file, with or without'),
-    ('GPL*', 'This program is free software.* you can redistribute it'),
+    ('GPL*', 'This (file|program) is free software.* you can redistribute it'),
     ('ISC License', 'Permission to use, copy, modify, and/or distribute this'),
     ('MIT License', 'Permission is hereby granted, free of charge, to any person'),
     ('The Unlicense', 'This is free and unencumbered software released into'),
