@@ -46,7 +46,7 @@
 
 (defun melpazoid--remove-no-compile ()
   "Remove `no-byte-compile' directive.
-It only be set to t for themes."
+It should only be set to t for themes."
   (save-excursion
     (when melpazoid-can-modify-buffers
       (goto-char (point-min))
@@ -128,7 +128,7 @@ It only be set to t for themes."
   "Return suitable value for `package-lint-main-file'."
   (let ((package-main (getenv "PACKAGE_MAIN")))
     (cond
-     ((eq package-main nil)
+     ((null package-main)
       nil)
      ((string= package-main "")
       nil)

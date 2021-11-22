@@ -195,8 +195,7 @@ def _default_recipe(recipe: str) -> str:
     """
     tokens = _tokenize_expression(recipe)
     fetcher = tokens.index(':fetcher')
-    repo_or_url_token = ':repo' if ':repo' in tokens else ':url'
-    repo = tokens.index(repo_or_url_token)
+    repo = tokens.index(':repo' if ':repo' in tokens else ':url')
     indices = [1, repo, repo + 1, fetcher, fetcher + 1]
     if ':branch' in tokens:
         branch = tokens.index(':branch')
@@ -473,15 +472,15 @@ def _check_license(recipe: str, elisp_dir: str):
 
 def _check_recipe(recipe: str, elisp_dir: str):
     files = _files_in_recipe(recipe, elisp_dir)
-    use_default_recipe = files == _files_in_default_recipe(recipe, elisp_dir)
     if ':branch' in recipe:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
-    if ':files' in recipe and ':defaults' not in recipe:
-        _note('- Prefer the default recipe or use `:defaults`, if possible.', CLR_WARN)
-        if use_default_recipe:
-            _note(f"  This would be equivalent: `{_default_recipe(recipe)}`", CLR_WARN)
+    if ':files' in recipe:
+        if files == _files_in_default_recipe(recipe, elisp_dir):
+            _note(f"- Prefer the default recipe: `{_default_recipe(recipe)}`", CLR_WARN)
+        elif ':defaults' not in recipe:
+            _note('- Prefer the default recipe or `:defaults`, if possible.', CLR_WARN)
 
 
 def _print_package_requires(recipe: str, elisp_dir: str):
@@ -736,16 +735,15 @@ def check_melpa_pr(pr_url: str):
             _note('Footnotes:', CLR_INFO)
             print('- ' + ' '.join(recipe.split()))
             _print_package_requires(recipe, elisp_dir)
+            print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
             repo_info = repo_info_github(_clone_address(recipe))
-            if pr_data:
-                print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
             if repo_info:
                 if repo_info.get('archived'):
                     _fail('- GitHub repository is archived')
                 print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
                 print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
                 print(f"- Watched: {repo_info.get('watchers_count')}")
-                if pr_data and pr_data['user']['login'] not in repo_info['html_url']:
+                if pr_data['user']['login'] not in repo_info['html_url']:
                     _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
             print('-->\n')
 
