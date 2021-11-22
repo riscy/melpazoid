@@ -21,26 +21,28 @@
 (declare-function pkg-info-package-version "ext:pkg-info.el" t t)
 (declare-function package-lint-current-buffer "ext:package-lint.el" t t)
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
-(defvar melpazoid--misc-header-printed-p nil "Whether misc-header was printed.")
 (defvar melpazoid-can-modify-buffers nil "Whether melpazoid can modify buffers.")
+(defvar melpazoid--insertion "" "Text that will (maybe) be appended to the report.")
 
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
   ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-  (melpazoid-insert "byte-compile (using Emacs %s):" emacs-version)
+  (melpazoid-insert "\n`%s` with byte-compile using Emacs %s:"
+                    (file-name-nondirectory filename)
+                    emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
   (let ((inhibit-message t)) (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-insert "- No issues!")
+        (melpazoid-discard-inserted)
       (goto-char (point-min))
       (forward-line 2)
       (melpazoid-insert "```")
       (melpazoid-insert
        (melpazoid--newline-trim (buffer-substring (point) (point-max))))
-      (melpazoid-insert "```")))
-  (melpazoid-insert ""))
+      (melpazoid-insert "```")
+      (melpazoid-commit-inserted))))
 
 (defun melpazoid--remove-no-compile ()
   "Remove `no-byte-compile' directive.
@@ -63,61 +65,64 @@ It only be set to t for themes."
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
-  (melpazoid-insert "checkdoc (using version %s):" checkdoc-version)
+  (melpazoid-discard-inserted)
+  (melpazoid-insert "\n`%s` with checkdoc %s:"
+                    (file-name-nondirectory filename)
+                    checkdoc-version)
   (ignore-errors (kill-buffer "*Warnings*"))
   (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
         (checkdoc-verb-check-experimental-flag nil)
         (inhibit-message t))
     (checkdoc-file filename))
-  (if (not (get-buffer "*Warnings*"))
-      (melpazoid-insert "- No issues!")
-    (with-current-buffer "*Warnings*"
+  (when (get-buffer "*Warnings*")
+    (let* ((issues
+            (with-current-buffer "*Warnings*"
+              (buffer-substring (point-min) (point-max))))
+           (issues (melpazoid--newline-trim issues))
+           (issues (replace-regexp-in-string "^Warning (emacs): \n" "" issues)))
       (melpazoid-insert "```")
-      (melpazoid-insert
-       (melpazoid--newline-trim (buffer-substring (point-min) (point-max))))
-      (melpazoid-insert "```")))
-  (melpazoid-insert ""))
+      (melpazoid-insert issues)
+      (melpazoid-insert "```")
+      (melpazoid-commit-inserted))))
 
 (defvar package-lint-main-file)         ; compiler pacifier
 (defun melpazoid-package-lint ()
   "Wrapper for running `package-lint' against the current buffer."
   (require 'package-lint)    ; to retain cleaner byte-compilation in script mode
   (require 'pkg-info)        ; to retain cleaner byte-compilation in script mode
-  (melpazoid-insert
-   "package-lint (using version %s):"
-   (pkg-info-format-version (pkg-info-package-version "package-lint")))
+  (melpazoid-insert "\n`%s` with package-lint %s:"
+                    (buffer-name)
+                    (pkg-info-format-version
+                     (pkg-info-package-version "package-lint")))
   (ignore-errors (kill-buffer "*Package-Lint*"))
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
     (ignore-errors (package-lint-current-buffer)))
   (with-current-buffer (get-buffer-create "*Package-Lint*")
-    (let ((output
+    (let ((issues
            (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-      (if (string= "No issues found." output)
-          (melpazoid-insert "- No issues!")
+      (if (string= "No issues found." issues)
+          (melpazoid-discard-inserted)
         (melpazoid-insert "```")
-        (melpazoid-insert
-         (if (string= output "")
-             "package-lint:Error: No output.  Did you remember to (provide 'your-package)?"
-           output))
-        (melpazoid-insert "```"))))
-  (melpazoid-insert ""))
+        (melpazoid-insert issues)
+        (melpazoid-insert "```")
+        (melpazoid-commit-inserted)))))
 
 (defun melpazoid-elint ()
   "Experimental elint call."
-  (melpazoid-insert "elint (experimental):")
+  (melpazoid-insert "\nelint (experimental):")
   (ignore-errors (kill-buffer "*Elint*"))
   (elint-file (buffer-file-name))
   (with-current-buffer "*Elint*"
     (goto-char (point-min))
     (forward-line 3)
     (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-insert "- No issues!")
+        (melpazoid-discard-inserted)
       (forward-line)
       (melpazoid-insert "```")
       (melpazoid-insert (buffer-substring (point) (point-max)))
       (melpazoid-insert "```")))
-  (melpazoid-insert ""))
+  (melpazoid-commit-inserted))
 
 (defun melpazoid--package-lint-main-file ()
   "Return suitable value for `package-lint-main-file'."
@@ -133,16 +138,28 @@ It only be set to t for themes."
   "Wrapper for `melpazoid' check-declare.
 NOTE: this sometimes backfires when running checks automatically inside
 a Docker container, e.g. kellyk/emacs does not include the .el files."
-  (melpazoid-insert "check-declare-file (optional):")
+  (melpazoid-insert "\ncheck-declare-file (optional):")
   (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
   (check-declare-file (buffer-file-name (current-buffer)))
   (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
     (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-insert "- No issues!")
+        (melpazoid-discard-inserted)
       (melpazoid-insert "```")
       (melpazoid-insert (buffer-substring (point-min) (point-max)))
-      (melpazoid-insert "```")))
-  (melpazoid-insert ""))
+      (melpazoid-insert "```")
+      (melpazoid-commit-inserted))))
+
+(defun melpazoid-check-experimentals ()
+  "Run miscs checker."
+  (melpazoid-check-sharp-quotes)
+  (melpazoid-check-misc)
+  (unless (string-empty-p melpazoid--insertion)
+    (setq melpazoid--insertion
+          (format
+           "\n`%s` with [melpazoid](https://github.com/riscy/melpazoid):\n%s"
+           (buffer-name)
+           melpazoid--insertion))
+    (melpazoid-commit-inserted)))
 
 (defun melpazoid-check-sharp-quotes ()
   "Check for missing sharp quotes."
@@ -265,11 +282,6 @@ then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
         (when (and
                (or include-comments (not (nth 4 (syntax-ppss))))
                (or include-strings (not (nth 3 (syntax-ppss)))))
-          ;; print a header unless it's already been printed:
-          (unless melpazoid--misc-header-printed-p
-            (melpazoid-insert
-             "Other [lints](https://github.com/riscy/melpazoid):")
-            (setq melpazoid--misc-header-printed-p t))
           (melpazoid--annotate-line msg))))))
 
 (defun melpazoid--annotate-line (msg)
@@ -282,11 +294,20 @@ then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
 (defun melpazoid-insert (f-str &rest objects)
   "Insert F-STR in a way determined by whether we're in script mode.
 OBJECTS are objects to interpolate into the string using `format'."
-  (let* ((str (concat f-str "\n"))
-         (str (apply #'format str objects)))
-    (if noninteractive
-        (send-string-to-terminal str)
-      (with-current-buffer (get-buffer-create melpazoid-buffer) (insert str)))))
+  (setq melpazoid--insertion
+        (concat melpazoid--insertion (apply #'format f-str objects) "\n")))
+
+(defun melpazoid-discard-inserted ()
+  "Clear the current value in `melpazoid--insertion'."
+  (setq melpazoid--insertion ""))
+
+(defun melpazoid-commit-inserted ()
+  "Commit whatever is accrued to the report with PREFIX and SUFFIX."
+  (if noninteractive
+      (send-string-to-terminal melpazoid--insertion)
+    (with-current-buffer (get-buffer-create melpazoid-buffer)
+      (insert melpazoid--insertion)))
+  (melpazoid-discard-inserted))
 
 (defun melpazoid--newline-trim (str)
   "Sanitize STR by removing newlines."
@@ -300,7 +321,6 @@ OBJECTS are objects to interpolate into the string using `format'."
   (interactive)
   (melpazoid--reset-state)
   (let ((filename (or filename (buffer-file-name (current-buffer)))))
-    (melpazoid-insert "\n### %s ###\n" (file-name-nondirectory filename))
     (save-window-excursion
       (set-buffer (find-file filename))
       (melpazoid-byte-compile filename)
@@ -308,8 +328,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       ;; (melpazoid-check-declare)
       (melpazoid-package-lint)
       ;; (melpazoid-elint)
-      (melpazoid-check-sharp-quotes)
-      (melpazoid-check-misc))
+      (melpazoid-check-experimentals))
     (pop-to-buffer melpazoid-buffer)
     (goto-char (point-min))))
 
@@ -318,7 +337,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
   (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
   (package-initialize)
-  (setq melpazoid--misc-header-printed-p nil)
+  (melpazoid-discard-inserted)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 (defun melpazoid--check-file-p (filename)
@@ -341,24 +360,24 @@ OBJECTS are objects to interpolate into the string using `format'."
       (setq filename (car filenames) filenames (cdr filenames))
       (when (melpazoid--check-file-p filename) (melpazoid filename))))
 
-  ;; check whether FILENAMEs can be simply loaded (TODO: offer backtrace)
-  (melpazoid-insert "\n### Loadability ###\n")
-  (melpazoid-insert "Verifying ability to #'load each file:")
-  (melpazoid-insert "```")
-
-  (let ((filename nil)
-        (filenames (directory-files ".")))
-    (while filenames
-      (setq filename (car filenames) filenames (cdr filenames))
-      (when (melpazoid--check-file-p filename)
-        (melpazoid-insert "Loading %s" filename)
-        (condition-case err
-            (load (expand-file-name filename) nil t t)
-          (error
-           (melpazoid-insert "  %s:Error: Emacs %s couldn't load:\n  %S"
-                             filename emacs-version err))))))
-  (melpazoid-insert "Done.")
-  (melpazoid-insert "```"))
+  (let ((load-error nil))
+    ;; check whether FILENAMEs can be simply loaded
+    (melpazoid-insert "\n`load`-check on each file:")
+    (melpazoid-insert "```")
+    (let ((filename nil)
+          (filenames (directory-files ".")))
+      (while filenames
+        (setq filename (car filenames) filenames (cdr filenames))
+        (when (melpazoid--check-file-p filename)
+          (melpazoid-insert "Loading %s" filename)
+          (condition-case err
+              (load (expand-file-name filename) nil t t)
+            (error
+             (setq load-error t)
+             (melpazoid-insert "  %s:Error: Emacs %s couldn't load:\n  %S"
+                               filename emacs-version err))))))
+    (melpazoid-insert "```")
+    (when load-error (melpazoid-commit-inserted))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here

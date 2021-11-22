@@ -142,6 +142,7 @@ def check_containerized_build(recipe: str, elisp_dir: str):
     )
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
+        lines += ['\nIncidental stderr:']
         lines += ['```', run_result.stderr.decode().strip(), '```']
     for line in lines:
         # byte-compile-file writes ":Error: ", package-lint ": error: "
@@ -427,7 +428,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
 
 def print_packaging(recipe: str, elisp_dir: str):
     """Print additional details (how it's licensed, what files, etc.)"""
-    _note('### Package ###\n', CLR_INFO)
+    _note('Package summary:', CLR_INFO)
     _check_recipe(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
     print()
@@ -522,11 +523,11 @@ def print_similar_packages(name: str):
     ][:10]
     if not top_candidates:
         return
-    _note('### Similarly named ###\n', CLR_INFO)
+    _note('Similarly named:', CLR_INFO)
     for name_, url in top_candidates:
         print(f"- {name_}: {url}")
     if name in all_candidates:
-        _fail(f"- Error: package '{name}' already exists!", highlight='Error:')
+        _fail(f"- Error: package `{name}` already exists!", highlight='Error:')
     # helm asks some add-on functions use a `helm-source-` prefix
     # and org-mode asks some add-on packages to use a `ox-` prefix:
     if name.startswith('helm-source') or name == 'ox':
@@ -732,7 +733,7 @@ def check_melpa_pr(pr_url: str):
             if os.environ.get('EXIST_OK', '').lower() != 'true':
                 print_similar_packages(package_name(recipe))
             print('<!--')
-            _note('### Footnotes ###', CLR_INFO)
+            _note('Footnotes:', CLR_INFO)
             print('- ' + ' '.join(recipe.split()))
             _print_package_requires(recipe, elisp_dir)
             repo_info = repo_info_github(_clone_address(recipe))
