@@ -340,7 +340,6 @@ OBJECTS are objects to interpolate into the string using `format'."
 (defun melpazoid--reset-state ()
   "Reset melpazoid's current state variables."
   (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-  (add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
   (package-initialize)
   (melpazoid-discard-inserted)
   (ignore-errors (kill-buffer melpazoid-buffer)))
