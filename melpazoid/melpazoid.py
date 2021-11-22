@@ -704,7 +704,7 @@ def check_melpa_pr(pr_url: str):
     match = re.match(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
     assert match
 
-    pr_data = requests.get(f"{MELPA_PULL_API}/{match.groups()[0]}").json()
+    pr_data = _pr_data(match.groups()[0])
     if 'changed_files' not in pr_data:
         _fail(f"{pr_url} does not appear to be a MELPA PR: {pr_data}")
         return
@@ -746,6 +746,12 @@ def check_melpa_pr(pr_url: str):
                 if pr_data['user']['login'] not in repo_info['html_url']:
                     _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
             print('-->\n')
+
+
+@functools.lru_cache()
+def _pr_data(pr_number: str) -> dict:
+    """Get data from GitHub API -- cached to avoid rate limiting."""
+    return dict(requests.get(f"{MELPA_PULL_API}/{pr_number}").json())
 
 
 @functools.lru_cache()
