@@ -66,7 +66,6 @@ It should only be set to t for themes."
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
-  (melpazoid-discard-inserted)
   (melpazoid-insert "\n`%s` with checkdoc %s:"
                     (file-name-nondirectory filename)
                     checkdoc-version)
@@ -76,7 +75,8 @@ It should only be set to t for themes."
         (checkdoc-verb-check-experimental-flag nil)
         (inhibit-message t))
     (checkdoc-file filename))
-  (when (get-buffer "*Warnings*")
+  (if (not (get-buffer "*Warnings*"))
+      (melpazoid-discard-inserted)
     (let* ((issues
             (with-current-buffer "*Warnings*"
               (buffer-substring (point-min) (point-max))))
