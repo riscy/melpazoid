@@ -23,7 +23,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Dict, Iterator, List, Set, TextIO, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, TextIO, Tuple
 
 import requests
 
@@ -82,7 +82,7 @@ def _run_checks(recipe: str, elisp_dir: str):
     print_packaging(recipe, elisp_dir)
 
 
-def _return_code(return_code: int = None) -> int:
+def _return_code(return_code: Optional[int] = None) -> int:
     """Return (and optionally set) the current return code.
     If return_code matches env var EXPECT_ERROR, return 0 --
     this is useful for running CI checks on melpazoid itself.
@@ -749,7 +749,7 @@ def check_melpa_pr(pr_url: str):
 
 
 @functools.lru_cache()
-def _pr_data(pr_number: str) -> dict:
+def _pr_data(pr_number: str) -> Dict[str, Any]:
     """Get data from GitHub API -- cached to avoid rate limiting."""
     return dict(requests.get(f"{MELPA_PULL_API}/{pr_number}").json())
 
