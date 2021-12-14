@@ -50,6 +50,7 @@ MELPA_RECIPES = f"{GITHUB_API}/melpa/melpa/contents/recipes"
 VALID_LICENSES_GITHUB = {
     'Apache License 2.0',
     'BSD 2-Clause "Simplified" License',
+    'BSD 3-Clause "New" or "Revised" License',
     'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
     'Do What The F*ck You Want To Public License',
     'GNU Affero General Public License v3.0',
@@ -66,7 +67,7 @@ VALID_LICENSES_BOILERPLATE = [
     ('Apache License 2.0', 'Licensed under the Apache License, Version 2.0'),
     ('BSD*', 'Redistribution and use in source and binary forms'),
     ('FSFAP', 'Copying and distribution of this file, with or without'),
-    ('GPL*', 'This (file|program) is free software.* you can redistribute it'),
+    ('GPL*', 'is free software.* you can redistribute it'),
     ('ISC License', 'Permission to use, copy, modify, and/or distribute this'),
     ('MIT License', 'Permission is hereby granted, free of charge, to any person'),
     ('The Unlicense', 'This is free and unencumbered software released into'),
@@ -398,8 +399,8 @@ def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
         basename = os.path.basename(file)
         if not license_:
             _fail(
-                '- Add license boilerplate or an [SPDX-License-Identifier]'
-                '(https://spdx.dev/ids/)'
+                '- Add a standard license header or an'
+                ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
                 f" to {basename}"
             )
             individual_files_licensed = False
