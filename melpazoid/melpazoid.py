@@ -579,10 +579,18 @@ def emacsmirror_packages() -> Dict[str, str]:
 def elpa_packages(*keywords: str) -> Dict[str, str]:
     """ELPA packages matching keywords.
     >>> elpa_packages('ahungry-theme')
-    {'ahungry-theme': 'https://elpa.gnu.org/devel/ahungry-theme.html'}
+    {'ahungry-theme': 'https://elpa.gnu.org/packages/ahungry-theme.html'}
+    >>> elpa_packages('git-modes')
+    {'git-modes (nongnu)': 'https://elpa.nongnu.org/nongnu/git-modes.html'}
     """
     # q.v. http://elpa.gnu.org/packages/archive-contents
-    packages = {kw: f"https://elpa.gnu.org/devel/{kw}.html" for kw in keywords}
+    elpa = 'https://elpa.gnu.org'
+    nongnu_elpa = 'https://elpa.nongnu.org'
+    packages = {
+        **{kw: f"{elpa}/devel/{kw}.html" for kw in keywords},
+        **{kw: f"{elpa}/packages/{kw}.html" for kw in keywords},
+        **{f"{kw} (nongnu)": f"{nongnu_elpa}/nongnu/{kw}.html" for kw in keywords},
+    }
     return {kw: url for kw, url in packages.items() if requests.head(url).ok}
 
 
