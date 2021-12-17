@@ -143,7 +143,7 @@ def check_containerized_build(recipe: str, elisp_dir: str):
     )
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
-        lines += ['\nIncidental stderr:']
+        lines += ['\nStderr output while compiling/loading:']
         lines += ['```', run_result.stderr.decode().strip(), '```']
     for line in lines:
         # byte-compile-file writes ":Error: ", package-lint ": error: "
@@ -868,8 +868,6 @@ def _check_melpa_pr_loop() -> None:
         check_melpa_pr(pr_url)
         if _return_code() != 0:
             _fail('<!-- This PR failed -->')
-        else:
-            _note('<!-- This PR passed -->')
         print('-' * 79)
 
 

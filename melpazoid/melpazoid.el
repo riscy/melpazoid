@@ -212,21 +212,21 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
-  (melpazoid-misc "(with-temp-buffer (set-buffer " "`set-buffer` is unnecessary here") ; nofmt
+  (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "^(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
   (melpazoid-misc "\"/tmp/" "Use `temporary-file-directory` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t)
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
-  (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\"" "`read-string` prompts should often end with a space" t) ; nofmt
+  (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
-  (melpazoid-misc "(setq inhibit-read-only" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
+  (melpazoid-misc "(setq inhibit-read-only t" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
   ;; simplified conditionals
@@ -265,7 +265,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; simpler expressions around strings:
   (melpazoid-misc "(error (format" "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format" "No `format` required; `message` takes an f-string") ; nofmt
-  (melpazoid-misc "(user-error (format" "No `format` required; user-error takes an f-string") ; nofmt
+  (melpazoid-misc "(user-error (format" "No `format` required; `user-error` takes an f-string") ; nofmt
   (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` can take multiple arguments") ; nofmt
   (melpazoid-misc "(warn (format" "No `format` required; `warn` takes an f-string") ; nofmt
   ;; n.b. the opposite, (concat (format ...)), often can't be combined cleanly:
