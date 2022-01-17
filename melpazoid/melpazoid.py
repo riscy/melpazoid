@@ -428,8 +428,9 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
 
 def print_packaging(recipe: str, elisp_dir: str):
     """Print additional details (how it's licensed, what files, etc.)"""
-    _note('Package summary:', CLR_INFO)
+    _note('Package and license:', CLR_INFO)
     _check_recipe(recipe, elisp_dir)
+    _check_package_requires(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
     print()
 
@@ -484,20 +485,18 @@ def _check_recipe(recipe: str, elisp_dir: str):
             _note('- Prefer the default recipe or `:defaults`, if possible.', CLR_WARN)
 
 
-def _print_package_requires(recipe: str, elisp_dir: str):
+def _check_package_requires(recipe: str, elisp_dir: str):
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
     """
     files = _files_in_recipe(recipe, elisp_dir)
-    print('- Package-Requires: ', end='')
     main_requirements = requirements(files, recipe)
-    print(', '.join(req for req in main_requirements) if main_requirements else 'n/a')
     for file in files:
         file_requirements = requirements([file])
         if file_requirements and file_requirements > main_requirements:
             _fail(
-                f"  - Package-Requires mismatch between {os.path.basename(file)} and "
+                f"- Package-Requires mismatch between {os.path.basename(file)} and "
                 f"{os.path.basename(_main_file(files, recipe))}!"
             )
 
@@ -743,7 +742,6 @@ def check_melpa_pr(pr_url: str):
             print('<!--')
             _note('Footnotes:', CLR_INFO)
             print('- ' + ' '.join(recipe.split()))
-            _print_package_requires(recipe, elisp_dir)
             print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
             repo_info = repo_info_github(_clone_address(recipe))
             if repo_info:
@@ -861,19 +859,19 @@ def _package_build_files() -> Dict[str, str]:
     }
 
 
-def _check_melpa_pr_loop() -> None:
+def _check_loop() -> None:
     """Check MELPA pull requests in a loop."""
-    for pr_url in _fetch_pull_requests():
-        print(f"Checking {pr_url}")
-        check_melpa_pr(pr_url)
+    for target in _fetch_targets():
+        print(f"Checking {target}")
+        check_melpa_pr(target)
         if _return_code() != 0:
             _fail('<!-- This PR failed -->')
         print('-' * 79)
 
 
-def _fetch_pull_requests() -> Iterator[str]:
+def _fetch_targets() -> Iterator[str]:
     """Repeatedly yield PR URL's."""
-    previous_pr_url = None
+    previous_target = None
     while True:
         if shutil.which('pbpaste'):
             print('Watching clipboard for MELPA PR...', end='\r')
@@ -881,10 +879,10 @@ def _fetch_pull_requests() -> Iterator[str]:
         else:
             possible_pr = input("Enter URL for MELPA PR: ")
         match = re.match(MELPA_PR, possible_pr)
-        pr_url = match.string[: match.end()] if match else None
-        if match and pr_url and pr_url != previous_pr_url:
-            previous_pr_url = pr_url
-            yield pr_url
+        target = match.string[: match.end()] if match else None
+        if match and target and target != previous_target:
+            previous_target = target
+            yield target
         time.sleep(1)
 
 
@@ -939,7 +937,7 @@ def _main() -> None:
     elif 'LOCAL_REPO' in os.environ:  # and RECIPE/RECIPE_FILE aren't set
         _fail('Set a recipe with: [--recipe RECIPE]')
     else:
-        _check_melpa_pr_loop()
+        _check_loop()
 
 
 if __name__ == '__main__':
