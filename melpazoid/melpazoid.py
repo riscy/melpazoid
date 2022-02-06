@@ -865,10 +865,13 @@ def _package_build_files() -> Dict[str, str]:
 
 
 def _check_loop() -> None:
-    """Check MELPA pull requests in a loop."""
+    """Check MELPA recipes and pull requests in a loop."""
     for target in _fetch_targets():
         print(f"Checking {target}")
-        check_melpa_pr(target)
+        if validate_recipe(target):
+            check_melpa_recipe(target)
+        elif re.match(MELPA_PR, target):
+            check_melpa_pr(target)
         if _return_code() != 0:
             _fail('<!-- This PR failed -->')
         print('-' * 79)
@@ -877,15 +880,20 @@ def _check_loop() -> None:
 def _fetch_targets() -> Iterator[str]:
     """Repeatedly yield PR URL's."""
     previous_target = None
+    if shutil.which('pbpaste'):
+        print('Monitoring the clipboard for recipes and PRs...')
     while True:
         if shutil.which('pbpaste'):
-            print('Watching clipboard for MELPA PR...', end='\r')
-            possible_pr = subprocess.check_output('pbpaste').decode()
+            possible_target = subprocess.check_output('pbpaste').decode()
         else:
-            possible_pr = input("Enter URL for MELPA PR: ")
-        match = re.match(MELPA_PR, possible_pr)
-        target = match.string[: match.end()] if match else None
-        if match and target and target != previous_target:
+            possible_target = input("Enter recipe or URL for MELPA PR: ")
+        target = None
+        melpa_pr_match = re.match(MELPA_PR, possible_target)
+        if melpa_pr_match:
+            target = melpa_pr_match.string[: melpa_pr_match.end()]
+        elif validate_recipe(possible_target):
+            target = ' '.join(possible_target.split())
+        if target and target != previous_target:
             previous_target = target
             yield target
         time.sleep(1)
