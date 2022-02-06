@@ -97,11 +97,16 @@ def _return_code(return_code: Optional[int] = None) -> int:
 
 def validate_recipe(recipe: str) -> bool:
     """Validate whether the recipe looks correct.
-    >>> validate_recipe('(abc :repo "xyz" :fetcher github) ; abc recipe!')
-    True
-    >>> validate_recipe('??')
-    False
+    >>> assert validate_recipe('(abc :repo "xyz" :fetcher github) ; abc recipe!')
+    >>> assert not validate_recipe('(a/b :repo "xyz" :fetcher github)')
+    >>> assert not validate_recipe('??')
     """
+    tokens = _tokenize_expression(recipe)
+    len_minimal_recipe = 7  # 1 for name, 2 for repo, 2 for fetcher, 2 for parens
+    if len(tokens) < len_minimal_recipe or tokens[0] != '(' or tokens[-1] != ')':
+        return False
+    if not re.match(r"[A-Za-z\-]", tokens[1]):
+        return False
     try:
         return bool(_recipe_struct_elisp(recipe))
     except ChildProcessError:
