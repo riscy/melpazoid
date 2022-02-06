@@ -1,5 +1,5 @@
 IMAGE_NAME = melpazoid
-DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges
+DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=5
 
 .PHONY: run
 run:
