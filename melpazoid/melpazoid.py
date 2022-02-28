@@ -276,20 +276,18 @@ def _write_requirements(files: List[str], recipe: str):
             '''
         )
         for req in requirements(files, recipe):
-            req = req.split()[0].strip()  # remove the version suffix
-            if req == 'org':
-                # TODO: is there a cleaner way to install a recent version of org?!
-                requirements_el.write(
-                    "(package-install (cadr (assq 'org package-archive-contents)))"
-                )
-            elif req != 'emacs':
-                # TODO check if we need to reinstall outdated package?
-                # e.g. (package-installed-p 'map (version-to-list "2.0"))
-                requirements_el.write(f"(ignore-errors (package-install '{req}))\n")
+            req, _version = req.split()
+            if req == 'emacs':
+                continue
+            # always install the latest available version of the dependency.
+            # ignore-errors because package-lint handles checking the index
+            requirements_el.write(
+                f"(ignore-errors (package-install (cadr (assq '{req} package-archive-contents))))\n"
+            )
 
 
 def requirements(files: List[str], recipe: str = '') -> Set[str]:
-    """Pull the requirements out of a listing of files.
+    """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
     """
