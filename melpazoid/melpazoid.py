@@ -101,7 +101,10 @@ def validate_recipe(recipe: str) -> bool:
     >>> assert not validate_recipe('(a/b :repo "xyz" :fetcher github)')
     >>> assert not validate_recipe('??')
     """
-    tokens = _tokenize_expression(recipe)
+    try:
+        tokens = _tokenize_expression(recipe)
+    except ValueError:
+        return False
     len_minimal_recipe = 7  # 1 for name, 2 for repo, 2 for fetcher, 2 for parens
     if len(tokens) < len_minimal_recipe or tokens[0] != '(' or tokens[-1] != ')':
         return False
@@ -218,7 +221,7 @@ def _tokenize_expression(expression: str) -> List[str]:
     lexer = shlex.shlex(expression)
     lexer.quotes = '"'
     lexer.commenters = ';'
-    lexer.wordchars = lexer.wordchars + ':-'
+    lexer.wordchars = lexer.wordchars + "':-"
     return list(lexer)
 
 
