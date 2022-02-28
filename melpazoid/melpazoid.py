@@ -3,7 +3,7 @@
 usage: melpazoid.py [-h] [--license] [--recipe RECIPE] [target]
 
 positional arguments:
-  target           a MELPA PR URL, or a local path to a recipe or package
+  target           a recipe, a path to a recipe or package, or a MELPA PR URL
 
 optional arguments:
   -h, --help       show this help message and exit
@@ -927,7 +927,7 @@ def _argparse_recipe(recipe: str) -> str:
 
 def _main() -> None:
     parser = argparse.ArgumentParser()
-    target_help = 'a MELPA PR URL, or a local path to a recipe or package'
+    target_help = 'a recipe, a path to a recipe or package, or a MELPA PR URL'
     parser.add_argument('target', help=target_help, nargs='?', type=_argparse_target)
     parser.add_argument('--license', help='only check licenses', action='store_true')
     parser.add_argument('--recipe', help='a valid MELPA recipe', type=_argparse_recipe)
