@@ -214,7 +214,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "^(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
-  (melpazoid-misc "\"/tmp/" "Use `temporary-file-directory` instead of /tmp in code") ; nofmt
+  (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t)
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`") ; nofmt
