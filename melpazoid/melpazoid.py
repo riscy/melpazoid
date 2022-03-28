@@ -54,7 +54,7 @@ VALID_LICENSES_GITHUB = {
     'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
     'Do What The F*ck You Want To Public License',
     'GNU Affero General Public License v3.0',
-    'GNU General Public License v2.0',
+    # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
     'GNU General Public License v3.0',
     'GNU Lesser General Public License v3.0',
     'ISC License',
@@ -347,7 +347,7 @@ def _check_license_github(clone_address: str) -> bool:
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
     repo_info = repo_info_github(clone_address)
     if not repo_info:
-        return False
+        return False  # GitHub API gave us nothing at all
     license_ = repo_info.get('license')
     if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
         print(f"- GitHub API found `{license_.get('name')}`")
@@ -389,28 +389,8 @@ def _check_license_file(elisp_dir: str) -> bool:
             with open(license_, encoding='utf-8', errors='replace') as stream:
                 print(f"- {license_basename} excerpt: `{stream.readline().strip()}...`")
             return True
-    _fail('- Add a LICENSE file to the repository')
+    _fail('- Add a GPL-compatible LICENSE file to the repository')
     return False
-
-
-def _check_files_for_license_boilerplate(recipe: str, elisp_dir: str) -> bool:
-    """Check the files in a recipe for license boilerplate."""
-    files = _files_in_recipe(recipe, elisp_dir)
-    individual_files_licensed = True
-    for file in files:
-        if not file.endswith('.el') or file.endswith('-pkg.el'):
-            continue
-        with open(file, encoding='utf-8', errors='replace') as stream:
-            license_ = _check_file_for_license_boilerplate(stream)
-        basename = os.path.basename(file)
-        if not license_:
-            _fail(
-                '- Add a standard license header or an'
-                ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
-                f" to {basename}"
-            )
-            individual_files_licensed = False
-    return individual_files_licensed
 
 
 def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
@@ -443,14 +423,8 @@ def print_packaging(recipe: str, elisp_dir: str):
 
 def _check_license(recipe: str, elisp_dir: str):
     clone_address = _clone_address(recipe)
-    repo_licensed = clone_address and _check_license_github(clone_address)
-    repo_licensed = repo_licensed or _check_license_file(elisp_dir)
-    individual_files_licensed = _check_files_for_license_boilerplate(recipe, elisp_dir)
-    if not repo_licensed and not individual_files_licensed:
-        _fail('- Use a GPL-compatible license.')
-        print(
-            '  See: https://www.gnu.org/licenses/license-list.en.html#GPLCompatibleLicenses'
-        )
+    if not _check_license_github(clone_address):
+        _check_license_file(elisp_dir)
     for file in _files_in_recipe(recipe, elisp_dir):
         relpath = os.path.relpath(file, elisp_dir)
         if os.path.isdir(file):
@@ -471,11 +445,18 @@ def _check_license(recipe: str, elisp_dir: str):
             except IndexError:
                 header = f"{CLR_ERROR}(no header){CLR_OFF}"
                 _return_code(2)
+            boilerplate = _check_file_for_license_boilerplate(stream)
             print(
                 f"- {relpath}"
-                f" ({_check_file_for_license_boilerplate(stream) or 'unknown license'})"
+                f" ({boilerplate or 'unknown license'})"
                 + (f" -- {header}" if header else "")
             )
+            if not boilerplate:
+                _fail(
+                    '  - Add license boilerplate or an'
+                    ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
+                    f" to {relpath}"
+                )
 
 
 def _check_recipe(recipe: str, elisp_dir: str):
