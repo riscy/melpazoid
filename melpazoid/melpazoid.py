@@ -76,7 +76,7 @@ VALID_LICENSES_BOILERPLATE = [
 ]
 
 
-def _run_checks(recipe: str, elisp_dir: str):
+def _run_checks(recipe: str, elisp_dir: str) -> None:
     """Entrypoint for running all checks."""
     if not validate_recipe(recipe):
         _fail(f"Recipe '{recipe}' appears to be invalid")
@@ -118,7 +118,7 @@ def validate_recipe(recipe: str) -> bool:
         return False
 
 
-def _note(message: str, color: str = '', highlight: str = ''):
+def _note(message: str, color: str = '', highlight: str = '') -> None:
     """Print a note, possibly in color, possibly highlighting specific text."""
     if highlight:
         print(re.sub(f"({highlight})", f"{color}\\g<1>{CLR_OFF}", message))
@@ -126,12 +126,12 @@ def _note(message: str, color: str = '', highlight: str = ''):
         print(f"{color}{message}{CLR_OFF}")
 
 
-def _fail(message: str, color: str = CLR_ERROR, highlight: str = ''):
+def _fail(message: str, color: str = CLR_ERROR, highlight: str = '') -> None:
     _note(message, color, highlight)
     _return_code(2)
 
 
-def check_containerized_build(recipe: str, elisp_dir: str):
+def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     """Build a Docker container to run checks on elisp_dir, given a recipe."""
     print(f"Building container for {package_name(recipe)}... 🐳")
     # first, copy over only the recipe's files:
@@ -260,7 +260,7 @@ def _main_file(files: List[str], recipe: str) -> str:
         return ''
 
 
-def _write_requirements(files: List[str], recipe: str):
+def _write_requirements(files: List[str], recipe: str) -> None:
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
         requirements_el.write(
@@ -412,7 +412,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     return ''
 
 
-def print_packaging(recipe: str, elisp_dir: str):
+def print_packaging(recipe: str, elisp_dir: str) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
     _note('Package and license:', CLR_INFO)
     _check_recipe(recipe, elisp_dir)
@@ -421,7 +421,7 @@ def print_packaging(recipe: str, elisp_dir: str):
     print()
 
 
-def _check_license(recipe: str, elisp_dir: str):
+def _check_license(recipe: str, elisp_dir: str) -> None:
     clone_address = _clone_address(recipe)
     if not _check_license_github(clone_address):
         _check_license_file(elisp_dir)
@@ -459,7 +459,7 @@ def _check_license(recipe: str, elisp_dir: str):
                 )
 
 
-def _check_recipe(recipe: str, elisp_dir: str):
+def _check_recipe(recipe: str, elisp_dir: str) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     if ':branch' in recipe:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
@@ -472,7 +472,7 @@ def _check_recipe(recipe: str, elisp_dir: str):
             _note('- Prefer the default recipe or `:defaults`, if possible.', CLR_WARN)
 
 
-def _check_package_requires(recipe: str, elisp_dir: str):
+def _check_package_requires(recipe: str, elisp_dir: str) -> None:
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
@@ -488,7 +488,7 @@ def _check_package_requires(recipe: str, elisp_dir: str):
             )
 
 
-def print_similar_packages(name: str):
+def print_similar_packages(name: str) -> None:
     """Print list of similar, or at least similarly named, packages."""
     keywords = [name]
     keywords += [re.sub(r'[0-9]', '', name)]
@@ -611,7 +611,7 @@ def melpa_packages(*keywords: str) -> Dict[str, str]:
     return packages
 
 
-def check_melpa_recipe(recipe: str):
+def check_melpa_recipe(recipe: str) -> None:
     """Check a MELPA recipe definition."""
     _return_code(0)
     with tempfile.TemporaryDirectory() as elisp_dir:
@@ -626,7 +626,7 @@ def check_melpa_recipe(recipe: str):
             _run_checks(recipe, elisp_dir)
 
 
-def check_license(recipe: str):
+def check_license(recipe: str) -> None:
     """Check license for a given recipe."""
     # TODO: DRY up wrt check_melpa_recipe
     _return_code(0)
@@ -706,7 +706,7 @@ def _branch(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':branch') + 1].strip('"')
 
 
-def check_melpa_pr(pr_url: str):
+def check_melpa_pr(pr_url: str) -> None:
     """Check a PR on MELPA."""
     _return_code(0)
     match = re.match(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
