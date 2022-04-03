@@ -12,8 +12,10 @@ optional arguments:
 """
 import argparse
 import configparser
+import contextlib
 import functools
 import glob
+import json
 import operator
 import os
 import re
@@ -23,9 +25,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from typing import Any, Dict, Iterator, List, Optional, Set, TextIO, Tuple
-
-import requests
 
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -368,17 +370,15 @@ def _check_license_github(clone_address: str) -> bool:
 @functools.lru_cache()
 def repo_info_github(clone_address: str) -> Dict[str, Any]:
     """What does the GitHub API say about the repo?
-    Raise ConnectionError if API request fails.
+    Raise urllib.error.URLError if API request fails.
     """
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if not match:
         return {}
-    response = requests.get(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}")
-    if not response.ok:
-        raise ConnectionError(f"GitHub API error on {clone_address}")
-    return dict(response.json())
+    with urllib.request.urlopen(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}") as r:
+        return dict(json.load(r))
 
 
 def _check_license_file(elisp_dir: str) -> bool:
@@ -527,8 +527,13 @@ def emacsattic_packages(*keywords: str) -> Dict[str, str]:
     >>> emacsattic_packages('sos')
     {'sos': 'https://github.com/emacsattic/sos'}
     """
-    packages = {kw: f"https://github.com/emacsattic/{kw}" for kw in keywords}
-    return {kw: url for kw, url in packages.items() if requests.head(url).ok}
+    packages = {}
+    for keyword in set(keywords):
+        url = f"https://github.com/emacsattic/{keyword}"
+        with contextlib.suppress(urllib.error.HTTPError):
+            with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
+                packages[keyword] = url
+    return packages
 
 
 @functools.lru_cache()
@@ -540,9 +545,10 @@ def emacswiki_packages(*keywords: str) -> Dict[str, str]:
     packages = {}
     for keyword in set(keywords):
         el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
-        pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
-        if requests.head(pkg).ok:
-            packages[keyword] = pkg
+        url = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
+        with contextlib.suppress(urllib.error.HTTPError):
+            with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
+                packages[keyword] = url
     return packages
 
 
@@ -551,7 +557,8 @@ def emacsmirror_packages() -> Dict[str, str]:
     """All mirrored packages."""
     epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
     epkgs_parser = configparser.ConfigParser()
-    epkgs_parser.read_string(requests.get(epkgs).text)
+    with urllib.request.urlopen(epkgs) as r:
+        epkgs_parser.read_string(r.read().decode())
     return {
         epkg.split('"')[1]: 'https://'
         + data['url'].replace(':', '/')[4:]
@@ -572,12 +579,17 @@ def elpa_packages(*keywords: str) -> Dict[str, str]:
     # q.v. http://elpa.gnu.org/packages/archive-contents
     elpa = 'https://elpa.gnu.org'
     nongnu_elpa = 'https://elpa.nongnu.org'
-    packages = {
+    sources = {
         **{kw: f"{elpa}/devel/{kw}.html" for kw in keywords},
         **{kw: f"{elpa}/packages/{kw}.html" for kw in keywords},
         **{f"{kw} (nongnu)": f"{nongnu_elpa}/nongnu/{kw}.html" for kw in keywords},
     }
-    return {kw: url for kw, url in packages.items() if requests.head(url).ok}
+    packages = {}
+    for kw, url in sources.items():
+        with contextlib.suppress(urllib.error.HTTPError):
+            with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
+                packages[kw] = url
+    return packages
 
 
 @functools.lru_cache()
@@ -591,11 +603,12 @@ def melpa_packages(*keywords: str) -> Dict[str, str]:
         kw: f"https://github.com/melpa/melpa/blob/master/recipes/{kw}"
         for kw in keywords
     }
-    return {
-        kw: f"https://melpa.org/#/{kw}"
-        for kw, url in sources.items()
-        if requests.head(url).ok
-    }
+    packages = {}
+    for kw, url in sources.items():
+        with contextlib.suppress(urllib.error.HTTPError):
+            with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
+                packages[kw] = f"https://melpa.org/#/{kw}"
+    return packages
 
 
 def check_melpa_recipe(recipe: str):
@@ -745,14 +758,16 @@ def check_melpa_pr(pr_url: str):
 @functools.lru_cache()
 def _pr_data(pr_number: str) -> Dict[str, Any]:
     """Get data from GitHub API -- cached to avoid rate limiting."""
-    return dict(requests.get(f"{MELPA_PULL_API}/{pr_number}").json())
+    with urllib.request.urlopen(f"{MELPA_PULL_API}/{pr_number}") as r:
+        return dict(json.load(r))
 
 
 @functools.lru_cache()
 def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
-    diff_text = requests.get(pr_data_diff_url).text
+    with urllib.request.urlopen(pr_data_diff_url) as r:
+        diff_text = r.read().decode()
     if 'a/recipes' not in diff_text or 'b/recipes' not in diff_text:
         _fail('New recipes should be added to the `recipes` subdirectory')
         return '', ''
@@ -832,18 +847,19 @@ def run_build_script(script: str) -> str:
 @functools.lru_cache()
 def _package_build_files() -> Dict[str, str]:
     """Grab the required package-build files from the MELPA repo."""
-    return {
-        filename: requests.get(
+    files = {}
+    for filename in [
+        'package-build-badges.el',
+        'package-build.el',
+        'package-recipe-mode.el',
+        'package-recipe.el',
+    ]:
+        with urllib.request.urlopen(
             'https://raw.githubusercontent.com/melpa/melpa/master/'
-            f'package-build/{filename}'
-        ).text
-        for filename in [
-            'package-build-badges.el',
-            'package-build.el',
-            'package-recipe-mode.el',
-            'package-recipe.el',
-        ]
-    }
+            f"package-build/{filename}"
+        ) as r:
+            files[filename] = r.read().decode()
+    return files
 
 
 def _check_loop() -> None:
