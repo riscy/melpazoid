@@ -36,10 +36,9 @@ are not foolproof, sometimes opinionated, and may raise false positives.
    then edit the file (~.github/workflows/melpazoid.yml~) and change the values
    of ~RECIPE~ and ~EXIST_OK~ to fit.  Instructions are in the file.
 ** Use it locally
-   You will need Python ≥ 3.6 (and the ~requests~ package) and Docker. An image
-   will be built with (hopefully) all of your requirements installed. By
-   default, it will be run with no network access. The output scroll will report
-   any discovered issues.
+   You will need Python ≥ 3.6 and Docker. An image will be built with
+   (hopefully) all of your requirements installed. By default, it will be run
+   with no network access. The output scroll will report any discovered issues.
 *** Test an open MELPA PR
     If you've already opened a PR against MELPA, you can use the Makefile.
     #+begin_src bash
