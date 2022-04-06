@@ -157,7 +157,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (unless (string-empty-p melpazoid--insertion)
     (setq melpazoid--insertion
           (format
-           "\n`%s` with [melpazoid](https://github.com/riscy/melpazoid):\n%s"
+           "\n`%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
            (buffer-name)
            melpazoid--insertion))
     (melpazoid-commit-inserted)))
