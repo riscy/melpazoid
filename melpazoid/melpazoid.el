@@ -264,11 +264,11 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(define-key" "Top-level `define-key` can sometimes overwrite user bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
   ;; simpler expressions around strings:
-  (melpazoid-misc "(error (format" "No `format` required; `error` takes an f-string") ; nofmt
-  (melpazoid-misc "(message (format" "No `format` required; `message` takes an f-string") ; nofmt
-  (melpazoid-misc "(user-error (format" "No `format` required; `user-error` takes an f-string") ; nofmt
+  (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
+  (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
+  (melpazoid-misc "(user-error (format " "No `format` required; `user-error` takes an f-string") ; nofmt
   (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` can take multiple arguments") ; nofmt
-  (melpazoid-misc "(warn (format" "No `format` required; `warn` takes an f-string") ; nofmt
+  (melpazoid-misc "(warn (format " "No `format` required; `warn` takes an f-string") ; nofmt
   ;; n.b. the opposite, (concat (format ...)), often can't be combined cleanly:
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   )
