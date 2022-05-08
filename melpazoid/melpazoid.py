@@ -278,11 +278,13 @@ def _write_requirements(files: List[str], recipe: str) -> None:
             '''
         )
         for req in requirements(files, recipe):
-            req, _version = req.split()
+            req, version = req.split()
+            version = version.strip('"')
             if req == 'emacs':
                 continue
             # always install the latest available version of the dependency.
             # ignore-errors because package-lint handles checking the index
+            requirements_el.write(f'(message "Installing {req} {version}\n")')
             requirements_el.write(
                 f"(ignore-errors (package-install (cadr (assq '{req} package-archive-contents))))\n"
             )
