@@ -179,9 +179,7 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
         (setq package-build-working-dir "{os.path.dirname(elisp_dir)}")
         (setq rcp {_recipe_struct_elisp(recipe)})
         (send-string-to-terminal
-            (mapconcat
-                (lambda (x) (format "%s" x))
-                (package-build--expand-source-file-list rcp) "\n"))
+            (mapconcat #'car (package-build-expand-files-spec rcp t) "\n"))
         """
     ).split('\n')
     files = [os.path.join(elisp_dir, file) for file in files]
