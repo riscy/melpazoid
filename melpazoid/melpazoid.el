@@ -22,7 +22,7 @@
 (declare-function package-lint-current-buffer "ext:package-lint.el" t t)
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid-can-modify-buffers nil "Whether melpazoid can modify buffers.")
-(defvar melpazoid--insertion "" "Text that will (maybe) be appended to the report.")
+(defvar melpazoid--pending "" "Text that will (maybe) be appended to the report.")
 
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
@@ -35,14 +35,14 @@
   (let ((inhibit-message t)) (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-discard-inserted)
+        (melpazoid-discard-pending)
       (goto-char (point-min))
       (forward-line 2)
       (melpazoid-insert "```")
       (melpazoid-insert
        (melpazoid--newline-trim (buffer-substring (point) (point-max))))
       (melpazoid-insert "```")
-      (melpazoid-commit-inserted))))
+      (melpazoid-commit-pending))))
 
 (defun melpazoid--remove-no-compile ()
   "Remove `no-byte-compile' directive.
@@ -76,7 +76,7 @@ It should only be set to t for themes."
         (inhibit-message t))
     (checkdoc-file filename))
   (if (not (get-buffer "*Warnings*"))
-      (melpazoid-discard-inserted)
+      (melpazoid-discard-pending)
     (let* ((issues
             (with-current-buffer "*Warnings*"
               (buffer-substring (point-min) (point-max))))
@@ -85,7 +85,7 @@ It should only be set to t for themes."
       (melpazoid-insert "```")
       (melpazoid-insert issues)
       (melpazoid-insert "```")
-      (melpazoid-commit-inserted))))
+      (melpazoid-commit-pending))))
 
 (defvar package-lint-main-file)         ; compiler pacifier
 (defun melpazoid-package-lint ()
@@ -103,11 +103,11 @@ It should only be set to t for themes."
     (let ((issues
            (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
       (if (string= "No issues found." issues)
-          (melpazoid-discard-inserted)
+          (melpazoid-discard-pending)
         (melpazoid-insert "```")
         (melpazoid-insert issues)
         (melpazoid-insert "```")
-        (melpazoid-commit-inserted)))))
+        (melpazoid-commit-pending)))))
 
 (defun melpazoid-elint ()
   "Experimental elint call."
@@ -118,12 +118,12 @@ It should only be set to t for themes."
     (goto-char (point-min))
     (forward-line 3)
     (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-discard-inserted)
+        (melpazoid-discard-pending)
       (forward-line)
       (melpazoid-insert "```")
       (melpazoid-insert (buffer-substring (point) (point-max)))
       (melpazoid-insert "```")))
-  (melpazoid-commit-inserted))
+  (melpazoid-commit-pending))
 
 (defun melpazoid--package-lint-main-file ()
   "Return suitable value for `package-lint-main-file'."
@@ -144,23 +144,23 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (check-declare-file (buffer-file-name (current-buffer)))
   (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
     (if (melpazoid--buffer-almost-empty-p)
-        (melpazoid-discard-inserted)
+        (melpazoid-discard-pending)
       (melpazoid-insert "```")
       (melpazoid-insert (buffer-substring (point-min) (point-max)))
       (melpazoid-insert "```")
-      (melpazoid-commit-inserted))))
+      (melpazoid-commit-pending))))
 
 (defun melpazoid-check-experimentals ()
   "Run miscs checker."
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
-  (unless (string-empty-p melpazoid--insertion)
-    (setq melpazoid--insertion
+  (unless (string-empty-p melpazoid--pending)
+    (setq melpazoid--pending
           (format
            "\n`%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
            (buffer-name)
-           melpazoid--insertion))
-    (melpazoid-commit-inserted)))
+           melpazoid--pending))
+    (melpazoid-commit-pending)))
 
 (defun melpazoid-check-sharp-quotes ()
   "Check for missing sharp quotes."
@@ -300,20 +300,20 @@ then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
 (defun melpazoid-insert (f-str &rest objects)
   "Insert F-STR in a way determined by whether we're in script mode.
 OBJECTS are objects to interpolate into the string using `format'."
-  (setq melpazoid--insertion
-        (concat melpazoid--insertion (apply #'format f-str objects) "\n")))
+  (setq melpazoid--pending
+        (concat melpazoid--pending (apply #'format f-str objects) "\n")))
 
-(defun melpazoid-discard-inserted ()
-  "Clear the current value in `melpazoid--insertion'."
-  (setq melpazoid--insertion ""))
+(defun melpazoid-discard-pending ()
+  "Clear the current value in `melpazoid--pending'."
+  (setq melpazoid--pending ""))
 
-(defun melpazoid-commit-inserted ()
+(defun melpazoid-commit-pending ()
   "Commit whatever is accrued to the report with PREFIX and SUFFIX."
   (if noninteractive
-      (send-string-to-terminal melpazoid--insertion)
+      (send-string-to-terminal melpazoid--pending)
     (with-current-buffer (get-buffer-create melpazoid-buffer)
-      (insert melpazoid--insertion)))
-  (melpazoid-discard-inserted))
+      (insert melpazoid--pending)))
+  (melpazoid-discard-pending))
 
 (defun melpazoid--newline-trim (str)
   "Sanitize STR by removing newlines."
@@ -342,7 +342,7 @@ OBJECTS are objects to interpolate into the string using `format'."
   "Reset melpazoid's current state variables."
   (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
   (package-initialize)
-  (melpazoid-discard-inserted)
+  (melpazoid-discard-pending)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
 (defun melpazoid--check-file-p (filename)
@@ -382,7 +382,7 @@ OBJECTS are objects to interpolate into the string using `format'."
              (melpazoid-insert "  %s:Error: Emacs %s couldn't load:\n  %S"
                                filename emacs-version err))))))
     (melpazoid-insert "```")
-    (when load-error (melpazoid-commit-inserted))))
+    (when load-error (melpazoid-commit-pending))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
