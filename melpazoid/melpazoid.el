@@ -102,7 +102,7 @@ It should only be set to t for themes."
   (with-current-buffer (get-buffer-create "*Package-Lint*")
     (let ((issues
            (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
-      (if (string= "No issues found." issues)
+      (if (or (string= "No issues found." issues) (string= "" issues))
           (melpazoid-discard-pending)
         (melpazoid-insert "```")
         (melpazoid-insert issues)
