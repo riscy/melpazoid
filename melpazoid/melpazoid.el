@@ -298,8 +298,9 @@ then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
                     msg))
 
 (defun melpazoid-insert (f-str &rest objects)
-  "Insert F-STR in a way determined by whether we're in script mode.
+  "Insert string F-STR into the melpazoid output.
 OBJECTS are objects to interpolate into the string using `format'."
+  (unless objects (setq f-str (replace-regexp-in-string "%" "%%" f-str)))
   (setq melpazoid--pending
         (concat melpazoid--pending (apply #'format f-str objects) "\n")))
 
