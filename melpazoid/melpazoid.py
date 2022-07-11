@@ -54,6 +54,7 @@ VALID_LICENSES_GITHUB = {
     'BSD 2-Clause "Simplified" License',
     'BSD 3-Clause "New" or "Revised" License',
     'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
+    'Creative Commons Zero v1.0 Universal',
     'Do What The F*ck You Want To Public License',
     'GNU Affero General Public License v3.0',
     # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
@@ -357,7 +358,7 @@ def _check_license_github(clone_address: str) -> bool:
     if license_:
         _note(f"- GitHub API found `{license_.get('name')}`")
         if license_.get('name') == 'Other':
-            _note('  - Try to use a standard format for your license file.', CLR_WARN)
+            _note('  - Try to use a standard license file format.', CLR_WARN)
             print('    See: https://github.com/licensee/licensee')
         else:
             _note("  - License not in melpazoid's recognized list", CLR_WARN)
@@ -382,8 +383,8 @@ def repo_info_github(clone_address: str) -> Dict[str, Any]:
 
 def _check_license_file(elisp_dir: str) -> bool:
     """Scan any COPYING or LICENSE files."""
+    license_names = ('LICENSE', 'LICENSE.TXT', 'COPYING', 'COPYING.TXT', 'UNLICENSE')
     for license_ in glob.glob(os.path.join(elisp_dir, '*')):
-        license_names = ('LICENSE', 'LICENSE.TXT', 'COPYING', 'COPYING.TXT' 'UNLICENSE')
         license_basename = os.path.basename(license_)
         if license_basename.upper() in license_names:
             with open(license_, encoding='utf-8', errors='replace') as stream:
@@ -453,7 +454,7 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
             )
             if not boilerplate:
                 _fail(
-                    '  - Add license boilerplate or an'
+                    '  - Add *formal* license boilerplate or an'
                     ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
                     f" to {relpath}"
                 )
