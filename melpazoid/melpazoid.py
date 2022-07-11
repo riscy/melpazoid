@@ -467,9 +467,11 @@ def _check_recipe(recipe: str, elisp_dir: str) -> None:
         _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
+    if ':url' in recipe and 'https://github.com' in recipe:
+        _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
     if ':files' in recipe:
         if files == _files_in_default_recipe(recipe, elisp_dir):
-            _note(f"- Prefer the default recipe: `{_default_recipe(recipe)}`", CLR_WARN)
+            _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
         elif ':defaults' not in recipe:
             _note('- Prefer the default recipe or `:defaults`, if possible.', CLR_WARN)
 
