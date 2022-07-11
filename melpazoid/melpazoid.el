@@ -241,6 +241,10 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
   (melpazoid-misc "(goto-char (line-beginning-position))" "Consider `beginning-of-line`") ; nofmt
   (melpazoid-misc "(goto-char (line-end-position))" "Consider `end-of-line`")
+  (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`") ; nofmt
+  (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
+  (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `point-at-bol`") ; nofmt
+  (melpazoid-misc "(progn (end-of-line) (point))" "Consider `point-at-eol`") ; nofmt
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
   (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
   (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt
