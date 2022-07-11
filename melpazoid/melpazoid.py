@@ -265,7 +265,8 @@ def _write_requirements(files: List[str], recipe: str) -> None:
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
         requirements_el.write(
-            '''
+            f'''
+            ;; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache
             ;; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
             ;; which can disrupt the compilation of packages that use that variable:
             (setq load-file-name nil)
@@ -755,13 +756,13 @@ def check_melpa_pr(pr_url: str) -> None:
             print('-->\n')
 
 
-@functools.lru_cache()
+@functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
 def _pr_data(pr_number: str) -> Dict[str, Any]:
-    """Get data from GitHub API -- cached to avoid rate limiting."""
+    """Get data from GitHub API."""
     return dict(json.loads(_url_get(f"{MELPA_PULL_API}/{pr_number}")))
 
 
-@functools.lru_cache()
+@functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
 def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
     """Determine the filename and the contents of the user's recipe."""
     # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
