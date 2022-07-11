@@ -34,6 +34,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, TextIO, Tuple
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
 _PKG_TMPDIR = os.path.join(_MELPAZOID_ROOT, 'pkg')
+_RESERVED_REGEXPS = ('^git-rebase$', '^helm-source-', '^ob-', '^ox-')
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -492,36 +493,47 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
             )
 
 
-def print_similar_packages(name: str) -> None:
-    """Print list of similar, or at least similarly named, packages."""
+def check_package_name(name: str) -> None:
+    """Print list of similar, or at least similarly named, packages.
+    Report any occurrences of invalid/reserved package names.
+    """
     keywords = [name]
     keywords += [re.sub(r'[0-9]', '', name)]
     keywords += [name[:-5]] if name.endswith('-mode') else []
     keywords += ['org-' + name[3:]] if name.startswith('ox-') else []
     keywords += ['ox-' + name[4:]] if name.startswith('org-') else []
-    all_candidates = {
+    known_names = {
         **emacsattic_packages(*keywords),
         **emacswiki_packages(*keywords),
         **emacsmirror_packages(),
         **elpa_packages(*keywords),
         **melpa_packages(*keywords),
     }
-    top_candidates = [
+    similar_names = [
         (name_, url)
-        for name_, url in all_candidates.items()
-        if any(keyword in name_ for keyword in keywords)
+        for name_, url in known_names.items()
+        if any(name_.startswith(keyword) for keyword in keywords)
     ][:10]
-    if not top_candidates:
+    name_builtin = False
+    with contextlib.suppress(ChildProcessError):
+        run_build_script(f"(require '{name})")
+        name_builtin = True
+    name_reserved = any(re.match(reserved, name) for reserved in _RESERVED_REGEXPS)
+    if not similar_names and not name_builtin and not name_reserved:
         return
-    _note('Similarly named:', CLR_INFO)
-    for name_, url in top_candidates:
-        print(f"- {name_}: {url}")
-    if name in all_candidates:
-        _fail(f"- Error: package `{name}` already exists!", highlight='Error:')
-    # helm asks some add-on functions use a `helm-source-` prefix
-    # and org-mode asks some add-on packages to use a `ox-` prefix:
-    if name.startswith('helm-source') or name == 'ox':
-        _fail(f"- Error: {name} is implicitly in use")
+
+    _note('Package name:', CLR_INFO)
+    if name_builtin:
+        _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
+        return
+    if name in known_names:
+        _fail(f"- Error: `{name}` is taken: {known_names[name]}\n", highlight='Error')
+        return
+    if name_reserved:
+        _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
+        return
+    for name_, url in similar_names:
+        print(f"- `{name_}` is similar: {url}")
     print()
 
 
@@ -725,9 +737,8 @@ def check_melpa_pr(pr_url: str) -> None:
             fetcher=_fetcher(recipe),
         ):
             _run_checks(recipe, elisp_dir)
-            # extra MELPA PR-only checks
             if os.environ.get('EXIST_OK', '').lower() != 'true':
-                print_similar_packages(package_name(recipe))
+                check_package_name(package_name(recipe))
             print('<!--')
             _note('Footnotes:', CLR_INFO)
             print('- ' + ' '.join(recipe.split()))
@@ -822,7 +833,7 @@ def run_build_script(script: str) -> str:
                 file.write(content)
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
         result = subprocess.run(
-            ['emacs', '--batch', '--eval', script],
+            ['emacs', '--no-init-file', '--batch', '--eval', script],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
