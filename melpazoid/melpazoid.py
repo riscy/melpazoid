@@ -742,7 +742,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_package_name(package_name(recipe))
             print('<!--')
             _note('Footnotes:', CLR_INFO)
-            print('- ' + ' '.join(recipe.split()))
+            print(f"- {CLR_INFO}{_prettify_recipe(recipe)}{CLR_OFF}")
             print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
             repo_info = repo_info_github(_clone_address(recipe))
             if repo_info:
@@ -760,6 +760,11 @@ def check_melpa_pr(pr_url: str) -> None:
 def _pr_data(pr_number: str) -> Dict[str, Any]:
     """Get data from GitHub API."""
     return dict(json.loads(_url_get(f"{MELPA_PULL_API}/{pr_number}")))
+
+
+def _prettify_recipe(recipe: str) -> str:
+    # re: formatting see https://github.com/melpa/melpa/pull/8072
+    return ' '.join(recipe.split()).replace(' :', '\n    :')
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
