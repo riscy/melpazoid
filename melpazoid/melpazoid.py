@@ -10,6 +10,8 @@ optional arguments:
   --license        only check licenses
   --recipe RECIPE  a valid MELPA recipe
 """
+__author__ = 'Chris Rayner <dchrisrayner@gmail.com>'
+__license__ = 'SPDX-License-Identifier: GPL-3.0-or-later'
 import argparse
 import configparser
 import contextlib
@@ -40,7 +42,6 @@ CLR_OFF = '' if NO_COLOR else '\033[0m'
 CLR_ERROR = '' if NO_COLOR else '\033[31m'
 CLR_WARN = '' if NO_COLOR else '\033[33m'
 CLR_INFO = '' if NO_COLOR else '\033[32m'
-CLR_ULINE = '' if NO_COLOR else '\033[4m'
 
 GITHUB_API = 'https://api.github.com/repos'
 MELPA_PR = r'https://github.com/melpa/melpa/pull/([0-9]+)'
@@ -764,7 +765,8 @@ def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
             assert process.stdin  # pacifies type-checker
             process.stdin.write(diff_text.encode())
         with open(os.path.join(tmpdir, 'patch'), encoding='utf-8') as patch_file:
-            basename = diff_text.split('\n')[0].split('/')[-1]
+            basename = diff_text.split('\n', maxsplit=1)[0]
+            basename = basename.split('/')[-1]
             return basename, patch_file.read().strip()
 
 
