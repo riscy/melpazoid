@@ -45,7 +45,7 @@ CLR_WARN = '' if NO_COLOR else '\033[33m'
 CLR_INFO = '' if NO_COLOR else '\033[32m'
 
 GITHUB_API = 'https://api.github.com/repos'
-MELPA_PR = r'https://github.com/melpa/melpa/pull/([0-9]+)'
+MELPA_PR = r'https?://github.com/melpa/melpa/pull/([0-9]+)'
 MELPA_PULL_API = f"{GITHUB_API}/melpa/melpa/pulls"
 MELPA_RECIPES = f"{GITHUB_API}/melpa/melpa/contents/recipes"
 
