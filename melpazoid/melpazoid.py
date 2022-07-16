@@ -91,11 +91,11 @@ def _return_code(return_code: Optional[int] = None) -> int:
     return 0 if _RETURN_CODE == expect_error else _RETURN_CODE
 
 
-def validate_recipe(recipe: str) -> bool:
+def is_recipe(recipe: str) -> bool:
     """Validate whether the recipe looks correct.
-    >>> assert validate_recipe('(abc :repo "xyz" :fetcher github) ; abc recipe!')
-    >>> assert not validate_recipe('(a/b :repo "xyz" :fetcher github)')
-    >>> assert not validate_recipe('??')
+    >>> assert is_recipe('(abc :repo "xyz" :fetcher github) ; abc recipe!')
+    >>> assert not is_recipe('(a/b :repo "xyz" :fetcher github)')
+    >>> assert not is_recipe('??')
     """
     try:
         tokens = _tokenize_expression(recipe)
@@ -872,7 +872,7 @@ def _check_loop() -> None:
     """Check MELPA recipes and pull requests in a loop."""
     for target in _fetch_targets():
         print(f"Checking {target}")
-        if validate_recipe(target):
+        if is_recipe(target):
             check_melpa_recipe(target)
         elif re.match(MELPA_PR, target):
             check_melpa_pr(target)
@@ -895,8 +895,8 @@ def _fetch_targets() -> Iterator[str]:
         melpa_pr_match = re.match(MELPA_PR, possible_target)
         if melpa_pr_match:
             target = melpa_pr_match.string[: melpa_pr_match.end()]
-        elif validate_recipe(possible_target):
-            target = ' '.join(possible_target.split())
+        elif is_recipe(possible_target):
+            target = _prettify_recipe(possible_target)
         if target and target != previous_target:
             previous_target = target
             yield target
@@ -910,7 +910,7 @@ def _argparse_target(target: str) -> str:
     elif os.path.isfile(target):
         with open(target, encoding='utf-8') as file:
             potential_recipe = file.read()
-        if not validate_recipe(potential_recipe):
+        if not is_recipe(potential_recipe):
             raise argparse.ArgumentTypeError(f"{target!r} contains an invalid recipe")
         os.environ['RECIPE_FILE'] = target
     elif os.path.isdir(target):
@@ -922,7 +922,7 @@ def _argparse_target(target: str) -> str:
 
 def _argparse_recipe(recipe: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
-    if not validate_recipe(recipe):
+    if not is_recipe(recipe):
         raise argparse.ArgumentTypeError(f"{recipe!r} must be a valid MELPA recipe")
     os.environ['RECIPE'] = recipe
     return recipe
