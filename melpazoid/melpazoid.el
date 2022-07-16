@@ -61,7 +61,6 @@ It should only be set to t for themes."
   (<= (- (point-max) (point)) 3))
 
 (defvar checkdoc-proper-noun-list)             ; compiler pacifier
-(defvar checkdoc-common-verbs-wrong-voice)     ; compiler pacifier
 (defvar checkdoc-verb-check-experimental-flag) ; compiler pacifier
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
