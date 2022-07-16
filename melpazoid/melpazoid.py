@@ -79,15 +79,6 @@ VALID_LICENSES_BOILERPLATE = [
 ]
 
 
-def _run_checks(recipe: str, elisp_dir: str) -> None:
-    """Entrypoint for running all checks."""
-    if not validate_recipe(recipe):
-        _fail(f"Recipe '{recipe}' appears to be invalid")
-        return
-    check_containerized_build(recipe, elisp_dir)
-    print_packaging(recipe, elisp_dir)
-
-
 def _return_code(return_code: Optional[int] = None) -> int:
     """Return (and optionally set) the current return code.
     If return_code matches env var EXPECT_ERROR, return 0 --
@@ -136,6 +127,9 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = '') -> None:
 
 def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     """Build a Docker container to run checks on elisp_dir, given a recipe."""
+    if not is_recipe(recipe):
+        _fail(f"Not a valid recipe: {recipe}")
+        return
     print(f"Building container for {package_name(recipe)}... 🐳")
     # first, copy over only the recipe's files:
     shutil.rmtree(_PKG_TMPDIR, ignore_errors=True)
@@ -169,6 +163,7 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
         elif not line.startswith('make[1]: Leaving directory'):
             print(line)
     print()
+    print_packaging(recipe, elisp_dir)
 
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
@@ -623,9 +618,9 @@ def check_melpa_recipe(recipe: str) -> None:
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
             shutil.copytree(_local_repo(), elisp_dir)
-            _run_checks(recipe, elisp_dir)
+            check_containerized_build(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
-            _run_checks(recipe, elisp_dir)
+            check_containerized_build(recipe, elisp_dir)
 
 
 def check_license(recipe: str) -> None:
@@ -737,7 +732,7 @@ def check_melpa_pr(pr_url: str) -> None:
             branch=_branch(recipe),
             fetcher=_fetcher(recipe),
         ):
-            _run_checks(recipe, elisp_dir)
+            check_containerized_build(recipe, elisp_dir)
             if os.environ.get('EXIST_OK', '').lower() != 'true':
                 check_package_name(package_name(recipe))
             print('<!--')
