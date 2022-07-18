@@ -379,7 +379,7 @@ def repo_info_github(clone_address: str) -> Dict[str, Any]:
     return dict(json.loads(_url_get(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}")))
 
 
-def _check_license_file(elisp_dir: str) -> bool:
+def _check_license_file(elisp_dir: str) -> None:
     """Scan any COPYING or LICENSE files."""
     license_names = (
         'copying',
@@ -394,9 +394,8 @@ def _check_license_file(elisp_dir: str) -> bool:
         if license_basename.lower() in license_names:
             with open(license_, encoding='utf-8', errors='replace') as stream:
                 print(f"- {license_basename} excerpt: `{stream.readline().strip()}...`")
-            return True
+            return
     _fail('- Add a GPL-compatible LICENSE file to the repository')
-    return False
 
 
 def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
