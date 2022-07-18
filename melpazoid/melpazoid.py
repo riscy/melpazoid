@@ -911,7 +911,7 @@ def _argparse_target(target: str) -> str:
             potential_recipe = file.read()
         if not is_recipe(potential_recipe):
             raise argparse.ArgumentTypeError(f"{target!r} contains an invalid recipe")
-        os.environ['RECIPE_FILE'] = target
+        os.environ['RECIPE'] = potential_recipe
     elif os.path.isdir(target):
         os.environ['LOCAL_REPO'] = target
     else:
@@ -948,9 +948,6 @@ def _main() -> None:
     pargs = parser.parse_args()
 
     if pargs.license:
-        if os.environ.get('RECIPE_FILE'):
-            with open(os.environ['RECIPE_FILE'], encoding='utf-8') as file_:
-                os.environ['RECIPE'] = file_.read()
         if not os.environ.get('RECIPE'):
             _fail('Set a recipe using `target` or with: [--recipe RECIPE]')
         else:
@@ -959,10 +956,7 @@ def _main() -> None:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
     elif 'RECIPE' in os.environ:
         check_melpa_recipe(os.environ['RECIPE'])
-    elif 'RECIPE_FILE' in os.environ:
-        with open(os.environ['RECIPE_FILE'], encoding='utf-8') as file:
-            check_melpa_recipe(file.read())
-    elif 'LOCAL_REPO' in os.environ:  # and RECIPE/RECIPE_FILE aren't set
+    elif 'LOCAL_REPO' in os.environ:
         _fail('Set a recipe with: [--recipe RECIPE]')
     else:
         _check_loop()
