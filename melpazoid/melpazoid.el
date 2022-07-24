@@ -222,6 +222,11 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
+  ;; abbreviated f-strings for time
+  (melpazoid-misc "%+4Y-%m-%d" "Consider using %F instead of %+4Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "%H:%M:%S" "Consider using %T instead of %H:%M:%S in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "%I:%M:%S %p" "Consider using %r instead of %I:%M:%S %p in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "%m/%d/%y" "Consider using %D instead of %m/%d/%y in time strings" nil nil t) ; nofmt
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
