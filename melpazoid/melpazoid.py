@@ -347,8 +347,8 @@ def _check_license_github(clone_address: str) -> bool:
     # TODO: gitlab also has a license API -- support it?
     # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
     repo_info = repo_info_github(clone_address)
-    if not repo_info:
-        return False  # GitHub API gave us nothing at all
+    if repo_info is None:  # e.g. not a GitHub repo
+        return False
     license_ = repo_info.get('license')
     if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
         print(f"- GitHub API found `{license_.get('name')}`")
@@ -367,7 +367,7 @@ def _check_license_github(clone_address: str) -> bool:
 
 
 @functools.lru_cache()
-def repo_info_github(clone_address: str) -> Dict[str, Any]:
+def repo_info_github(clone_address: str) -> Optional[Dict[str, Any]]:
     """What does the GitHub API say about the repo?
     Raise urllib.error.URLError if API request fails.
     """
@@ -375,7 +375,7 @@ def repo_info_github(clone_address: str) -> Dict[str, Any]:
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if not match:
-        return {}
+        return None
     return dict(json.loads(_url_get(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}")))
 
 
@@ -398,7 +398,7 @@ def _check_license_file(elisp_dir: str) -> None:
     _fail('- Add a GPL-compatible LICENSE file to the repository')
 
 
-def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
+def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     """Check an elisp file for some license boilerplate.
     >>> import io
     >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
@@ -414,7 +414,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str:
     for license_key, license_text in VALID_LICENSES_BOILERPLATE:
         if re.search(license_text, text):
             return license_key
-    return ''
+    return None
 
 
 def print_packaging(recipe: str, elisp_dir: str) -> None:
@@ -456,7 +456,7 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
                 f" ({boilerplate or 'unknown license'})"
                 + (f" -- {header}" if header else "")
             )
-            if not boilerplate:
+            if boilerplate is None:
                 _fail(
                     '  - Add *formal* license boilerplate or an'
                     ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
