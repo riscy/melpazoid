@@ -29,7 +29,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Iterator, List, Optional, Set, TextIO, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, TextIO
 
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -712,22 +712,20 @@ def _branch(recipe: str) -> str:
 def check_melpa_pr(pr_url: str) -> None:
     """Check a PR on MELPA."""
     _return_code(0)
-    match = re.match(MELPA_PR, pr_url)  # MELPA_PR's 0th group has the number
+    match = re.match(MELPA_PR, pr_url)
     assert match
+    changed_files = _pr_changed_files(pr_number=match.groups()[0])
 
-    pr_data = _pr_data(match.groups()[0])
-    if 'changed_files' not in pr_data:
-        _fail(f"{pr_url} does not appear to be a MELPA PR: {pr_data}")
-        return
-    if int(pr_data['changed_files']) != 1:
+    if len(changed_files) != 1:
         _note('This script can only check PRs with one recipe', CLR_ERROR)
         return
-    filename, recipe = _filename_and_recipe(pr_data['diff_url'])
-    if not filename or not recipe:
-        _note(f"Unable to build the pull request at {pr_url}", CLR_ERROR)
+    filename = changed_files[0]['filename']
+    recipe = _url_get(changed_files[0]['raw_url'])
+    if not filename.startswith('recipes/'):
+        _fail(f"'{filename}' should be added to the 'recipes/' directory")
         return
-    if filename != package_name(recipe):
-        _fail(f"Recipe filename '{filename}' does not match '{package_name(recipe)}'")
+    if os.path.basename(filename) != package_name(recipe):
+        _fail(f"'{filename}' does not match '{package_name(recipe)}'")
         return
     with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
@@ -743,8 +741,8 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_package_name(package_name(recipe))
             print('<!--')
             _note('Footnotes:', CLR_INFO)
-            print(f"- {CLR_INFO}{_prettify_recipe(recipe)}{CLR_OFF}")
-            print(f"- PR by {pr_data['user']['login']}: {_clone_address(recipe)}")
+            print(f"- {_clone_address(recipe)}")
+            print(f"- {_prettify_recipe(recipe)}")
             repo_info = repo_info_github(_clone_address(recipe))
             if repo_info:
                 if repo_info.get('archived'):
@@ -752,42 +750,18 @@ def check_melpa_pr(pr_url: str) -> None:
                 print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
                 print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
                 print(f"- Watched: {repo_info.get('watchers_count')}")
-                if pr_data['user']['login'] not in repo_info['html_url']:
-                    _note("- NOTE: Repo and recipe owner don't match", CLR_WARN)
             print('-->\n')
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
-def _pr_data(pr_number: str) -> Dict[str, Any]:
+def _pr_changed_files(pr_number: str) -> List[Dict[str, Any]]:
     """Get data from GitHub API."""
-    return dict(json.loads(_url_get(f"{MELPA_PULL_API}/{pr_number}")))
+    return list(json.loads(_url_get(f"{MELPA_PULL_API}/{pr_number}/files")))
 
 
 def _prettify_recipe(recipe: str) -> str:
     # re: formatting see https://github.com/melpa/melpa/pull/8072
     return ' '.join(recipe.split()).replace(' :', '\n    :')
-
-
-@functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
-def _filename_and_recipe(pr_data_diff_url: str) -> Tuple[str, str]:
-    """Determine the filename and the contents of the user's recipe."""
-    # TODO: use https://developer.github.com/v3/repos/contents/ instead of 'patch'
-    diff_text = _url_get(pr_data_diff_url)
-    if 'a/recipes' not in diff_text or 'b/recipes' not in diff_text:
-        _fail('New recipes should be added to the `recipes` subdirectory')
-        return '', ''
-    if 'new file mode' not in diff_text:
-        return '', ''
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with subprocess.Popen(
-            ['patch', '-s', '-o', os.path.join(tmpdir, 'patch')], stdin=subprocess.PIPE
-        ) as process:
-            assert process.stdin  # pacifies type-checker
-            process.stdin.write(diff_text.encode())
-        with open(os.path.join(tmpdir, 'patch'), encoding='utf-8') as patch_file:
-            basename = diff_text.split('\n', maxsplit=1)[0]
-            basename = basename.split('/')[-1]
-            return basename, patch_file.read().strip()
 
 
 @functools.lru_cache()
