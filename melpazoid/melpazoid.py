@@ -675,7 +675,7 @@ def _clone(repo: str, into: str, branch: str, fetcher: str) -> bool:
         if branch:
             _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
-    os.makedirs(into, exist_ok=True)
+    os.makedirs(into)
     scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
         options = ['--single-branch']
