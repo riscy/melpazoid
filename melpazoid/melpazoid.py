@@ -716,41 +716,41 @@ def check_melpa_pr(pr_url: str) -> None:
     assert match
     changed_files = _pr_changed_files(pr_number=match.groups()[0])
 
-    if len(changed_files) != 1:
-        _note('This script can only check PRs with one recipe', CLR_ERROR)
-        return
-    filename = changed_files[0]['filename']
-    recipe = _url_get(changed_files[0]['raw_url'])
-    if not filename.startswith('recipes/'):
-        _fail(f"'{filename}' should be added to the 'recipes/' directory")
-        return
-    if os.path.basename(filename) != package_name(recipe):
-        _fail(f"'{filename}' does not match '{package_name(recipe)}'")
-        return
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # package-build prefers the directory to be named after the package:
-        elisp_dir = os.path.join(tmpdir, package_name(recipe))
-        if _clone(
-            _clone_address(recipe),
-            into=elisp_dir,
-            branch=_branch(recipe),
-            fetcher=_fetcher(recipe),
-        ):
-            check_containerized_build(recipe, elisp_dir)
-            if os.environ.get('EXIST_OK', '').lower() != 'true':
-                check_package_name(package_name(recipe))
-            print('<!--')
-            _note('Footnotes:', CLR_INFO)
-            print(f"- {_clone_address(recipe)}")
-            print(f"- {_prettify_recipe(recipe)}")
-            repo_info = repo_info_github(_clone_address(recipe))
-            if repo_info:
-                if repo_info.get('archived'):
-                    _fail('- GitHub repository is archived')
-                print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
-                print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
-                print(f"- Watched: {repo_info.get('watchers_count')}")
-            print('-->\n')
+    for changed_file in changed_files:
+        filename = changed_file['filename']
+        if not filename.startswith('recipes/'):
+            _note(f"Skipping {filename} (not a recipe)")
+            continue
+
+        recipe = _url_get(changed_file['raw_url'])
+        if os.path.basename(filename) != package_name(recipe):
+            _fail(f"'{filename}' does not match '{package_name(recipe)}'")
+            continue
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # package-build prefers the directory to be named after the package:
+            elisp_dir = os.path.join(tmpdir, package_name(recipe))
+            if _clone(
+                _clone_address(recipe),
+                into=elisp_dir,
+                branch=_branch(recipe),
+                fetcher=_fetcher(recipe),
+            ):
+                check_containerized_build(recipe, elisp_dir)
+                if os.environ.get('EXIST_OK', '').lower() != 'true':
+                    check_package_name(package_name(recipe))
+                print('<!--')
+                _note('Footnotes:', CLR_INFO)
+                print(f"- {_clone_address(recipe)}")
+                print(f"- {_prettify_recipe(recipe)}")
+                repo_info = repo_info_github(_clone_address(recipe))
+                if repo_info:
+                    if repo_info.get('archived'):
+                        _fail('- GitHub repository is archived')
+                    print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
+                    print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
+                    print(f"- Watched: {repo_info.get('watchers_count')}")
+                print('-->\n')
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
