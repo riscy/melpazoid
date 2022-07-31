@@ -341,7 +341,7 @@ def _check_license_github(clone_address: str) -> bool:
     Prints out the particular license as a side effect.
     Return False if unable to check (e.g. it's not on GitHub).
     >>> _check_license_github('https://github.com/riscy/elfmt')
-    - GitHub API found `GNU General Public License v3.0`
+    - GNU General Public License v3.0 -- license via GitHub API
     True
     """
     # TODO: gitlab also has a license API -- support it?
@@ -349,20 +349,21 @@ def _check_license_github(clone_address: str) -> bool:
     repo_info = repo_info_github(clone_address)
     if repo_info is None:  # e.g. not a GitHub repo
         return False
+
     license_ = repo_info.get('license')
-    if license_ and license_.get('name') in VALID_LICENSES_GITHUB:
-        print(f"- GitHub API found `{license_.get('name')}`")
+    if not license_:
+        _fail('- Add a LICENSE file to the repository')
+        print('  See: https://github.com/licensee/licensee')
         return True
-    if license_:
-        _note(f"- GitHub API found `{license_.get('name')}`")
-        if license_.get('name') == 'Other':
-            _note('  - Try to use a standard license file format.', CLR_WARN)
-            print('    See: https://github.com/licensee/licensee')
-        else:
-            _note("  - License not in melpazoid's recognized list", CLR_WARN)
-        return True
-    _fail('- Add a LICENSE file that GitHub can detect (e.g. no markup) if possible')
-    print('  See: https://github.com/licensee/licensee')
+
+    print(f"- {license_.get('name')} -- license via GitHub API")
+    if license_.get('name') in VALID_LICENSES_GITHUB:
+        pass
+    elif license_.get('name') == 'Other':
+        _note('  - Try to use a standard license file format', CLR_WARN)
+        print('    See: https://github.com/licensee/licensee')
+    else:
+        _note("  - License not in melpazoid's recognized list", CLR_WARN)
     return True
 
 
@@ -452,13 +453,12 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
                 _return_code(2)
             boilerplate = _check_file_for_license_boilerplate(stream)
             print(
-                f"- {relpath}"
-                f" ({boilerplate or 'unknown license'})"
-                + (f" -- {header}" if header else "")
+                f"- {boilerplate or 'unknown license'} -- {relpath}"
+                + (f": {header}" if header else "")
             )
             if boilerplate is None:
                 _fail(
-                    '  - Add *formal* license boilerplate or an'
+                    '- Add *formal* license boilerplate or an'
                     ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
                     f" to {relpath}"
                 )
