@@ -20,6 +20,7 @@ import glob
 import json
 import operator
 import os
+import pdb
 import re
 import shlex
 import shutil
@@ -843,15 +844,18 @@ def _package_build_files() -> Dict[str, str]:
 
 def _check_loop() -> None:
     """Check MELPA recipes and pull requests in a loop."""
-    for target in _fetch_targets():
-        print(f"Checking {target}")
-        if is_recipe(target):
-            check_melpa_recipe(target)
-        elif re.match(MELPA_PR, target):
-            check_melpa_pr(target)
-        if _return_code() != 0:
-            _fail('<!-- This PR failed -->')
-        print('-' * 79)
+    while True:
+        try:
+            for target in _fetch_targets():
+                if is_recipe(target):
+                    check_melpa_recipe(target)
+                elif re.match(MELPA_PR, target):
+                    check_melpa_pr(target)
+                if _return_code() != 0:
+                    _fail('<!-- Errors detected -->')
+                print('-' * 79)
+        except KeyboardInterrupt:
+            pdb.set_trace()  # pylint: disable=forgotten-debug-statement
 
 
 def _fetch_targets() -> Iterator[str]:
