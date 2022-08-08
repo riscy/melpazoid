@@ -224,6 +224,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
   ;; abbreviated f-strings for time
   (melpazoid-misc "%+4Y-%m-%d" "Consider using %F instead of %+4Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "%Y-%m-%d" "Consider using %F instead of %Y-%m-%d in time strings" nil nil t) ; nofmt
   (melpazoid-misc "%H:%M:%S" "Consider using %T instead of %H:%M:%S in time strings" nil nil t) ; nofmt
   (melpazoid-misc "%I:%M:%S %p" "Consider using %r instead of %I:%M:%S %p in time strings" nil nil t) ; nofmt
   (melpazoid-misc "%m/%d/%y" "Consider using %D instead of %m/%d/%y in time strings" nil nil t) ; nofmt
