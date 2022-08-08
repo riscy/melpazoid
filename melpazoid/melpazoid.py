@@ -144,8 +144,9 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
         files[ii] = target
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
-    if len(glob.glob(os.path.join(_PKG_TMPDIR, '*.el'))) > 1:
-        cmd.append(f"PACKAGE_MAIN={os.path.basename(_main_file(files, recipe))}")
+    main_file = _main_file(files, recipe)
+    if main_file and len(glob.glob(os.path.join(_PKG_TMPDIR, '*.el'))) > 1:
+        cmd.append(f"PACKAGE_MAIN={os.path.basename(main_file)}")
     run_result = subprocess.run(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
     )
@@ -232,7 +233,7 @@ def package_name(recipe: str) -> str:
     return _tokenize_expression(recipe)[1]
 
 
-def _main_file(files: List[str], recipe: str) -> str:
+def _main_file(files: List[str], recipe: str) -> Optional[str]:
     """Figure out the 'main' file of the recipe, per MELPA convention.
     >>> _main_file(['pkg/a.el', 'pkg/b.el'], '(a :files ...)')
     'pkg/a.el'
@@ -254,7 +255,7 @@ def _main_file(files: List[str], recipe: str) -> str:
             in (f"{name}-pkg.el", f"{name}-pkg.el.in", f"{name}.el")
         )
     except StopIteration:
-        return ''
+        return None
 
 
 def _write_requirements(files: List[str], recipe: str) -> None:
@@ -288,7 +289,7 @@ def _write_requirements(files: List[str], recipe: str) -> None:
             )
 
 
-def requirements(files: List[str], recipe: str = '') -> Set[str]:
+def requirements(files: List[str], recipe: Optional[str] = None) -> Set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
@@ -304,7 +305,7 @@ def requirements(files: List[str], recipe: str = '') -> Set[str]:
                 reqs.append(_reqs_from_pkg_el(pkg_el))
         elif filename.endswith('.el'):
             with open(filename, encoding='utf-8', errors='replace') as el_file:
-                reqs.append(_reqs_from_el_file(el_file))
+                reqs.append(_reqs_from_el_file(el_file) or '')
     reqs = sum((re.split('[()]', req) for req in reqs), [])
     return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
 
@@ -324,7 +325,7 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     return reqs
 
 
-def _reqs_from_el_file(el_file: TextIO) -> str:
+def _reqs_from_el_file(el_file: TextIO) -> Optional[str]:
     """Hacky function to pull the requirements out of an elisp file.
     >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
@@ -334,7 +335,7 @@ def _reqs_from_el_file(el_file: TextIO) -> str:
         match = re.match(r'[; ]*Package-Requires:[ ]*(.*)$', line, re.I)
         if match:
             return match.groups()[0].strip()
-    return ''
+    return None
 
 
 def _check_license_github(clone_address: str) -> bool:
@@ -486,13 +487,17 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
     in the other files will be ignored.
     """
     files = _files_in_recipe(recipe, elisp_dir)
+    main_file = _main_file(files, recipe)
+    if not main_file:
+        _fail("- Can't check package-requires if there is no 'main' file")
+        return
     main_requirements = requirements(files, recipe)
     for file in files:
         file_requirements = requirements([file])
         if file_requirements and file_requirements > main_requirements:
             _fail(
                 f"- Package-Requires mismatch between {os.path.basename(file)} and "
-                f"{os.path.basename(_main_file(files, recipe))}!"
+                f"{os.path.basename(main_file)}!"
             )
 
 
@@ -661,7 +666,7 @@ def _local_repo() -> str:
     return local_repo
 
 
-def _clone(repo: str, into: str, branch: str, fetcher: str) -> bool:
+def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
     """Try to clone the repository; return whether we succeeded."""
     sys.stderr.write(f"Cloning {repo} {'@' + branch if branch else ''}\n")
 
@@ -697,16 +702,15 @@ def _clone(repo: str, into: str, branch: str, fetcher: str) -> bool:
     return True
 
 
-def _branch(recipe: str) -> str:
+def _branch(recipe: str) -> Optional[str]:
     """Return the recipe's branch if available, else the empty string.
     >>> _branch('(shx :branch "develop" ...)')
     'develop'
-    >>> _branch('(shx ...)')
-    ''
+    >>> assert _branch('(shx ...)') is None
     """
     tokenized_recipe = _tokenize_expression(recipe)
     if ':branch' not in tokenized_recipe:
-        return ''
+        return None
     return tokenized_recipe[tokenized_recipe.index(':branch') + 1].strip('"')
 
 
