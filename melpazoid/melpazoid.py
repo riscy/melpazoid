@@ -404,7 +404,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     """Check an elisp file for some license boilerplate.
     >>> import io
     >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
-    'ISC'
+    'ISC License'
     >>> _check_file_for_license_boilerplate(
     ...   io.StringIO('This program is free software: you can redistribute it'))
     'GPL*'
@@ -412,11 +412,27 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     text = el_file.read()
     match = re.search(r'SPDX-License-Identifier:[ ]*(.+)', text, flags=re.I)
     if match:
-        return match.groups()[0].strip()
+        license_ = _spdx_license(license_id=match.groups()[0])
+        if license_ is None:
+            _fail(f"Invalid {match.string}")
+            return None
+        if not license_['isFsfLibre']:
+            _fail(f"Not free/libre: {match.string}")
+        return str(license_['name'])
+
     for license_key, license_text in VALID_LICENSES_BOILERPLATE:
         if re.search(license_text, text):
             return license_key
     return None
+
+
+@functools.lru_cache()
+def _spdx_license(license_id: str) -> Optional[Dict[str, Any]]:
+    try:
+        response = _url_get(f'https://spdx.org/licenses/{license_id.strip()}.json')
+        return dict(json.loads(response))
+    except urllib.error.HTTPError:
+        return None
 
 
 def print_packaging(recipe: str, elisp_dir: str) -> None:
