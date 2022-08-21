@@ -14,7 +14,6 @@ __author__ = 'Chris Rayner <dchrisrayner@gmail.com>'
 __license__ = 'SPDX-License-Identifier: GPL-3.0-or-later'
 import argparse
 import configparser
-import contextlib
 import functools
 import glob
 import json
@@ -522,10 +521,11 @@ def check_package_name(name: str) -> None:
         for name_, url in known_names.items()
         if any(name_.startswith(keyword) for keyword in keywords)
     ][:10]
-    name_builtin = False
-    with contextlib.suppress(ChildProcessError):
+    try:
         run_build_script(f"(require '{name})")
         name_builtin = True
+    except ChildProcessError:
+        name_builtin = False
     name_reserved = any(re.match(reserved, name) for reserved in _RESERVED_REGEXPS)
     if not similar_names and not name_builtin and not name_reserved:
         return
@@ -915,10 +915,11 @@ def _url_get(url: str) -> str:
 
 
 def _url_ok(url: str) -> bool:
-    with contextlib.suppress(urllib.error.URLError):
+    try:
         with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
             return True
-    return False
+    except urllib.error.URLError:
+        return False
 
 
 def _main() -> None:
