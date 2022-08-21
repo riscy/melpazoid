@@ -337,18 +337,16 @@ def _reqs_from_el_file(el_file: TextIO) -> Optional[str]:
     return None
 
 
-def _check_license_github(clone_address: str) -> bool:
-    """Use the GitHub API to check for a license.
+def _check_license_api(clone_address: str) -> bool:
+    """Use the GitHub or GitLab API to check for a license.
     Prints out the particular license as a side effect.
     Return False if unable to check (e.g. it's not on GitHub).
-    >>> _check_license_github('https://github.com/riscy/elfmt')
-    - GNU General Public License v3.0 -- license via GitHub API
+    >>> _check_license_api('https://github.com/riscy/elfmt')
+    - GNU General Public License v3.0 (via API)
     True
     """
-    # TODO: gitlab also has a license API -- support it?
-    # e.g. https://gitlab.com/api/v4/users/jagrg/projects ?
-    repo_info = repo_info_github(clone_address)
-    if repo_info is None:  # e.g. not a GitHub repo
+    repo_info = _repo_info_api(clone_address)
+    if repo_info is None:
         return False
 
     license_ = repo_info.get('license')
@@ -357,7 +355,7 @@ def _check_license_github(clone_address: str) -> bool:
         print('  See: https://github.com/licensee/licensee')
         return True
 
-    print(f"- {license_.get('name')} -- license via GitHub API")
+    print(f"- {license_.get('name')} (via API)")
     if license_.get('name') in VALID_LICENSES_GITHUB:
         pass
     elif license_.get('name') == 'Other':
@@ -369,16 +367,24 @@ def _check_license_github(clone_address: str) -> bool:
 
 
 @functools.lru_cache()
-def repo_info_github(clone_address: str) -> Optional[Dict[str, Any]]:
-    """What does the GitHub API say about the repo?
+def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
+    """Use the GitHub or GitLab API to fetch details about a repository.
     Raise urllib.error.URLError if API request fails.
     """
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
-    if not match:
-        return None
-    return dict(json.loads(_url_get(f"{GITHUB_API}/{match.groups()[0].rstrip('/')}")))
+    if match:
+        project_id = match.groups()[0].rstrip('/')
+        return dict(json.loads(_url_get(f"{GITHUB_API}/{project_id}")))
+
+    match = re.search(r'gitlab.com/([^"]*)', clone_address, flags=re.I)
+    if match:
+        project_id = match.groups()[0].rstrip('/').replace('/', '%2F')
+        projects_api = 'https://gitlab.com/api/v4/projects'
+        return dict(json.loads(_url_get(f"{projects_api}/{project_id}?license=true")))
+
+    return None
 
 
 def _check_license_file(elisp_dir: str) -> None:
@@ -446,7 +452,7 @@ def print_packaging(recipe: str, elisp_dir: str) -> None:
 
 def _check_license(recipe: str, elisp_dir: str) -> None:
     clone_address = _clone_address(recipe)
-    if not _check_license_github(clone_address):
+    if not _check_license_api(clone_address):
         _check_license_file(elisp_dir)
     for file in _files_in_recipe(recipe, elisp_dir):
         relpath = os.path.relpath(file, elisp_dir)
@@ -764,13 +770,13 @@ def check_melpa_pr(pr_url: str) -> None:
                 _note('Footnotes:', CLR_INFO)
                 print(f"- {_clone_address(recipe)}")
                 print(f"- {_prettify_recipe(recipe)}")
-                repo_info = repo_info_github(_clone_address(recipe))
+                repo_info = _repo_info_api(_clone_address(recipe))
                 if repo_info:
                     if repo_info.get('archived'):
                         _fail('- GitHub repository is archived')
-                    print(f"- Created: {repo_info.get('created_at', '').split('T')[0]}")
-                    print(f"- Updated: {repo_info.get('updated_at', '').split('T')[0]}")
-                    print(f"- Watched: {repo_info.get('watchers_count')}")
+                    print(f"- Created: {repo_info.get('created_at', 'N/A')}")
+                    print(f"- Updated: {repo_info.get('updated_at', 'N/A')}")
+                    print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
                 print('-->\n')
 
 
