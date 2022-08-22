@@ -130,10 +130,14 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     if not is_recipe(recipe):
         _fail(f"Not a valid recipe: {recipe}")
         return
-    print(f"Building container for {package_name(recipe)}... 🐳")
-    # first, copy over only the recipe's files:
-    shutil.rmtree(_PKG_TMPDIR, ignore_errors=True)
+
     files = [os.path.relpath(f, elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
+    if len({os.path.basename(file_) for file_ in files}) != len(files):
+        _fail(f"Multiple files share the same basename: {', '.join(files)}")
+        return
+
+    shutil.rmtree(_PKG_TMPDIR, ignore_errors=True)
+    sys.stderr.write(f"Building container for {package_name(recipe)}... 🐳\n")
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_TMPDIR, target)
