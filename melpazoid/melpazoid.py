@@ -137,7 +137,7 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
         return
 
     shutil.rmtree(_PKG_TMPDIR, ignore_errors=True)
-    sys.stderr.write(f"Building container for {package_name(recipe)}... 🐳\n")
+    _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
         target = os.path.join(_PKG_TMPDIR, target)
@@ -709,7 +709,7 @@ def _local_repo() -> str:
 
 def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
     """Try to clone the repository; return whether we succeeded."""
-    sys.stderr.write(f"Cloning {repo} {'@' + branch if branch else ''}\n")
+    _note(f"<!-- Cloning {repo} {'@' + branch if branch else ''} -->")
 
     # check if we're being used in GitHub CI -- if so, modify the branch
     if not branch and 'RECIPE' in os.environ:
@@ -785,9 +785,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
                     check_package_name(package_name(recipe))
-                print('<!--')
-                _note('Footnotes:', CLR_INFO)
-                print(f"- {_clone_address(recipe)}")
+                _note('<!-- Footnotes:', CLR_INFO)
                 print(f"- {_prettify_recipe(recipe)}")
                 repo_info = _repo_info_api(_clone_address(recipe))
                 if repo_info:
@@ -893,12 +891,15 @@ def _check_loop() -> None:
         try:
             for target in _fetch_targets():
                 if is_recipe(target):
+                    _note(f"<!-- Checking recipe: {_prettify_recipe(target)} -->")
                     check_melpa_recipe(target)
                 elif re.match(MELPA_PR, target):
+                    _note(f"<!-- Checking pull request: {target} -->")
                     check_melpa_pr(target)
                 if _return_code() != 0:
-                    _fail('<!-- Errors detected -->')
-                print('-' * 79)
+                    _fail('<!-- Issues detected -->')
+                else:
+                    _note('<!-- Finished -->')
         except KeyboardInterrupt:
             pdb.set_trace()  # pylint: disable=forgotten-debug-statement
 
