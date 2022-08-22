@@ -225,7 +225,18 @@ def _tokenize_expression(expression: str) -> List[str]:
     lexer.quotes = '"'
     lexer.commenters = ';'
     lexer.wordchars = lexer.wordchars + "':-"
-    return list(lexer)
+    tokens = list(lexer)
+    unbalanced_parens = 0
+    for token in tokens:
+        if token == '(':
+            unbalanced_parens += 1
+        if token == ')':
+            unbalanced_parens -= 1
+            if unbalanced_parens < 0:
+                break
+    if unbalanced_parens == 0:
+        return tokens
+    raise ValueError(f"Unbalanced expression: {expression}")
 
 
 def package_name(recipe: str) -> str:
@@ -337,6 +348,10 @@ def _reqs_from_el_file(el_file: TextIO) -> Optional[str]:
     for line in el_file.readlines():
         match = re.match(r'[; ]*Package-Requires:[ ]*(.*)$', line, re.I)
         if match:
+            try:
+                _tokenize_expression(match.groups()[0])
+            except ValueError as err:
+                _fail(str(err))
             return match.groups()[0].strip()
     return None
 
