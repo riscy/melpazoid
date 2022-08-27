@@ -15,7 +15,6 @@ __license__ = 'SPDX-License-Identifier: GPL-3.0-or-later'
 import argparse
 import configparser
 import functools
-import glob
 import json
 import operator
 import os
@@ -148,7 +147,7 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
     main_file = _main_file(files, recipe)
-    if main_file and len(glob.glob(os.path.join(_PKG_TMPDIR, '*.el'))) > 1:
+    if main_file and sum(f.endswith('.el') for f in os.listdir(_PKG_TMPDIR)) > 1:
         cmd.append(f"PACKAGE_MAIN={os.path.basename(main_file)}")
     run_result = subprocess.run(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
@@ -416,11 +415,10 @@ def _check_license_file(elisp_dir: str) -> None:
         'license.md',
         'unlicense',
     )
-    for license_ in glob.glob(os.path.join(elisp_dir, '*')):
-        license_basename = os.path.basename(license_)
-        if license_basename.lower() in license_names:
-            with open(license_, encoding='utf-8', errors='replace') as stream:
-                print(f"- {license_basename} excerpt: `{stream.readline().strip()}...`")
+    for license_ in os.scandir(elisp_dir):
+        if license_.name.lower() in license_names:
+            with open(license_.path, encoding='utf-8', errors='replace') as stream:
+                print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
             return
     _fail('- Add a GPL-compatible LICENSE file to the repository')
 
