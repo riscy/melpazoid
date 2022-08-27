@@ -684,7 +684,7 @@ def check_license(recipe: str) -> None:
         clone_address = _clone_address(recipe)
         if _local_repo():
             print(f"Using local repository at {_local_repo()}")
-            shutil.copy(_local_repo(), elisp_dir)
+            shutil.copytree(_local_repo(), elisp_dir)
             _check_license(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _check_license(recipe, elisp_dir)

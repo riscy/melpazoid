@@ -43,4 +43,4 @@ jobs:
     - name: Test local 'melpazoid'
       env:
         CI_BRANCH: master
-      run: python melpazoid/melpazoid.py ./melpazoid --recipe '(melpazoid :fetcher github :repo "riscy/melpazoid")'
+      run: python melpazoid/melpazoid.py . --license --recipe '(melpazoid :fetcher github :repo "riscy/melpazoid" :files ("melpazoid/melpazoid.el"))'
