@@ -45,37 +45,6 @@ CLR_INFO = '' if NO_COLOR else '\033[32m'
 
 GITHUB_API = 'https://api.github.com/repos'
 MELPA_PR = r'https?://github.com/melpa/melpa/pull/([0-9]+)'
-MELPA_PULL_API = f"{GITHUB_API}/melpa/melpa/pulls"
-MELPA_RECIPES = f"{GITHUB_API}/melpa/melpa/contents/recipes"
-
-# Valid licenses and their names according to the GitHub API
-# TODO: complete these lists or use https://github.com/emacscollective/elx
-VALID_LICENSES_GITHUB = {
-    'Apache License 2.0',
-    'BSD 2-Clause "Simplified" License',
-    'BSD 3-Clause "New" or "Revised" License',
-    'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
-    'Creative Commons Zero v1.0 Universal',
-    'Do What The F*ck You Want To Public License',
-    'GNU Affero General Public License v3.0',
-    # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
-    'GNU General Public License v3.0',
-    'GNU Lesser General Public License v3.0',
-    'ISC License',
-    'MIT License',
-    'Mozilla Public License 2.0',
-    'The Unlicense',
-}
-# Excerpts from the boilerplate associated with valid licenses:
-VALID_LICENSES_BOILERPLATE = [
-    ('Apache License 2.0', 'Licensed under the Apache License, Version 2.0'),
-    ('BSD*', 'Redistribution and use in source and binary forms'),
-    ('FSFAP', 'Copying and distribution of this file, with or without'),
-    ('GPL*', 'is free software.* you can redistribute it'),
-    ('ISC License', 'Permission to use, copy, modify, and/or distribute this'),
-    ('MIT License', 'Permission is hereby granted, free of charge, to any person'),
-    ('The Unlicense', 'This is free and unencumbered software released into'),
-]
 
 
 def _return_code(return_code: Optional[int] = None) -> int:
@@ -373,8 +342,23 @@ def _check_license_api(clone_address: str) -> bool:
         print('  See: https://github.com/licensee/licensee')
         return True
 
+    gpl_compatible_licensee_licenses = {
+        'Apache License 2.0',
+        'BSD 2-Clause "Simplified" License',
+        'BSD 3-Clause "New" or "Revised" License',
+        'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
+        'Creative Commons Zero v1.0 Universal',
+        'Do What The F*ck You Want To Public License',
+        'GNU Affero General Public License v3.0',
+        'GNU General Public License v3.0',
+        'GNU Lesser General Public License v3.0',
+        'ISC License',
+        'MIT License',
+        'Mozilla Public License 2.0',
+        'The Unlicense',
+    }
     print(f"- {license_.get('name')} (via API)")
-    if license_.get('name') in VALID_LICENSES_GITHUB:
+    if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
         _note('  - Try to use a standard license file format', CLR_WARN)
@@ -443,7 +427,17 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
             _fail(f"Not free/libre: {match.string}")
         return str(license_['name'])
 
-    for license_key, license_text in VALID_LICENSES_BOILERPLATE:
+    gpl_compatible_license_excerpts = {
+        # NOTE: consider using https://github.com/emacscollective/elx instead
+        'Apache License 2.0': 'Licensed under the Apache License, Version 2.0',
+        'BSD*': 'Redistribution and use in source and binary forms',
+        'FSFAP': 'Copying and distribution of this file, with or without',
+        'GPL*': 'is free software.* you can redistribute it',
+        'ISC License': 'Permission to use, copy, modify, and/or distribute this',
+        'MIT License': 'Permission is hereby granted, free of charge, to any person',
+        'The Unlicense': 'This is free and unencumbered software released into',
+    }
+    for license_key, license_text in gpl_compatible_license_excerpts.items():
         if re.search(license_text, text):
             return license_key
     return None
@@ -798,7 +792,8 @@ def check_melpa_pr(pr_url: str) -> None:
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
 def _pr_changed_files(pr_number: str) -> List[Dict[str, Any]]:
     """Get data from GitHub API."""
-    return list(json.loads(_url_get(f"{MELPA_PULL_API}/{pr_number}/files")))
+    melpa_pull_api = f"{GITHUB_API}/melpa/melpa/pulls"
+    return list(json.loads(_url_get(f"{melpa_pull_api}/{pr_number}/files")))
 
 
 def _prettify_recipe(recipe: str) -> str:
