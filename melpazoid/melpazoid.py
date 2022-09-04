@@ -373,18 +373,24 @@ def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
     """Use the GitHub or GitLab API to fetch details about a repository.
     Raise urllib.error.URLError if API request fails.
     """
+    repo_info: Dict[str, Any]
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if match:
         project_id = match.groups()[0].rstrip('/')
-        return dict(json.loads(_url_get(f"{GITHUB_API}/{project_id}")))
+        repo_info = json.loads(_url_get(f"{GITHUB_API}/{project_id}"))
+        return repo_info
 
     match = re.search(r'gitlab.com/([^"]*)', clone_address, flags=re.I)
     if match:
         project_id = match.groups()[0].rstrip('/').replace('/', '%2F')
         projects_api = 'https://gitlab.com/api/v4/projects'
-        return dict(json.loads(_url_get(f"{projects_api}/{project_id}?license=true")))
+        repo_info = json.loads(_url_get(f"{projects_api}/{project_id}?license=true"))
+        # HACK: align GitLab API response with typical GitHub api response
+        repo_info['updated_at'] = repo_info['last_activity_at']
+        repo_info['watchers_count'] = repo_info['star_count']
+        return repo_info
 
     return None
 
