@@ -783,8 +783,8 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
                     check_package_name(package_name(recipe))
-                _note('<!-- Footnotes:', CLR_INFO)
-                print(f"- {_prettify_recipe(recipe)}")
+                print('<!-- Footnotes:')
+                _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 repo_info = _repo_info_api(_clone_address(recipe))
                 if repo_info:
                     if repo_info.get('archived'):
@@ -898,7 +898,7 @@ def _check_loop() -> None:
                 if _return_code() != 0:
                     _fail('<!-- Issues detected -->')
                 else:
-                    _note('<!-- Finished -->')
+                    _note('<!-- Finished -->', CLR_INFO)
         except KeyboardInterrupt:
             pdb.set_trace()  # pylint: disable=forgotten-debug-statement
 
