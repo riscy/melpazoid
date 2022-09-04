@@ -15,11 +15,8 @@
 
 ;;; Code:
 
-(require 'package)
-(defvar checkdoc-version)
-(declare-function pkg-info-format-version "ext:pkg-info.el" t t)
-(declare-function pkg-info-package-version "ext:pkg-info.el" t t)
-(declare-function package-lint-current-buffer "ext:package-lint.el" t t)
+;; NOTE: avoid top-level "require"s - these can influence `melpazoid-byte-compile'
+
 (defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
 (defvar melpazoid-can-modify-buffers nil "Whether melpazoid can modify buffers.")
 (defvar melpazoid--pending "" "Text that will (maybe) be appended to the report.")
@@ -32,7 +29,9 @@
                     emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
-  (let ((inhibit-message t)) (byte-compile-file filename))
+  (let ((inhibit-message t)
+        (load-path (append load-path (melpazoid--package-load-paths))))
+    (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)
         (melpazoid-discard-pending)
@@ -56,15 +55,28 @@ It should only be set to t for themes."
         (melpazoid-insert "- Temporarily ignoring `no-byte-compile` flag")
         (save-buffer)))))
 
+(defun melpazoid--package-load-paths ()
+  "Return a list of 'package' load-paths.
+Normally these would be resolved by `package-initialize', but
+running that function requires bringing in dependencies that can
+affect the output of `byte-compile-file'."
+  (let ((package-paths nil)
+        (package-user-dir (locate-user-emacs-file "elpa")))
+    (dolist (subdir (directory-files package-user-dir))
+      (unless (member subdir '("." ".." "archives"))
+        (push (expand-file-name subdir package-user-dir) package-paths)))
+    package-paths))
+
 (defun melpazoid--buffer-almost-empty-p ()
   "Return non-nil if current buffer is 'almost' empty."
   (<= (- (point-max) (point)) 3))
 
-(defvar checkdoc-proper-noun-list)             ; compiler pacifier
-(defvar checkdoc-verb-check-experimental-flag) ; compiler pacifier
+(defvar checkdoc-version)
+(defvar checkdoc-proper-noun-list)
+(defvar checkdoc-verb-check-experimental-flag)
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
-  (require 'checkdoc)  ; to retain cleaner byte-compilation in script mode
+  (require 'checkdoc)
   (melpazoid-insert "\n`%s` with checkdoc %s:"
                     (file-name-nondirectory filename)
                     checkdoc-version)
@@ -86,11 +98,18 @@ It should only be set to t for themes."
       (melpazoid-insert "```")
       (melpazoid-commit-pending))))
 
-(defvar package-lint-main-file)         ; compiler pacifier
+(defvar package-archives)
+(defvar package-lint-main-file)
+(declare-function package-lint-current-buffer "ext:package-lint.el" t t)
+(declare-function pkg-info-format-version "ext:pkg-info.el" t t)
+(declare-function pkg-info-package-version "ext:pkg-info.el" t t)
 (defun melpazoid-package-lint ()
   "Wrapper for running `package-lint' against the current buffer."
-  (require 'package-lint)    ; to retain cleaner byte-compilation in script mode
-  (require 'pkg-info)        ; to retain cleaner byte-compilation in script mode
+  (require 'package)
+  (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+  (package-initialize)
+  (require 'package-lint)
+  (require 'pkg-info)
   (melpazoid-insert "\n`%s` with package-lint %s:"
                     (buffer-name)
                     (pkg-info-format-version
@@ -153,7 +172,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   "Run miscs checker."
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
-  (unless (string-empty-p melpazoid--pending)
+  (unless (equal melpazoid--pending "")
     (setq melpazoid--pending
           (format
            "\n`%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
@@ -350,8 +369,6 @@ OBJECTS are objects to interpolate into the string using `format'."
 
 (defun melpazoid--reset-state ()
   "Reset melpazoid's current state variables."
-  (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-  (package-initialize)
   (melpazoid-discard-pending)
   (ignore-errors (kill-buffer melpazoid-buffer)))
 
