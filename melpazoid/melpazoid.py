@@ -144,7 +144,7 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', 'melpazoid')
     ['melpazoid/melpazoid.el']
     """
-    files = run_build_script(
+    files = eval_elisp(
         f"""
         (require 'package-build)
         (setq package-build-working-dir "{os.path.dirname(elisp_dir)}")
@@ -561,7 +561,7 @@ def check_package_name(name: str) -> None:
         if any(name_.startswith(keyword) for keyword in keywords)
     ][:10]
     try:
-        run_build_script(f"(require '{name})")
+        eval_elisp(f"(require '{name})")
         name_builtin = True
     except ChildProcessError:
         name_builtin = False
@@ -815,7 +815,7 @@ def _clone_address(recipe: str) -> str:
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
-    return run_build_script(
+    return eval_elisp(
         f"""
         (require 'package-recipe)
         (send-string-to-terminal
@@ -835,7 +835,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, name), 'w', encoding='utf-8') as file:
             file.write(recipe)
-        return run_build_script(
+        return eval_elisp(
             f"""
             (require 'package-recipe)
             (setq package-build-recipes-dir "{tmpdir}")
@@ -844,11 +844,11 @@ def _recipe_struct_elisp(recipe: str) -> str:
         )
 
 
-def run_build_script(script: str) -> str:
+def eval_elisp(script: str) -> str:
     """Run an elisp script in a package-build context.
-    >>> run_build_script('(send-string-to-terminal "Hello world")')
+    >>> eval_elisp('(send-string-to-terminal "Hello world")')
     'Hello world'
-    >>> run_build_script("(require 'package-build) (require 'package-recipe)")
+    >>> eval_elisp("(require 'package-build) (require 'package-recipe)")
     ''
     """
     with tempfile.TemporaryDirectory() as tmpdir:
