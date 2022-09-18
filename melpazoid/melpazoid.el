@@ -241,12 +241,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
-  ;; abbreviated f-strings for time
-  (melpazoid-misc "%+4Y-%m-%d" "Consider using %F instead of %+4Y-%m-%d in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "%Y-%m-%d" "Consider using %F instead of %Y-%m-%d in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "%H:%M:%S" "Consider using %T instead of %H:%M:%S in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "%I:%M:%S %p" "Consider using %r instead of %I:%M:%S %p in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "%m/%d/%y" "Consider using %D instead of %m/%d/%y in time strings" nil nil t) ; nofmt
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
@@ -291,7 +285,13 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   (melpazoid-misc "^(progn" "`progn` is usually not required at the top level")
-  ;; simpler expressions around strings:
+  ;; f-strings
+  (melpazoid-misc "format-time-string .*%+4Y-%m-%d" "Consider using %F instead of %+4Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%Y-%m-%d" "Consider using %F instead of %Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%H:%M:%S" "Consider using %T instead of %H:%M:%S in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%I:%M:%S %p" "Consider using %r instead of %I:%M:%S %p in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%m/%d/%y" "Consider using %D instead of %m/%d/%y in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time.string .*%H:%M" "Consider using %R instead of %H:%M in time strings" nil nil t)
   (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
   (melpazoid-misc "(user-error (format " "No `format` required; `user-error` takes an f-string") ; nofmt
