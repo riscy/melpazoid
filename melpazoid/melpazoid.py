@@ -35,8 +35,6 @@ _MELPAZOID_ROOT = os.path.join(
     os.path.dirname(__file__) if '__file__' in vars() else os.getcwd(),
     '..',
 )
-_PKG_TMPDIR = os.path.join(_MELPAZOID_ROOT, 'pkg')
-_RESERVED_REGEXPS = ('^git-rebase$', '^helm-source-', '^ob-', '^ox-')
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -46,7 +44,6 @@ CLR_ERROR = '' if NO_COLOR else '\033[31m'
 CLR_WARN = '' if NO_COLOR else '\033[33m'
 CLR_INFO = '' if NO_COLOR else '\033[32m'
 
-GITHUB_API = 'https://api.github.com/repos'
 MELPA_PR = r'https?://github.com/melpa/melpa/pull/([0-9]+)'
 
 
@@ -107,11 +104,12 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
         _fail(f"Multiple files share the same basename: {', '.join(files)}")
         return
 
-    shutil.rmtree(_PKG_TMPDIR, ignore_errors=True)
+    pkg_dir = os.path.join(_MELPAZOID_ROOT, 'pkg')
+    shutil.rmtree(pkg_dir, ignore_errors=True)
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     for ii, file in enumerate(files):
         target = os.path.basename(file) if file.endswith('.el') else file
-        target = os.path.join(_PKG_TMPDIR, target)
+        target = os.path.join(pkg_dir, target)
         os.makedirs(os.path.dirname(target), exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
         subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target], check=True)
@@ -119,7 +117,7 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     _write_requirements(files, recipe)
     cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
     main_file = _main_file(files, recipe)
-    if main_file and sum(f.endswith('.el') for f in os.listdir(_PKG_TMPDIR)) > 1:
+    if main_file and sum(f.endswith('.el') for f in os.listdir(pkg_dir)) > 1:
         cmd.append(f"PACKAGE_MAIN={os.path.basename(main_file)}")
     run_result = subprocess.run(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
@@ -382,7 +380,7 @@ def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
     if match:
         project_id = match.groups()[0].rstrip('/')
-        repo_info = json.loads(_url_get(f"{GITHUB_API}/{project_id}"))
+        repo_info = json.loads(_url_get(f"https://api.github.com/repos/{project_id}"))
         return repo_info
 
     match = re.search(r'gitlab.com/([^"]*)', clone_address, flags=re.I)
@@ -568,7 +566,8 @@ def check_package_name(name: str) -> None:
         name_builtin = True
     except ChildProcessError:
         name_builtin = False
-    name_reserved = any(re.match(reserved, name) for reserved in _RESERVED_REGEXPS)
+    reserved_names = ('^git-rebase$', '^helm-source-', '^ob-', '^ox-')
+    name_reserved = any(re.match(reserved, name) for reserved in reserved_names)
     if not similar_names and not name_builtin and not name_reserved:
         return
 
@@ -801,7 +800,7 @@ def check_melpa_pr(pr_url: str) -> None:
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
 def _pr_changed_files(pr_number: str) -> List[Dict[str, Any]]:
     """Get data from GitHub API."""
-    melpa_pull_api = f"{GITHUB_API}/melpa/melpa/pulls"
+    melpa_pull_api = 'https://api.github.com/repos/melpa/melpa/pulls'
     return list(json.loads(_url_get(f"{melpa_pull_api}/{pr_number}/files")))
 
 
