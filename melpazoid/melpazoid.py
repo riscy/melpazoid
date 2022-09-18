@@ -31,7 +31,10 @@ import urllib.request
 from typing import Any, Dict, Iterator, List, Optional, Set, TextIO
 
 _RETURN_CODE = 0  # eventual return code when run as script
-_MELPAZOID_ROOT = os.path.join(os.path.dirname(__file__), '..')
+_MELPAZOID_ROOT = os.path.join(
+    os.path.dirname(__file__) if '__file__' in vars() else os.getcwd(),
+    '..',
+)
 _PKG_TMPDIR = os.path.join(_MELPAZOID_ROOT, 'pkg')
 _RESERVED_REGEXPS = ('^git-rebase$', '^helm-source-', '^ob-', '^ox-')
 
