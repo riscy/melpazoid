@@ -351,6 +351,7 @@ def _check_license_api(clone_address: str) -> bool:
         'Creative Commons Zero v1.0 Universal',
         'Do What The F*ck You Want To Public License',
         'GNU Affero General Public License v3.0',
+        # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
         'GNU General Public License v3.0',
         'GNU Lesser General Public License v3.0',
         'ISC License',
