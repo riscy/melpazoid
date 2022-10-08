@@ -233,12 +233,12 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "^(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
   (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
-  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t) ; nofmt
-  (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t)
+  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
+  (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
   (melpazoid-misc "(fset" "Ensure this `fset` isn't being used as a surrogate `defalias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
-  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t) ; nofmt
+  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t nil t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
@@ -301,22 +301,24 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   )
 
-(defun melpazoid-misc (regexp msg &optional no-smart-space include-comments include-strings)
+(defun melpazoid-misc (regexp msg &optional no-smart-space include-comments include-strings case-insensitive)
   "If a search for REGEXP passes, report MSG as a misc check.
 If NO-SMART-SPACE is nil, use smart spaces -- i.e. replace all
 SPC characters in REGEXP with [[:space:]]+.  If INCLUDE-COMMENTS
-then also scan comments for REGEXP; similar for INCLUDE-STRINGS."
+then also scan comments for REGEXP; similar for INCLUDE-STRINGS.
+CASE-INSENSITIVE determines the case-sensitivity of the matches."
   (unless no-smart-space
     (setq regexp (replace-regexp-in-string " " "[[:space:]\n]+" regexp)))
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward regexp nil t)
-      (save-excursion
-        (goto-char (match-beginning 0))
-        (when (and
-               (or include-comments (not (nth 4 (syntax-ppss))))
-               (or include-strings (not (nth 3 (syntax-ppss)))))
-          (melpazoid--annotate-line msg))))))
+    (let ((case-fold-search case-insensitive))
+      (while (re-search-forward regexp nil t)
+        (save-excursion
+          (goto-char (match-beginning 0))
+          (when (and
+                 (or include-comments (not (nth 4 (syntax-ppss))))
+                 (or include-strings (not (nth 3 (syntax-ppss)))))
+            (melpazoid--annotate-line msg)))))))
 
 (defun melpazoid--annotate-line (msg)
   "Annotate the current line with MSG."
