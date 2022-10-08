@@ -396,7 +396,7 @@ OBJECTS are objects to interpolate into the string using `format'."
 
   (let ((load-error nil))
     ;; check whether FILENAMEs can be simply loaded
-    (melpazoid-insert "\n`load`-check on each file:")
+    (melpazoid-insert "\n`#'load`-check on each file:")
     (melpazoid-insert "```")
     (let ((filename nil)
           (filenames (directory-files ".")))
@@ -408,7 +408,7 @@ OBJECTS are objects to interpolate into the string using `format'."
               (load (expand-file-name filename) nil t t)
             (error
              (setq load-error t)
-             (melpazoid-insert "  %s:Error: Emacs %s couldn't load:\n  %S"
+             (melpazoid-insert "  %s:Error: Emacs %s:\n  %S"
                                filename emacs-version err))))))
     (melpazoid-insert "```")
     (when load-error (melpazoid-commit-pending))))
