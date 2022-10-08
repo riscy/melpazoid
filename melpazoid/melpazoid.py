@@ -429,10 +429,10 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     if match:
         license_ = _spdx_license(license_id=match.groups()[0])
         if license_ is None:
-            _fail(f"Invalid {match.string}")
+            _fail(f"- Invalid SPDX license: {match.groups()[0]}")
             return None
         if not license_['isFsfLibre']:
-            _fail(f"Not free/libre: {match.string}")
+            _fail(f"Not free/libre: {match.groups()[0]}")
         return str(license_['name'])
 
     gpl_compatible_license_excerpts = {
@@ -453,6 +453,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
 
 @functools.lru_cache()
 def _spdx_license(license_id: str) -> Optional[Dict[str, Any]]:
+    license_id = license_id.replace(' ', '-')
     try:
         response = _url_get(f'https://spdx.org/licenses/{license_id.strip()}.json')
         return dict(json.loads(response))
