@@ -271,7 +271,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; working with modes
   (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
-  (melpazoid-misc "(setq major-mode" "Prefer `define-derived-mode`")
+  (melpazoid-misc "(setq major-mode" "Unnecessary if you use `define-derived-mode`") ; nofmt
+  (melpazoid-misc "(setq mode-name" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "(string= major-mode" "Prefer `(eq major-mode 'xyz)`")
   (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
