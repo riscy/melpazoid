@@ -229,6 +229,9 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-misc ()
   "Miscellaneous checker."
+  ;; comment style
+  (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" t nil) ; nofmt
+  (melpazoid-misc "\n;;; .*\n;;; " "Triple semicolons `;;;` are usually for section headings" t nil) ; no fmt
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "^(setq-default " "Packages should use `defvar-local`, not `setq-default`") ; nofmt
@@ -246,7 +249,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(setq inhibit-read-only t" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
-  (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" nil t) ; nofmt
   (melpazoid-misc "(file-name-directory load-file-name)" "`load-file-name` is nil during `eval-buffer`; consider `(or load-file-name buffer-file-name)`") ; nofmt
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
