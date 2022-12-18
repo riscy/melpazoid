@@ -833,7 +833,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
     """Turn the recipe into a serialized 'package-recipe' object.
     Throw a ChildProcessError if Emacs encounters a problem.
     >>> _recipe_struct_elisp('(melpazoid :fetcher github :repo "xyz")')
-    '#s(package-github-recipe "melpazoid" nil "xyz" nil nil nil nil nil nil)'
+    '#s(package-github-recipe "melpazoid" nil "xyz" nil nil nil nil nil nil nil nil)'
     """
     name = package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -841,6 +841,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
             file.write(recipe)
         return eval_elisp(
             f"""
+            (require 'package-build)
             (require 'package-recipe)
             (setq package-build-recipes-dir "{tmpdir}")
             (send-string-to-terminal (format "%S" (package-recipe-lookup "{name}")))
