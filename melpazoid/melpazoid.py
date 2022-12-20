@@ -549,15 +549,14 @@ def check_package_name(name: str) -> None:
     keywords = [name]
     keywords += [re.sub(r'[0-9]', '', name)]
     keywords += [name[:-5]] if name.endswith('-mode') else []
+    keywords += [f"{name.split('-')[0]}-"] if '-' in name else []
     keywords += ['org-' + name[3:]] if name.startswith('ox-') else []
     keywords += ['ox-' + name[4:]] if name.startswith('org-') else []
-    known_names = {
-        **emacsattic_packages(*keywords),
-        **emacswiki_packages(*keywords),
-        **emacsmirror_packages(),
-        **elpa_packages(*keywords),
-        **melpa_packages(*keywords),
-    }
+    known_names = emacsattic_packages(*keywords)
+    known_names.update(emacswiki_packages(*keywords))
+    known_names.update(emacsmirror_packages())
+    known_names.update(elpa_packages(*keywords))
+    known_names.update(melpa_packages(*keywords))
     similar_names = [
         (name_, url)
         for name_, url in known_names.items()
@@ -620,9 +619,7 @@ def emacsmirror_packages() -> Dict[str, str]:
     epkgs_parser = configparser.ConfigParser()
     epkgs_parser.read_string(_url_get(epkgs))
     return {
-        epkg.split('"')[1]: 'https://'
-        + data['url'].replace(':', '/')[4:]
-        + ' (via emacsmirror)'
+        epkg.split('"')[1]: data['url'] + ' (via emacsmirror)'
         for epkg, data in epkgs_parser.items()
         if epkg != 'DEFAULT'
     }
