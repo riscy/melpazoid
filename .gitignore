@@ -2,5 +2,7 @@ _requirements.el
 pkg
 *.elc
 
+.hypothesis
 .mypy_cache
 .pytest_cache
+__pycache__
