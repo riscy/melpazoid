@@ -264,6 +264,10 @@ def _write_requirements(files: List[str], recipe: str) -> None:
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
             if req == 'emacs':
                 continue
+            if req == 'marginalia':
+                _fail(
+                    "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
+                )
             # always install the latest available version of the dependency.
             # ignore-errors because package-lint handles checking the index
             requirements_el.write(fr'(message "Installing {req} {version}\n")')
