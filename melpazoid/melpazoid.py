@@ -859,7 +859,7 @@ def eval_elisp(script: str) -> str:
                 file.write(content)
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
         result = subprocess.run(
-            ['emacs', '--no-init-file', '--batch', '--eval', script],
+            ['emacs', '--quick', '--batch', '--eval', script],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
