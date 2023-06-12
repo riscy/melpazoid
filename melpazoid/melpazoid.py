@@ -265,6 +265,9 @@ def _write_requirements(files: List[str], recipe: str) -> None:
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
             if req == 'emacs':
                 continue
+            if '"' in req:  # common failure mode: misplaced quotation marks
+                _fail(f"- Invalid dependency in Package-Requires: `{req}`")
+                continue
             if req == 'marginalia':
                 _fail(
                     "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
@@ -320,7 +323,7 @@ def _reqs_from_el_file(el_file: TextIO) -> Optional[str]:
     '((emacs "24.4"))'
     """
     for line in el_file.readlines():
-        match = re.match(r'[; ]*Package-Requires:[ ]*(.*)$', line, re.I)
+        match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.I)
         if match:
             try:
                 _tokenize_expression(match.groups()[0])
