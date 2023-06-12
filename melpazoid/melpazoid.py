@@ -100,8 +100,9 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
         return
 
     files = [os.path.relpath(f, elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
-    if len({os.path.basename(file_) for file_ in files}) != len(files):
-        _fail(f"Multiple files share the same basename: {', '.join(files)}")
+    elisp_files = [file_ for file_ in files if file_.endswith('.el')]
+    if len({os.path.basename(file_) for file_ in elisp_files}) != len(elisp_files):
+        _fail(f"Multiple elisp files share the same basename: {', '.join(files)}")
         return
 
     pkg_dir = os.path.join(_MELPAZOID_ROOT, 'pkg')
