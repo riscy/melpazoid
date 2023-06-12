@@ -360,6 +360,9 @@ def _check_license_api(clone_address: str) -> bool:
         'Do What The F*ck You Want To Public License',
         'GNU Affero General Public License v3.0',
         # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
+        'GNU General Public License v2.0 or later',
+        'GNU General Public License v3.0 only',
+        'GNU General Public License v3.0 or later',
         'GNU General Public License v3.0',
         'GNU Lesser General Public License v3.0',
         'ISC License',
