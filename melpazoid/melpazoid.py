@@ -556,45 +556,62 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
 def check_package_name(name: str) -> None:
     """Print list of similar, or at least similarly named, packages.
     Report any occurrences of invalid/reserved package names.
+    This function will print nothing if there are no issues.
     """
-    keywords = [name]
-    keywords += [re.sub(r'[0-9]', '', name)]
-    keywords += [name[:-5]] if name.endswith('-mode') else []
-    keywords += [f"{name.split('-')[0]}-"] if '-' in name else []
-    keywords += ['org-' + name[3:]] if name.startswith('ox-') else []
-    keywords += ['ox-' + name[4:]] if name.startswith('org-') else []
-    known_names = emacsattic_packages(*keywords)
-    known_names.update(emacswiki_packages(*keywords))
-    known_names.update(emacsmirror_packages())
-    known_names.update(elpa_packages(*keywords))
-    known_names.update(melpa_packages(*keywords))
-    similar_names = [
-        (name_, url)
-        for name_, url in known_names.items()
-        if any(name_.startswith(keyword) for keyword in keywords)
-    ][:10]
-    try:
-        eval_elisp(f"(require '{name})")
-        name_builtin = True
-    except ChildProcessError:
-        name_builtin = False
-    reserved_names = ('^git-rebase$', '^helm-source-', '^ob-', '^ox-')
+    # is the package name implicitly reserved?
+    reserved_names = ('^git-rebase$', '^helm-source-')
     name_reserved = any(re.match(reserved, name) for reserved in reserved_names)
-    if not similar_names and not name_builtin and not name_reserved:
-        return
-
-    _note('Package name:', CLR_INFO)
-    if name_builtin:
-        _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
-        return
-    if name in known_names:
-        _fail(f"- Error: `{name}` is taken: {known_names[name]}\n", highlight='Error')
-        return
     if name_reserved:
+        _note('Package name:', CLR_INFO)
         _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
         return
-    for name_, url in similar_names:
-        print(f"- `{name_}` is similar: {url}")
+
+    # is the package name an Emacs builtin?
+    try:
+        eval_elisp(f"(require '{name})")
+        _note('Package name:', CLR_INFO)
+        _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
+        return
+    except ChildProcessError:
+        pass
+
+    # do other packages have the same name (within some magin)?
+    emacsmirror = emacsmirror_packages()
+    same_names = [name, f"{name}-mode"]
+    same_names += [name[:-5]] if name.endswith('-mode') else []
+    same_names += ['org-' + name[3:]] if name.startswith('ox-') else []
+    same_names += ['ox-' + name[4:]] if name.startswith('org-') else []
+    same_names = [name_ for name_ in same_names if name_ in emacsmirror]
+    resolved_same = {name_: url for name_, url in emacsmirror.items() if name_ == name}
+    resolved_same.update(emacsattic_packages(*same_names))
+    resolved_same.update(emacswiki_packages(*same_names))
+    resolved_same.update(elpa_packages(*same_names))
+    resolved_same.update(melpa_packages(*same_names))
+    for name_, url in resolved_same.items():
+        _note('Package name:', CLR_INFO)
+        _fail(f"- `{name_}` already exists: {url}\n")
+        return
+
+    # do other packages have similar names, especially namespace conflicts
+    # (to save url_ok calls, we don't specify package index for similars):
+    tokens = name.split('-')
+    prefices = ['-'.join(tokens[: i + 1]) for i in range(len(tokens))]
+    similar_names = {  # packages that are implicitly a parent of 'name'
+        name_: url
+        for name_, url in emacsmirror.items()
+        if any(name_ == prefix for prefix in prefices)
+    }
+    similar_names.update(
+        {  # packages that 'name' is implicitly a parent of
+            name_: url
+            for name_, url in emacsmirror.items()
+            if name_.startswith(f"{name}-")
+        }
+    )
+    if similar_names:
+        _note('Package name:', CLR_INFO)
+        for name_, url in similar_names.items():
+            print(f"- `{name_}` is similar: {url}")
     print()
 
 
@@ -639,16 +656,16 @@ def emacsmirror_packages() -> Dict[str, str]:
 @functools.lru_cache()
 def elpa_packages(*keywords: str) -> Dict[str, str]:
     """ELPA packages matching keywords.
-    >>> elpa_packages('ahungry-theme')
-    {'ahungry-theme': 'https://elpa.gnu.org/packages/ahungry-theme.html'}
     >>> elpa_packages('git-modes')
     {'git-modes (nongnu)': 'https://elpa.nongnu.org/nongnu/git-modes.html'}
+    >>> sorted(elpa_packages('ivy'))
+    ['ivy', 'ivy (devel)']
     """
     # q.v. http://elpa.gnu.org/packages/archive-contents
     elpa = 'https://elpa.gnu.org'
     nongnu_elpa = 'https://elpa.nongnu.org'
     sources = {
-        **{kw: f"{elpa}/devel/{kw}.html" for kw in keywords},
+        **{f"{kw} (devel)": f"{elpa}/devel/{kw}.html" for kw in keywords},
         **{kw: f"{elpa}/packages/{kw}.html" for kw in keywords},
         **{f"{kw} (nongnu)": f"{nongnu_elpa}/nongnu/{kw}.html" for kw in keywords},
     }
