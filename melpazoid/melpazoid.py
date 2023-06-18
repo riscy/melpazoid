@@ -120,9 +120,7 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     main_file = _main_file(files, recipe)
     if main_file and sum(f.endswith('.el') for f in os.listdir(pkg_dir)) > 1:
         cmd.append(f"PACKAGE_MAIN={os.path.basename(main_file)}")
-    run_result = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
-    )
+    run_result = subprocess.run(cmd, capture_output=True, check=False)
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
         lines += ['\nStderr output while compiling/loading:']
@@ -760,9 +758,7 @@ def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
     elif scm == 'hg':
         options = ['--branch', branch if branch else 'default']
     scm_command = [scm, 'clone', *options, repo, into]
-    run_result = subprocess.run(
-        scm_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
-    )
+    run_result = subprocess.run(scm_command, capture_output=True, check=False)
     if run_result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
         _fail(run_result.stderr.decode())
@@ -888,8 +884,7 @@ def eval_elisp(script: str) -> str:
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
         result = subprocess.run(
             ['emacs', '--quick', '--batch', '--eval', script],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=False,
         )
         if result.returncode != 0:
