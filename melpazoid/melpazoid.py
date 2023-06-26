@@ -412,11 +412,16 @@ def _check_license_file(elisp_dir: str) -> None:
         'copying',
         'copying.txt',
         'license',
-        'license.txt',
         'license.md',
+        'license.txt',
+        'licenses',
         'unlicense',
     )
     for license_ in os.scandir(elisp_dir):
+        if license_.is_dir():
+            licenses = ', '.join(f"`{f.name}`" for f in os.scandir(license_.path))
+            print(f"- {license_.name} directory: {licenses}")
+            return
         if license_.name.lower() in license_names:
             with open(license_.path, encoding='utf-8', errors='replace') as stream:
                 print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
