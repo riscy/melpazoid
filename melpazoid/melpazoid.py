@@ -498,7 +498,11 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
             print(f"- {relpath} -- not elisp")
             continue
         if file.endswith('-pkg.el'):
-            _note(f"- {relpath} -- consider excluding; MELPA creates one", CLR_WARN)
+            _note(
+                f"- {relpath} -- consider excluding; "
+                + f"MELPA can create one from {os.path.basename(file)[:-7]}.el",
+                CLR_WARN,
+            )
             continue
         with open(file, encoding='utf-8', errors='replace') as stream:
             try:
