@@ -170,6 +170,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-experimentals ()
   "Run miscs checker."
+  (melpazoid-check-commentary)
+  (melpazoid-check-mixed-indentation)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
   (unless (equal melpazoid--pending "")
@@ -179,6 +181,24 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
            (buffer-name)
            melpazoid--pending))
     (melpazoid-commit-pending)))
+
+(defun melpazoid-check-commentary ()
+  "Check the commentary."
+  (let ((commentary (lm-commentary)))
+    (when commentary
+      (with-temp-buffer
+        (insert commentary)
+        (goto-char 0)
+        (if (re-search-forward ".\\{90\\}" nil t)
+            (melpazoid-insert
+             "- The `;;; Commentary` for this file is much wider than 80 characters"))))))
+
+(defun melpazoid-check-mixed-indentation ()
+  "Check for a mix of tabs and spaces."
+  (goto-char (point-min))
+  (if (re-search-forward "^[\t]+[ ]+" nil t)
+      (melpazoid--annotate-line
+       "Mixed tab/space indentation, consider `(setq indent-tabs-mode nil)`")))
 
 (defun melpazoid-check-sharp-quotes ()
   "Check for missing sharp quotes."
