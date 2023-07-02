@@ -374,6 +374,7 @@ def _check_license_api(clone_address: str) -> bool:
     elif license_.get('name') == 'Other':
         _note('  - Try to use a standard license file format', CLR_WARN)
         print('    See: https://github.com/licensee/licensee')
+        print('    e.g. https://www.gnu.org/licenses/gpl-3.0.txt')
     else:
         _note("  - License not in melpazoid's recognized list", CLR_WARN)
     return True
@@ -460,7 +461,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
         'The Unlicense': 'This is free and unencumbered software released into',
     }
     for license_key, license_text in gpl_compatible_license_excerpts.items():
-        if re.search(license_text, text):
+        if re.search(license_text, text, re.IGNORECASE):
             return license_key
     return None
 
@@ -515,7 +516,7 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
             )
             if boilerplate is None:
                 _fail(
-                    '- Add *formal* license boilerplate or an'
+                    '- Add *formal* license boilerplate and/or an'
                     ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
                     f" to {relpath}"
                 )
