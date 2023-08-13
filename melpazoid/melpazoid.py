@@ -554,10 +554,14 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
     main_requirements = requirements(files, recipe)
     for file in files:
         file_requirements = requirements([file])
-        if file_requirements and file_requirements > main_requirements:
+        if file_requirements and file_requirements - main_requirements:
             _fail(
-                f"- Package-Requires mismatch between {os.path.basename(file)} and "
-                f"{os.path.basename(main_file)}!"
+                f"- Package-Requires incompatibility between {os.path.basename(file)} and "
+                f"{os.path.basename(main_file)}"
+            )
+            print(
+                f"  - {os.path.basename(main_file)} does not have: "
+                + ', '.join(sorted(file_requirements - main_requirements))
             )
 
 
