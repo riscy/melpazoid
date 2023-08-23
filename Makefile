@@ -17,7 +17,7 @@ term: image
 
 .PHONY: image
 image:
-	@$(DOCKER) build --build-arg PACKAGE_MAIN --progress=plain --quiet \
+	@$(DOCKER) build --build-arg PACKAGE_MAIN --quiet \
 		--tag ${IMAGE_NAME} -f docker/Dockerfile .
 
 .PHONY: test-melpazoid
