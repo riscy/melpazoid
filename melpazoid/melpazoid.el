@@ -270,12 +270,12 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`") ; nofmt
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
   ;; working with modes
-  (melpazoid-misc "(equal major-mode \"" "Prefer `(eq major-mode 'xyz)`")
+  (melpazoid-misc "(equal major-mode \"" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
   (melpazoid-misc "(setq major-mode" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(setq mode-name" "Unnecessary if you use `define-derived-mode`") ; nofmt
-  (melpazoid-misc "(string-equal major-mode" "Prefer `(eq major-mode 'xyz)`")
-  (melpazoid-misc "(string= major-mode" "Prefer `(eq major-mode 'xyz)`")
+  (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
+  (melpazoid-misc "(string= major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
   (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space" t)
   ;; modifying Emacs on load
@@ -284,7 +284,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
   (melpazoid-misc "^(advice-add" "Loading a package should rarely add advice" nil t) ; nofmt
   (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency") ; nofmt
-  (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar`") ; nofmt
+  (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
