@@ -110,13 +110,16 @@ affect the output of `byte-compile-file'."
   (package-initialize)
   (require 'package-lint)
   (require 'pkg-info)
-  (melpazoid-insert "\n`%s` with package-lint %s:"
-                    (buffer-name)
-                    (pkg-info-format-version
-                     (pkg-info-package-version "package-lint")))
   (ignore-errors (kill-buffer "*Package-Lint*"))
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
-    (ignore-errors (package-lint-current-buffer)))
+    (melpazoid-insert
+     "\n`%s` with package-lint %s%s:"
+     (buffer-name)
+     (pkg-info-format-version (pkg-info-package-version "package-lint"))
+     (if package-lint-main-file
+         (format " and `package-lint-main-file` = %S" package-lint-main-file)
+       "")
+     (ignore-errors (package-lint-current-buffer))))
   (with-current-buffer (get-buffer-create "*Package-Lint*")
     (let ((issues
            (melpazoid--newline-trim (buffer-substring (point-min) (point-max)))))
