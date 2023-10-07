@@ -174,7 +174,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-experimentals ()
   "Run miscs checker."
   (melpazoid-check-commentary)
-  (melpazoid-check-mixed-indentation)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
   (unless (equal melpazoid--pending "")
@@ -201,7 +200,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (goto-char (point-min))
   (if (re-search-forward "^[\t]+[ ]+" nil t)
       (melpazoid--annotate-line
-       "Mixed tab/space indentation, consider `(setq indent-tabs-mode nil)`")))
+       "Mixed tab/space indentation, consider `(setq indent-tabs-mode nil)` in your personal config")))
 
 (defun melpazoid-check-sharp-quotes ()
   "Check for missing sharp quotes."
@@ -244,6 +243,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-picky ()
   "Miscellaneous checker (picky edition)."
+  (melpazoid-check-mixed-indentation)
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
   (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
   (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`") ; nofmt
