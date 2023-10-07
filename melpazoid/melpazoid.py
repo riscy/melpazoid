@@ -456,8 +456,9 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
         'BSD*': 'Redistribution and use in source and binary forms',
         'FSFAP': 'Copying and distribution of this file, with or without',
         'GPL*': 'is free software.* you can redistribute it',
-        'ISC License': 'Permission to use, copy, modify, and/or distribute this',
+        '0BSD/ISC License': 'Permission to use, copy, modify, and/or distribute this',
         'MIT License': 'Permission is hereby granted, free of charge, to any person',
+        'MPL-2': 'This source code form is subject to the terms of the Mozilla',
         'The Unlicense': 'This is free and unencumbered software released into',
     }
     for license_key, license_text in gpl_compatible_license_excerpts.items():
