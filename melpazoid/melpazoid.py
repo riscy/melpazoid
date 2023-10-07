@@ -802,7 +802,7 @@ def check_melpa_pr(pr_url: str) -> None:
     for changed_file in changed_files:
         filename = changed_file['filename']
         if not filename.startswith('recipes/'):
-            _note(f"Skipping {filename} (not a recipe)")
+            _note(f"Skipping {filename} (file is not in ./recipes/)")
             continue
 
         recipe = _url_get(changed_file['raw_url'])
