@@ -7,6 +7,10 @@
 
 /melpazoid/ is a bundle of scripts for testing Emacs packages, primarily
 submissions to [[https://github.com/melpa/][MELPA]]. I've been using this to help check MELPA [[https://github.com/melpa/melpa/pulls][pull requests]].
+
+(Note: it is not necessary to use melpazoid to get your package on MELPA, but
+maybe it will help.)
+
 The ambition is checks that run in a "clean" environment, either through CI or
 through a container on your local machine. Feedback and pull requests are
 welcome ([[https://github.com/riscy/melpazoid/search?q=TODO&unscoped_q=TODO][search for TODO]]s, [[https://github.com/riscy/melpazoid/issues][raise an issue]])
