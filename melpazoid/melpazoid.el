@@ -277,6 +277,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/line-end-position comparison use `eolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (pos-bol))" "Could this point/pos-bol comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (pos-eol))" "Could this point/pos-eol comparison use `eolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this point/point-min comparison use `bobp`?") ; nofmt
   (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`")
@@ -285,7 +287,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(goto-char (line-end-position))" "Consider `end-of-line`")
   (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`") ; nofmt
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
-  (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `point-at-bol`") ; nofmt
+  (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `line-beginning-position`") ; nofmt
   (melpazoid-misc "(progn (end-of-line) (point))" "Consider `point-at-eol`") ; nofmt
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
   (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
