@@ -77,7 +77,7 @@ affect the output of `byte-compile-file'."
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)
-  (melpazoid-insert "\n`%s` with checkdoc %s:"
+  (melpazoid-insert "\n`%s` with checkdoc %s (fix *within reason*):"
                     (file-name-nondirectory filename)
                     checkdoc-version)
   (ignore-errors (kill-buffer "*Warnings*"))
