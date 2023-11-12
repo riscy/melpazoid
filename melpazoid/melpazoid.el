@@ -176,6 +176,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-check-commentary)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
+  (melpazoid-check-autothemer)
+
   (unless (equal melpazoid--pending "")
     (setq melpazoid--pending
           (format
@@ -183,6 +185,19 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
            (buffer-name)
            melpazoid--pending))
     (melpazoid-commit-pending)))
+
+(defun melpazoid-check-autothemer ()
+  "Check that the name given to autothemer matches the filename."
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward
+            "(autothemer-deftheme[[:space:]\n]+\\(\\<\\w+\\>\\)" nil t)
+      (let ((autothemer-name (concat (match-string 1) "-theme"))
+            (basename (file-name-base (buffer-file-name))))
+        (unless (string= autothemer-name basename)
+          (melpazoid--annotate-line
+           (format "Theme `%s` does not match filename %s.el"
+                   autothemer-name basename)))))))
 
 (defun melpazoid-check-commentary ()
   "Check the commentary."
