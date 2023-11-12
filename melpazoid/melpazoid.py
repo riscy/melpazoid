@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 usage: melpazoid.py [-h] [--license] [--recipe RECIPE] [target]
 
