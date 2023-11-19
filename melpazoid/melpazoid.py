@@ -396,8 +396,8 @@ def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
     match = re.search(r'gitlab.com/([^"]*)', clone_address, flags=re.I)
     if match:
         project_id = match.groups()[0].rstrip('/').replace('/', '%2F')
-        projects_api = 'https://gitlab.com/api/v4/projects'
-        repo_info = json.loads(_url_get(f"{projects_api}/{project_id}?license=true"))
+        gitlab_projects = 'https://gitlab.com/api/v4/projects'
+        repo_info = json.loads(_url_get(f"{gitlab_projects}/{project_id}?license=true"))
         # HACK: align GitLab API response with typical GitHub api response
         repo_info['updated_at'] = repo_info['last_activity_at']
         repo_info['watchers_count'] = repo_info['star_count']
@@ -418,14 +418,15 @@ def _check_license_file(elisp_dir: str) -> None:
         'unlicense',
     )
     for license_ in os.scandir(elisp_dir):
+        if license_.name.lower() not in license_names:
+            continue
         if license_.is_dir():
             licenses = ', '.join(f"`{f.name}`" for f in os.scandir(license_.path))
             print(f"- {license_.name} directory: {licenses}")
             return
-        if license_.name.lower() in license_names:
-            with open(license_.path, encoding='utf-8', errors='replace') as stream:
-                print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
-            return
+        with open(license_.path, encoding='utf-8', errors='replace') as stream:
+            print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
+        return
     _fail('- Add a GPL-compatible LICENSE file to the repository')
 
 
@@ -441,6 +442,8 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     text = el_file.read()
     match = re.search(r'SPDX-License-Identifier:[ ]*(.+)', text, flags=re.I)
     if match:
+        # TODO: one can AND and OR licenses together
+        # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
         license_ = _spdx_license(license_id=match.groups()[0])
         if license_ is None:
             _fail(f"- Invalid SPDX license: {match.groups()[0]}")
@@ -520,9 +523,8 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
             )
             if boilerplate is None:
                 _fail(
-                    '- Add *formal* license boilerplate and/or an'
-                    ' [SPDX-License-Identifier](https://spdx.dev/ids/)'
-                    f" to {relpath}"
+                    f"- {relpath} needs *formal* license boilerplate and/or an"
+                    " [SPDX-License-Identifier](https://spdx.dev/ids/)"
                 )
 
 
