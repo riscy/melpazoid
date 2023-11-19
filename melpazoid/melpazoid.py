@@ -140,6 +140,7 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
 
 def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
     """Return a file listing, relative to elisp_dir.
+    May raise ChildProcessError on encountering an invalid recipe.
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', 'melpazoid')
     ['melpazoid/melpazoid.el']
     """
@@ -156,17 +157,8 @@ def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
     return sorted(file for file in files if os.path.exists(file))
 
 
-def _files_in_default_recipe(recipe: str, elisp_dir: str) -> List[str]:
-    try:
-        return _files_in_recipe(_default_recipe(recipe), elisp_dir)
-    except ChildProcessError:
-        # It is possible that the default recipe is completely invalid and
-        # will throw an error -- in that case, just return the empty list:
-        return []
-
-
 def _default_recipe(recipe: str) -> str:
-    """Simplify the given recipe, usually to the default.
+    """Simplify the given recipe by removing ':files'.
     >>> _default_recipe('(recipe :repo "a/b" :fetcher hg :branch na :files ("*.el"))')
     '(recipe :repo "a/b" :fetcher hg :branch na)'
     >>> _default_recipe('(recipe :fetcher hg :url "a/b")')
@@ -530,17 +522,30 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
 
 def _check_recipe(recipe: str, elisp_dir: str) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
-    if ':branch' in recipe:
-        _note('- Avoid specifying `:branch` except in unusual cases', CLR_WARN)
+    for specifier in (':branch', ':commit', ':version-regexp'):
+        if specifier in recipe:
+            _note(f"- Avoid specifying `{specifier}` except in unusual cases", CLR_WARN)
     if not _main_file(files, recipe):
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':url' in recipe and 'https://github.com' in recipe:
         _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
     if ':files' in recipe:
-        if files == _files_in_default_recipe(recipe, elisp_dir):
+        try:
+            files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
+        except ChildProcessError:
+            _note("Default recipe invalid: {_default_recipe(recipe)}", CLR_WARN)
+            files_default_recipe = []
+        if files == files_default_recipe:
             _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
-        elif ':defaults' not in recipe:
-            _note('- Prefer the default recipe or `:defaults`, if possible.', CLR_WARN)
+            return
+        if '"*.el"' in recipe and ':defaults' not in recipe:
+            new_recipe = recipe.replace('"*.el"', ':defaults')
+            if files == _files_in_recipe(new_recipe, elisp_dir):
+                _note(f"- Prefer equivalent recipe: `{new_recipe}`", CLR_WARN)
+                return
+            _note('- Prefer :defaults instead of *.el, if possible')
+        if '"*.el"' in recipe:
+            _note(f"- Prefer `{package_name(recipe)}-*.el` over `*.el`", CLR_WARN)
 
 
 def _check_package_requires(recipe: str, elisp_dir: str) -> None:
