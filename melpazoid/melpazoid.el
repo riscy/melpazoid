@@ -259,11 +259,13 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-picky ()
   "Miscellaneous checker (picky edition)."
   (melpazoid-check-mixed-indentation)
+  (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency") ; nofmt
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
   (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
   (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`") ; nofmt
   (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
   (melpazoid-misc ")\n\n\n+(" "Prefer one blank line between this top-level form and the next") ; nofmt
+  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t nil t) ; nofmt
   (melpazoid-misc "^;;; Commentary:\n;;\n" "Use a blank line instead of `;;` by itself under your `;;; Commentary` header"))
 
 (defun melpazoid-check-misc ()
@@ -279,7 +281,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
-  (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t nil t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
@@ -323,7 +324,6 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
   (melpazoid-misc "^(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
   (melpazoid-misc "^(advice-add" "Loading a package should rarely add advice" nil t) ; nofmt
-  (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency") ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
