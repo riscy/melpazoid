@@ -935,6 +935,7 @@ def _check_loop() -> None:
     while True:
         try:
             for target in _fetch_targets():
+                start = time.perf_counter()
                 if is_recipe(target):
                     _note(f"<!-- Checking recipe: {_prettify_recipe(target)} -->")
                     check_melpa_recipe(target)
@@ -942,9 +943,9 @@ def _check_loop() -> None:
                     _note(f"<!-- Checking pull request: {target} -->")
                     check_melpa_pr(target)
                 if _return_code() != 0:
-                    _fail('<!-- Issues detected -->')
+                    _fail(f'<!-- Failed in {time.perf_counter() - start:.2}s -->')
                 else:
-                    _note('<!-- Finished -->', CLR_INFO)
+                    _note(f'<!-- Finished in {time.perf_counter() - start:.2}s -->')
         except KeyboardInterrupt:
             pdb.set_trace()  # pylint: disable=forgotten-debug-statement
 
