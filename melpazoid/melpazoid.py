@@ -262,10 +262,9 @@ def _write_requirements(files: List[str], recipe: str) -> None:
                     "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
                 )
             # always install the latest available version of the dependency.
-            # ignore-errors because package-lint handles checking the index
-            requirements_el.write(fr'(message "Installing {req} {version}\n")')
+            requirements_el.write(f';; {req} {version}"\n')
             requirements_el.write(
-                f"(ignore-errors (package-install (cadr (assq '{req} package-archive-contents))))\n"
+                f"(package-install (cadr (assq '{req} package-archive-contents)))\n"
             )
 
 
@@ -556,19 +555,16 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     main_file = _main_file(files, recipe)
     if not main_file:
-        _fail("- Can't check package-requires if there is no 'main' file")
+        _fail("- Can't check Package-Requires if there is no 'main' file")
         return
-    main_requirements = requirements(files, recipe)
+    main_file_requirements = requirements(files, recipe)
     for file in files:
         file_requirements = requirements([file])
-        if file_requirements and file_requirements - main_requirements:
+        if file_requirements > main_file_requirements:
             _fail(
-                f"- Package-Requires incompatibility between {os.path.basename(file)} and "
-                f"{os.path.basename(main_file)}"
-            )
-            print(
-                f"  - {os.path.basename(main_file)} does not have: "
-                + ', '.join(sorted(file_requirements - main_requirements))
+                f"- {os.path.basename(main_file)} must include all of the "
+                + f"Package-Requires listed in {os.path.basename(file)}: "
+                + ', '.join(sorted(file_requirements - main_file_requirements))
             )
 
 
