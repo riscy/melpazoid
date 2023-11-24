@@ -17,7 +17,7 @@
 
 ;; NOTE: avoid top-level "require"s - these can influence `melpazoid-byte-compile'
 
-(defconst melpazoid-buffer "*melpazoid*" "Name of the 'melpazoid' buffer.")
+(defconst melpazoid-buffer "*melpazoid*" "Name of the melpazoid buffer.")
 (defvar melpazoid-can-modify-buffers nil "Whether melpazoid can modify buffers.")
 (defvar melpazoid--pending "" "Text that will (maybe) be appended to the report.")
 
@@ -56,7 +56,7 @@ It should only be set to t for themes."
         (save-buffer)))))
 
 (defun melpazoid--package-load-paths ()
-  "Return a list of 'package' load-paths.
+  "Return a list of package load-paths.
 Normally these would be resolved by `package-initialize', but
 running that function requires bringing in dependencies that can
 affect the output of `byte-compile-file'."
@@ -68,7 +68,7 @@ affect the output of `byte-compile-file'."
     package-paths))
 
 (defun melpazoid--buffer-almost-empty-p ()
-  "Return non-nil if current buffer is 'almost' empty."
+  "Return non-nil if current buffer is almost empty."
   (<= (- (point-max) (point)) 3))
 
 (defvar checkdoc-version)
