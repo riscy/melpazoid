@@ -27,13 +27,11 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, TextIO
 
 _RETURN_CODE = 0  # eventual return code when run as script
-_MELPAZOID_ROOT = os.path.join(
-    os.path.dirname(__file__) if '__file__' in vars() else os.getcwd(),
-    '..',
-)
+_MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()).parent
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -92,33 +90,31 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = '') -> None:
     _return_code(2)
 
 
-def check_containerized_build(recipe: str, elisp_dir: str) -> None:
+def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
     """Build a Docker container to run checks on elisp_dir, given a recipe."""
     if not is_recipe(recipe):
         _fail(f"Not a valid recipe: {recipe}")
         return
 
-    files = [os.path.relpath(f, elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
-    elisp_files = [file_ for file_ in files if file_.endswith('.el')]
-    if len({os.path.basename(file_) for file_ in elisp_files}) != len(elisp_files):
-        _fail(f"Multiple elisp files share the same basename: {', '.join(files)}")
+    files = [f.relative_to(elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
+    elisp_files = [file_.name for file_ in files if file_.name.endswith('.el')]
+    if len(elisp_files) != len(set(elisp_files)):
+        _fail(f"Multiple .el files with the same name: {' '.join(sorted(elisp_files))}")
         return
 
-    pkg_dir = os.path.join(_MELPAZOID_ROOT, 'pkg')
+    pkg_dir = _MELPAZOID_ROOT / 'pkg'
     shutil.rmtree(pkg_dir, ignore_errors=True)
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     for ii, file in enumerate(files):
-        target = os.path.basename(file) if file.endswith('.el') else file
-        target = os.path.join(pkg_dir, target)
-        os.makedirs(os.path.dirname(target), exist_ok=True)
+        files[ii] = pkg_dir / (file.name if file.name.endswith('.el') else file)
+        files[ii].parent.mkdir(exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
-        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target], check=True)
-        files[ii] = target
+        subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
     _write_requirements(files, recipe)
-    cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
+    cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'test']
     main_file = _main_file(files, recipe)
-    if main_file and sum(f.endswith('.el') for f in os.listdir(pkg_dir)) > 1:
-        cmd.append(f"PACKAGE_MAIN={os.path.basename(main_file)}")
+    if main_file and sum(f.name.endswith('.el') for f in pkg_dir.iterdir()) > 1:
+        cmd.append(f"PACKAGE_MAIN={main_file.name}")
     run_result = subprocess.run(cmd, capture_output=True, check=False)
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
@@ -138,23 +134,23 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
     print_packaging(recipe, elisp_dir)
 
 
-def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
+def _files_in_recipe(recipe: str, elisp_dir: Path) -> List[Path]:
     """Return a file listing, relative to elisp_dir.
     May raise ChildProcessError on encountering an invalid recipe.
-    >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', 'melpazoid')
-    ['melpazoid/melpazoid.el']
+    >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
+    [PosixPath('melpazoid/melpazoid.el')]
     """
-    files = eval_elisp(
+    filenames = eval_elisp(
         f"""
         (require 'package-build)
-        (setq package-build-working-dir "{os.path.dirname(elisp_dir)}")
+        (setq package-build-working-dir "{elisp_dir.parent}")
         (setq rcp {_recipe_struct_elisp(recipe)})
         (send-string-to-terminal
             (mapconcat #'car (package-build-expand-files-spec rcp t) "\n"))
         """
     ).split('\n')
-    files = [os.path.join(elisp_dir, file) for file in files]
-    return sorted(file for file in files if os.path.exists(file))
+    files = [elisp_dir / filename for filename in filenames]
+    return sorted(file for file in files if file.exists())
 
 
 def _default_recipe(recipe: str) -> str:
@@ -206,14 +202,14 @@ def package_name(recipe: str) -> str:
     return _tokenize_expression(recipe)[1]
 
 
-def _main_file(files: List[str], recipe: str) -> Optional[str]:
+def _main_file(files: List[Path], recipe: str) -> Optional[Path]:
     """Figure out the 'main' file of the recipe, per MELPA convention.
-    >>> _main_file(['pkg/a.el', 'pkg/b.el'], '(a :files ...)')
-    'pkg/a.el'
-    >>> _main_file(['a.el', 'b.el'], '(b :files ...)')
-    'b.el'
-    >>> _main_file(['a.el', 'a-pkg.el'], '(a :files ...)')
-    'a-pkg.el'
+    >>> _main_file([Path('pkg/a.el'), Path('pkg/b.el')], '(a :files ...)')
+    PosixPath('pkg/a.el')
+    >>> _main_file([Path('a.el'), Path('b.el')], '(b :files ...)')
+    PosixPath('b.el')
+    >>> _main_file([Path('a.el'), Path('a-pkg.el')], '(a :files ...)')
+    PosixPath('a-pkg.el')
     """
     name = package_name(recipe)
     try:
@@ -224,14 +220,13 @@ def _main_file(files: List[str], recipe: str) -> Optional[str]:
             # looks for name-pkg.el, then name-pkg.el.in, and then name.el,
             # which happens to match sorted() order:
             for el in sorted(files)
-            if os.path.basename(el)
-            in (f"{name}-pkg.el", f"{name}-pkg.el.in", f"{name}.el")
+            if el.name in (f"{name}-pkg.el", f"{name}-pkg.el.in", f"{name}.el")
         )
     except StopIteration:
         return None
 
 
-def _write_requirements(files: List[str], recipe: str) -> None:
+def _write_requirements(files: List[Path], recipe: str) -> None:
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
         requirements_el.write(
@@ -268,7 +263,7 @@ def _write_requirements(files: List[str], recipe: str) -> None:
             )
 
 
-def requirements(files: List[str], recipe: Optional[str] = None) -> Set[str]:
+def requirements(files: List[Path], recipe: Optional[str] = None) -> Set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
@@ -278,12 +273,12 @@ def requirements(files: List[str], recipe: Optional[str] = None) -> Set[str]:
         main_file = _main_file(files, recipe)
         if main_file:
             files = [main_file]
-    for filename in (f for f in files if os.path.isfile(f)):
-        if filename.endswith('-pkg.el'):
-            with open(filename, encoding='utf-8', errors='replace') as pkg_el:
+    for file_ in (f for f in files if f.is_file()):
+        if file_.name.endswith('-pkg.el'):
+            with open(file_, encoding='utf-8', errors='replace') as pkg_el:
                 reqs.append(_reqs_from_pkg_el(pkg_el))
-        elif filename.endswith('.el'):
-            with open(filename, encoding='utf-8', errors='replace') as el_file:
+        elif file_.name.endswith('.el'):
+            with open(file_, encoding='utf-8', errors='replace') as el_file:
                 reqs.append(_reqs_from_el_file(el_file) or '')
     reqs = sum((re.split('[()]', req) for req in reqs), [])
     return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
@@ -397,7 +392,7 @@ def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _check_license_file(elisp_dir: str) -> None:
+def _check_license_file(elisp_dir: Path) -> None:
     """Scan any COPYING or LICENSE files."""
     license_names = (
         'copying',
@@ -408,14 +403,14 @@ def _check_license_file(elisp_dir: str) -> None:
         'licenses',
         'unlicense',
     )
-    for license_ in os.scandir(elisp_dir):
+    for license_ in elisp_dir.iterdir():
         if license_.name.lower() not in license_names:
             continue
         if license_.is_dir():
-            licenses = ', '.join(f"`{f.name}`" for f in os.scandir(license_.path))
+            licenses = ', '.join(f"`{f.name}`" for f in license_.iterdir())
             print(f"- {license_.name} directory: {licenses}")
             return
-        with open(license_.path, encoding='utf-8', errors='replace') as stream:
+        with open(license_, encoding='utf-8', errors='replace') as stream:
             print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
         return
     _fail('- Add a GPL-compatible LICENSE file to the repository')
@@ -470,7 +465,7 @@ def _spdx_license(license_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def print_packaging(recipe: str, elisp_dir: str) -> None:
+def print_packaging(recipe: str, elisp_dir: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
     _note('Package and license:', CLR_INFO)
     _check_recipe(recipe, elisp_dir)
@@ -479,22 +474,22 @@ def print_packaging(recipe: str, elisp_dir: str) -> None:
     print()
 
 
-def _check_license(recipe: str, elisp_dir: str) -> None:
+def _check_license(recipe: str, elisp_dir: Path) -> None:
     clone_address = _clone_address(recipe)
     if not _check_license_api(clone_address):
         _check_license_file(elisp_dir)
     for file in _files_in_recipe(recipe, elisp_dir):
-        relpath = os.path.relpath(file, elisp_dir)
-        if os.path.isdir(file):
+        relpath = file.relative_to(elisp_dir)
+        if file.is_dir():
             print(f"- {relpath} -- directory")
             continue
-        if not file.endswith('.el'):
+        if not file.name.endswith('.el'):
             print(f"- {relpath} -- not elisp")
             continue
-        if file.endswith('-pkg.el'):
+        if file.name.endswith('-pkg.el'):
             _note(
                 f"- {relpath} -- consider excluding; "
-                + f"MELPA can create one from {os.path.basename(file)[:-7]}.el",
+                + f"MELPA can create one from {file.name[:-7]}.el",
                 CLR_WARN,
             )
             continue
@@ -519,7 +514,7 @@ def _check_license(recipe: str, elisp_dir: str) -> None:
                 )
 
 
-def _check_recipe(recipe: str, elisp_dir: str) -> None:
+def _check_recipe(recipe: str, elisp_dir: Path) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     for specifier in (':branch', ':commit', ':version-regexp'):
         if specifier in recipe:
@@ -547,7 +542,7 @@ def _check_recipe(recipe: str, elisp_dir: str) -> None:
             _note(f"- Prefer `{package_name(recipe)}-*.el` over `*.el`", CLR_WARN)
 
 
-def _check_package_requires(recipe: str, elisp_dir: str) -> None:
+def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
@@ -562,8 +557,8 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
         file_requirements = requirements([file])
         if file_requirements > main_file_requirements:
             _fail(
-                f"- {os.path.basename(main_file)} must include all of the "
-                + f"Package-Requires listed in {os.path.basename(file)}: "
+                f"- {main_file.name} must include all of the "
+                + f"Package-Requires listed in {file.name}: "
                 + ', '.join(sorted(file_requirements - main_file_requirements))
             )
 
@@ -706,13 +701,14 @@ def melpa_packages(*keywords: str) -> Dict[str, str]:
 def check_melpa_recipe(recipe: str) -> None:
     """Check a MELPA recipe definition."""
     _return_code(0)
-    with tempfile.TemporaryDirectory() as elisp_dir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = os.path.join(elisp_dir, package_name(recipe))
+        elisp_dir = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
-        if _local_repo():
+        local_repo = _local_repo()
+        if local_repo:
             print(f"Using local repository at {_local_repo()}")
-            shutil.copytree(_local_repo(), elisp_dir)
+            shutil.copytree(local_repo, elisp_dir)
             check_containerized_build(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             check_containerized_build(recipe, elisp_dir)
@@ -722,13 +718,14 @@ def check_license(recipe: str) -> None:
     """Check license for a given recipe."""
     # TODO: DRY up wrt check_melpa_recipe
     _return_code(0)
-    with tempfile.TemporaryDirectory() as elisp_dir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = os.path.join(elisp_dir, package_name(recipe))
+        elisp_dir = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
-        if _local_repo():
-            print(f"Using local repository at {_local_repo()}")
-            shutil.copytree(_local_repo(), elisp_dir)
+        local_repo = _local_repo()
+        if local_repo:
+            print(f"Using local repository at {local_repo}")
+            shutil.copytree(local_repo, elisp_dir)
             _check_license(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _check_license(recipe, elisp_dir)
@@ -743,13 +740,13 @@ def _fetcher(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
 
 
-def _local_repo() -> str:
-    local_repo = os.path.expanduser(os.environ.get('LOCAL_REPO', ''))
-    assert not local_repo or os.path.isdir(local_repo)
-    return local_repo
+def _local_repo() -> Optional[Path]:
+    if not os.environ.get('LOCAL_REPO'):
+        return None
+    return Path.expanduser(Path(os.environ['LOCAL_REPO']))
 
 
-def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
+def _clone(repo: str, into: Path, branch: Optional[str], fetcher: str) -> bool:
     """Try to clone the repository; return whether we succeeded."""
     _note(f"<!-- Cloning {repo} {'@' + branch if branch else ''} -->")
 
@@ -764,7 +761,7 @@ def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
         if branch:
             _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
-    os.makedirs(into)
+    into.mkdir()
     scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
         options = ['--single-branch']
@@ -774,7 +771,7 @@ def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
             options += ['--depth', '1']
     elif scm == 'hg':
         options = ['--branch', branch if branch else 'default']
-    scm_command = [scm, 'clone', *options, repo, into]
+    scm_command = [scm, 'clone', *options, repo, str(into)]
     run_result = subprocess.run(scm_command, capture_output=True, check=False)
     if run_result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
@@ -809,13 +806,13 @@ def check_melpa_pr(pr_url: str) -> None:
             continue
 
         recipe = _url_get(changed_file['raw_url'])
-        if os.path.basename(filename) != package_name(recipe):
+        if Path(filename).name != package_name(recipe):
             _fail(f"'{filename}' does not match '{package_name(recipe)}'")
             continue
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # package-build prefers the directory to be named after the package:
-            elisp_dir = os.path.join(tmpdir, package_name(recipe))
+            elisp_dir = Path(tmpdir) / package_name(recipe)
             if _clone(
                 _clone_address(recipe),
                 into=elisp_dir,
@@ -875,8 +872,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
     """
     name = package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, name), 'w', encoding='utf-8') as file:
-            file.write(recipe)
+        (Path(tmpdir) / name).write_text(recipe, 'utf-8')
         return eval_elisp(
             f"""
             (require 'package-build)
@@ -896,8 +892,7 @@ def eval_elisp(script: str) -> str:
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
-            with open(os.path.join(tmpdir, filename), 'w', encoding='utf-8') as file:
-                file.write(content)
+            (Path(tmpdir) / filename).write_text(content, 'utf-8')
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
         result = subprocess.run(
             ['emacs', '--quick', '--batch', '--eval', script],
@@ -972,13 +967,12 @@ def _argparse_target(target: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
     if re.match(MELPA_PR, target):
         os.environ['MELPA_PR_URL'] = target
-    elif os.path.isfile(target):
-        with open(target, encoding='utf-8') as file:
-            potential_recipe = file.read()
+    elif Path(target).is_file():
+        potential_recipe = Path(target).read_text('utf-8')
         if not is_recipe(potential_recipe):
             raise argparse.ArgumentTypeError(f"{target!r} contains an invalid recipe")
         os.environ['RECIPE'] = potential_recipe
-    elif os.path.isdir(target):
+    elif Path(target).is_dir():
         os.environ['LOCAL_REPO'] = target
     else:
         raise argparse.ArgumentTypeError(f"{target!r} must be a MELPA PR or local path")
