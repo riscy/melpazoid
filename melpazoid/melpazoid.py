@@ -107,7 +107,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     for ii, file in enumerate(files):
         files[ii] = pkg_dir / (file.name if file.name.endswith('.el') else file)
-        files[ii].parent.mkdir(exist_ok=True)
+        files[ii].parent.mkdir(parents=True, exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
         subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
     _write_requirements(files, recipe)
