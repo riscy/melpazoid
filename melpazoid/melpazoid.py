@@ -527,7 +527,7 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
         except ChildProcessError:
-            _note("Default recipe invalid: {_default_recipe(recipe)}", CLR_WARN)
+            _note(f"Default recipe invalid: {_default_recipe(recipe)}", CLR_WARN)
             files_default_recipe = []
         if files == files_default_recipe:
             _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
@@ -539,7 +539,7 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
                 return
             _note('- Prefer :defaults instead of *.el, if possible')
         if '"*.el"' in recipe:
-            _note(f"- Prefer `{package_name(recipe)}-*.el` over `*.el`", CLR_WARN)
+            _note(f"- Prefer `{package_name(recipe)}*.el` over `*.el`", CLR_WARN)
 
 
 def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
@@ -808,6 +808,12 @@ def check_melpa_pr(pr_url: str) -> None:
         recipe = _url_get(changed_file['raw_url'])
         if Path(filename).name != package_name(recipe):
             _fail(f"'{filename}' does not match '{package_name(recipe)}'")
+            continue
+
+        try:
+            _recipe_struct_elisp(recipe)
+        except ChildProcessError as err:
+            _fail(f"Invalid recipe in PR `{recipe.strip()}`: {err}")
             continue
 
         with tempfile.TemporaryDirectory() as tmpdir:
