@@ -934,9 +934,9 @@ def _check_loop() -> None:
                     _note(f"<!-- Checking pull request: {target} -->")
                     check_melpa_pr(target)
                 if _return_code() != 0:
-                    _fail(f'<!-- Failed in {time.perf_counter() - start:.2}s -->')
+                    _fail(f'<!-- Failed in {time.perf_counter() - start:.2f}s -->')
                 else:
-                    _note(f'<!-- Finished in {time.perf_counter() - start:.2}s -->')
+                    _note(f'<!-- Finished in {time.perf_counter() - start:.2f}s -->')
         except KeyboardInterrupt:
             pdb.set_trace()  # pylint: disable=forgotten-debug-statement
 
