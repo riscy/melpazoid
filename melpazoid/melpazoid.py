@@ -555,7 +555,7 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
     main_file_requirements = requirements(files, recipe)
     for file in files:
         file_requirements = requirements([file])
-        if file_requirements > main_file_requirements:
+        if file_requirements - main_file_requirements > set():
             _fail(
                 f"- {main_file.name} must include all of the "
                 + f"Package-Requires listed in {file.name}: "
