@@ -2,6 +2,7 @@ IMAGE_NAME = melpazoid
 DOCKER ?= docker
 DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=5
 DOCKER_OUTPUT = --quiet  # e.g. '--progress=plain' xor '--quiet'
+BUILD_OPTIONS = --load
 
 .PHONY: run
 run:
@@ -18,7 +19,7 @@ term: image
 
 .PHONY: image
 image:
-	@$(DOCKER) build --build-arg PACKAGE_MAIN ${DOCKER_OUTPUT} \
+	@$(DOCKER) build --build-arg PACKAGE_MAIN ${BUILD_OPTIONS} ${DOCKER_OUTPUT} \
 		--tag ${IMAGE_NAME} -f docker/Dockerfile .
 
 .PHONY: test-melpazoid
