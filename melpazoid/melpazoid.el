@@ -449,7 +449,7 @@ OBJECTS are objects to interpolate into the string using `format'."
     (melpazoid-insert "\n`#'load`-check on each file:")
     (melpazoid-insert "```")
     (let ((filename nil)
-          (filenames (directory-files ".")))
+          (filenames (reverse (directory-files "."))))
       (while filenames
         (setq filename (car filenames) filenames (cdr filenames))
         (when (melpazoid--check-file-p filename)
