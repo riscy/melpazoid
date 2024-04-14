@@ -1,7 +1,7 @@
 IMAGE_NAME = melpazoid
 DOCKER ?= docker
-DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=5
-DOCKER_OUTPUT = --quiet  # e.g. '--progress=plain' xor '--quiet'
+DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=50
+DOCKER_OUTPUT ?= --progress=plain  # e.g. '--progress=plain' xor '--quiet'
 
 .PHONY: run
 run:

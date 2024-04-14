@@ -104,18 +104,24 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
 
     pkg_dir = _MELPAZOID_ROOT / 'pkg'
     shutil.rmtree(pkg_dir, ignore_errors=True)
-    _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     for ii, file in enumerate(files):
         files[ii] = pkg_dir / (file.name if file.name.endswith('.el') else file)
         files[ii].parent.mkdir(parents=True, exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
         subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
     _write_requirements(files, recipe)
+
+    _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
+    run_env = dict(os.environ, DOCKER_OUTPUT='--quiet')  # or --progress=plain
+    cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'image']
+    subprocess.run(cmd, check=True, env=run_env)
+
+    _note('\n<!-- Running melpazoid tests... -->')
     cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'test']
     main_file = _main_file(files, recipe)
     if main_file and sum(f.name.endswith('.el') for f in pkg_dir.iterdir()) > 1:
         cmd.append(f"PACKAGE_MAIN={main_file.name}")
-    run_result = subprocess.run(cmd, capture_output=True, check=False)
+    run_result = subprocess.run(cmd, capture_output=True, check=False, env=run_env)
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
         lines += ['\nStderr output while compiling/loading:']
