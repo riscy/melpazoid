@@ -476,8 +476,21 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
     _note('Package and license:', CLR_INFO)
     _check_recipe(recipe, elisp_dir)
     _check_package_requires(recipe, elisp_dir)
+    _check_url(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
     print()
+
+
+def _check_url(recipe: str, elisp_dir: Path) -> None:
+    files = _files_in_recipe(recipe, elisp_dir)
+    main_file = _main_file(files, recipe)
+    with open(main_file, encoding='utf-8', errors='replace') as stream:
+        text = stream.read()
+    url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.I)
+    if url_match:
+        url = url_match.groups()[0]
+        if not _url_ok(url):
+            _fail(f"- Unreachable package URL: {url}")
 
 
 def _check_license(recipe: str, elisp_dir: Path) -> None:
