@@ -9,6 +9,7 @@ optional arguments:
   --license        only check licenses
   --recipe RECIPE  a valid MELPA recipe
 """
+
 __author__ = 'Chris Rayner <dchrisrayner@gmail.com>'
 __license__ = 'SPDX-License-Identifier: GPL-3.0-or-later'
 import argparse
@@ -552,7 +553,7 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
         except ChildProcessError:
-            _note(f"Default recipe invalid: {_default_recipe(recipe)}", CLR_WARN)
+            _note(f"Default recipe not viable: {_default_recipe(recipe)}")
             files_default_recipe = []
         if files == files_default_recipe:
             _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
@@ -583,7 +584,7 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
         if file_requirements - main_file_requirements > set():
             _fail(
                 f"- {main_file.name} must include all of the "
-                + f"Package-Requires listed in {file.name}: "
+                + f"Package-Requires listed in {file.name}, including: "
                 + ', '.join(sorted(file_requirements - main_file_requirements))
             )
 
@@ -893,6 +894,7 @@ def _prettify_recipe(recipe: str) -> str:
 @functools.lru_cache()
 def _clone_address(recipe: str) -> str:
     """Fetch the upstream repository URL for the recipe.
+    Throw a ChildProcessError if Emacs encounters a problem.
     >>> _clone_address('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
     'https://github.com/riscy/shx-for-emacs.git'
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
