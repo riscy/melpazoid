@@ -569,7 +569,18 @@ def check_package_name(name: str) -> None:
     This function will print nothing if there are no issues.
     """
     # is the package name implicitly reserved?
-    reserved_names = ('^git-rebase$', '^helm-source-')
+    reserved_names = (
+        # used by distel
+        '^erl$',
+        '^derl$',
+        '^epmd$',
+        '^erlext$',
+        '^mcase$',
+        '^net-fsm$',
+        # other
+        '^git-rebase$',
+        '^helm-source-',
+    )
     name_reserved = any(re.match(reserved, name) for reserved in reserved_names)
     if name_reserved:
         _note('Package name:', CLR_INFO)
@@ -603,7 +614,7 @@ def check_package_name(name: str) -> None:
         return
 
     # do other packages have similar names, especially namespace conflicts
-    # (to save url_ok calls, we don't specify package index for similars):
+    # (to save network calls, we only scan packages listed on emacsmirror):
     tokens = name.split('-')
     prefices = ['-'.join(tokens[: i + 1]) for i in range(len(tokens))]
     similar_names = {  # packages that are implicitly a parent of 'name'
@@ -619,6 +630,7 @@ def check_package_name(name: str) -> None:
         }
     )
     if similar_names:
+        similar_names.update(melpa_packages(*similar_names.keys()))
         _note('Package name:', CLR_INFO)
         for name_, url in similar_names.items():
             print(f"- `{name_}` is similar: {url}")
@@ -628,6 +640,7 @@ def check_package_name(name: str) -> None:
 @functools.lru_cache()
 def emacsattic_packages(*keywords: str) -> Dict[str, str]:
     """(Obsolete) packages on Emacsattic matching 'keywords'.
+    q.v. https://github.com/melpa/melpa/pull/8621#issuecomment-1616925395
     >>> emacsattic_packages('sos')
     {'sos': 'https://github.com/emacsattic/sos'}
     """
