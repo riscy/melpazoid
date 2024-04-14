@@ -441,7 +441,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
             _fail(f"- Invalid SPDX license: {match.groups()[0]}")
             return None
         if not license_['isFsfLibre']:
-            _fail(f"Not free/libre: {match.groups()[0]}")
+            _fail(f"- Non-free/libre license: {match.groups()[0]}")
         return str(license_['name'])
 
     gpl_compatible_license_excerpts = {
@@ -477,6 +477,7 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
     _check_recipe(recipe, elisp_dir)
     _check_package_requires(recipe, elisp_dir)
     _check_url(recipe, elisp_dir)
+    _check_filenames(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
     print()
 
@@ -493,24 +494,29 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
             _fail(f"- Unreachable package URL: {url}")
 
 
-def _check_license(recipe: str, elisp_dir: Path) -> None:
-    clone_address = _clone_address(recipe)
-    if not _check_license_api(clone_address):
-        _check_license_file(elisp_dir)
+def _check_filenames(recipe: str, elisp_dir: Path) -> None:
     for file in _files_in_recipe(recipe, elisp_dir):
         relpath = file.relative_to(elisp_dir)
-        if file.is_dir():
-            print(f"- {relpath} -- directory")
-            continue
-        if not file.name.endswith('.el'):
-            print(f"- {relpath} -- not elisp")
-            continue
         if file.name.endswith('-pkg.el'):
             _note(
                 f"- {relpath} -- consider excluding; "
                 + f"MELPA can create one from {file.name[:-7]}.el",
                 CLR_WARN,
             )
+        if file.name.endswith('.el') and not file.name.startswith(package_name(recipe)):
+            _fail(f"- {relpath} -- not in package namespace `{package_name(recipe)}-`")
+
+
+def _check_license(recipe: str, elisp_dir: Path) -> None:
+    if not _check_license_api(_clone_address(recipe)):
+        _check_license_file(elisp_dir)
+    for file in _files_in_recipe(recipe, elisp_dir):
+        relpath = file.relative_to(elisp_dir)
+        if file.is_dir():
+            print(f"- {relpath} -- directory")
+            continue
+        if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
+            print(f"- {relpath} -- not elisp code")
             continue
         with open(file, encoding='utf-8', errors='replace') as stream:
             try:
