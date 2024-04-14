@@ -278,25 +278,29 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
+  ;; possible hacks
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
+  (melpazoid-misc "(with-no-warnings" "Avoid `with-no-warnings` if the root cause can be addressed") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
+  ;; scoping
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
+  (melpazoid-misc "(unless .+ (progn" "`unless` body does not need to be wrapped in `progn`") ; nofmt
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(setq inhibit-read-only t" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/line-end-position comparison use `eolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (pos-bol))" "Could this point/pos-bol comparison use `bolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (pos-eol))" "Could this point/pos-eol comparison use `eolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this point/point-min comparison use `bobp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this `point`/`point-at-bol` comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this `point`/`point-at-eol` comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (pos-bol))" "Could this `point`/`pos-bol` comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (pos-eol))" "Could this `point`/`pos-eol` comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this `point`/`point-max` comparison use `eobp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this `point`/`point-min` comparison use `bobp`?") ; nofmt
   (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`")
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
   (melpazoid-misc "(goto-char (line-beginning-position))" "Consider `beginning-of-line`") ; nofmt
@@ -305,6 +309,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
   (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `line-beginning-position`") ; nofmt
   (melpazoid-misc "(progn (end-of-line) (point))" "Consider `point-at-eol`") ; nofmt
+  ;; boolean expressions
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
   (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
   (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt
@@ -313,19 +318,21 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; working with modes
   (melpazoid-misc "(equal major-mode \"" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
-  (melpazoid-misc "(setq major-mode" "Unnecessary if you use `define-derived-mode`") ; nofmt
-  (melpazoid-misc "(setq mode-name" "Unnecessary if you use `define-derived-mode`") ; nofmt
+  (melpazoid-misc "(setq mode-name \"" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(string= major-mode" "Prefer `(derived-mode-p 'xyz)`")
-  (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
+  (melpazoid-misc "lighter \"[^\"]+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
   (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space" t)
   ;; modifying Emacs on load
-  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
+  ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
-  (melpazoid-misc "^(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
-  (melpazoid-misc "^(advice-add" "Loading a package should rarely add advice" nil t) ; nofmt
+  (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
+  (melpazoid-misc "^(advice-add" "Loading a package should not add advice" nil t) ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
+  ;; Keybindings
+  ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
+  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   ;; f-strings
