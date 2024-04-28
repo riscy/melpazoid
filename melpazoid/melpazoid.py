@@ -499,13 +499,17 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
 def _check_filenames(recipe: str, elisp_dir: Path) -> None:
     for file in _files_in_recipe(recipe, elisp_dir):
         relpath = file.relative_to(elisp_dir)
-        if file.name.endswith('-pkg.el'):
+        if file.name == f"{package_name(recipe)}-pkg.el":
             _note(
                 f"- {relpath} -- consider excluding; "
-                + f"MELPA can create one from {file.name[:-7]}.el",
+                + f"MELPA can create one from {package_name(recipe)}.el",
                 CLR_WARN,
             )
-        if file.name.endswith('.el') and not file.name.startswith(package_name(recipe)):
+        elif file.name.endswith('-pkg.el'):
+            _fail(f"- {relpath} -- files ending in `-pkg.el` are only for packaging")
+        if file.name.endswith('.el') and not re.match(
+            f"^{package_name(recipe)}[-.]", file.name
+        ):
             _fail(f"- {relpath} -- not in package namespace `{package_name(recipe)}-`")
 
 
