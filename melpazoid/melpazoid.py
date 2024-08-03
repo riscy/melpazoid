@@ -252,21 +252,23 @@ def _write_requirements(files: List[Path], recipe: str) -> None:
             '''
         )
         for req in requirements(files, recipe):
-            req, *version_maybe = req.split()
+            req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
-            if req == 'emacs':
+            if req_ == 'emacs':
                 continue
-            if '"' in req:  # common failure mode: misplaced quotation marks
-                _fail(f"- Invalid dependency in Package-Requires: `{req}`")
+            if '"' in req_:  # common failure mode: misplaced quotation marks
+                _fail(f"- Package names should not be quoted: `{req}`")
                 continue
-            if req == 'marginalia':
+            if req_ == 'marginalia':
                 _fail(
                     "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
                 )
             # always install the latest available version of the dependency.
-            requirements_el.write(f';; {req} {version}"\n')
             requirements_el.write(
-                f"(package-install (cadr (assq '{req} package-archive-contents)))\n"
+                f'''
+                (message "Installing {req_} {version}")
+                (ignore-errors (package-install (cadr (assq '{req_} package-archive-contents))))
+                '''
             )
 
 
@@ -597,6 +599,9 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
                 + f"Package-Requires listed in {file.name}, including: "
                 + ', '.join(sorted(file_requirements - main_file_requirements))
             )
+    compat = next((r for r in main_file_requirements if r.startswith('compat ')), None)
+    if compat:
+        _note(f"- This package depends on {compat}", CLR_INFO)
 
 
 def check_package_name(name: str) -> None:
