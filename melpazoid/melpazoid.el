@@ -275,9 +275,14 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "\n;;; .*\n;;; " "Triple semicolons `;;;` are usually for section headings" t nil) ; no fmt
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
-  (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
+  ;; paths
+  (melpazoid-misc "~/.emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs.d/init.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.config/emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   ;; possible hacks
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
