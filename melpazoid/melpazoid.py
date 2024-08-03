@@ -328,7 +328,7 @@ def _check_license_api(clone_address: str) -> bool:
     Prints out the particular license as a side effect.
     Return False if unable to check (e.g. it's not on GitHub).
     >>> _check_license_api('https://github.com/riscy/elfmt')
-    - GNU General Public License v3.0 (via API)
+    - GNU General Public License v3.0 (via repo API)
     True
     """
     repo_info = _repo_info_api(clone_address)
@@ -360,11 +360,11 @@ def _check_license_api(clone_address: str) -> bool:
         'Mozilla Public License 2.0',
         'The Unlicense',
     }
-    print(f"- {license_.get('name')} (via API)")
+    print(f"- {license_.get('name')} (via repo API)")
     if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
-        _note('  - Try to use a standard license file format', CLR_WARN)
+        _note('  - Try to use a standard license file format for your repo', CLR_WARN)
         print('    See: https://github.com/licensee/licensee')
         print('    e.g. https://www.gnu.org/licenses/gpl-3.0.txt')
     else:
@@ -410,17 +410,21 @@ def _check_license_file(elisp_dir: Path) -> None:
         'licenses',
         'unlicense',
     )
+    has_license_file = False
     for license_ in elisp_dir.iterdir():
-        if license_.name.lower() not in license_names:
+        # handles e.g. LICENSE.GPL, LICENSE.APACHE
+        if not any(license_.name.lower().startswith(name) for name in license_names):
             continue
+        has_license_file = True
         if license_.is_dir():
             licenses = ', '.join(f"`{f.name}`" for f in license_.iterdir())
             print(f"- {license_.name} directory: {licenses}")
             return
         with open(license_, encoding='utf-8', errors='replace') as stream:
-            print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
-        return
-    _fail('- Add a GPL-compatible LICENSE file to the repository')
+            excerpt = ' '.join(stream.read(200).split())[:50]
+            print(f"- {license_.name} excerpt: `{excerpt}`...")
+    if not has_license_file:
+        _fail('- Add a GPL-compatible LICENSE file to the repository')
 
 
 def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
@@ -437,9 +441,10 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     if match:
         # TODO: one can AND and OR licenses together
         # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
-        license_ = _spdx_license(license_id=match.groups()[0])
+        license_id = match.groups()[0]
+        license_ = _spdx_license(license_id)
         if license_ is None:
-            _fail(f"- Invalid SPDX license: {match.groups()[0]}")
+            _fail(f"- Invalid SPDX id `{license_id}`; check https://spdx.dev/ids/")
             return None
         if not license_['isFsfLibre']:
             _fail(f"- Non-free/libre license: {match.groups()[0]}")
