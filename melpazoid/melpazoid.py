@@ -1049,14 +1049,20 @@ def _argparse_recipe(recipe: str) -> str:
 
 
 def _url_get(url: str) -> str:
-    with urllib.request.urlopen(url) as response:
-        return str(response.read().decode())
-
-
-@functools.lru_cache()
-def _url_ok(url: str) -> bool:
+    if not url.startswith(('http://', 'https://')):
+        raise ValueError(url)
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
+        with urllib.request.urlopen(url) as response:  # noqa: S310
+            return str(response.read().decode())
+    except urllib.error.URLError as err:
+        raise ValueError(url) from err
+
+
+def _url_ok(url: str) -> bool:
+    if not url.startswith(('http://', 'https://')):
+        raise ValueError(url)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):  # noqa: S310
             return True
     except urllib.error.URLError:
         return False
