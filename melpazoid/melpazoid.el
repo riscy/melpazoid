@@ -316,7 +316,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`") ; nofmt
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
   ;; working with modes
-  (melpazoid-misc "(equal major-mode \"" "Prefer `(derived-mode-p 'xyz)`")
+  (melpazoid-misc "(equal major-mode \"" "Prefer e.g. `(derived-mode-p 'xyz)` over string comparison") ; nofmt
+  (melpazoid-misc "(eq major-mode '" "You may want to prefer `(derived-mode-p 'xyz)`") ; nofmt
   (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
   (melpazoid-misc "(setq mode-name \"" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
