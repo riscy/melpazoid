@@ -1,0 +1,7 @@
+[project]
+name = "melpazoid"
+version = "0.0"
+requires-python = ">=3.10"
+
+[tool.ruff.format]
+quote-style = "preserve"

@@ -18,7 +18,7 @@ jobs:
         sudo apt-get install emacs
         emacs --version
         python -m pip install --upgrade pip
-        pip install . mypy pytest black
+        pip install . mypy pytest ruff
     - name: Test
       run: make test-melpazoid
 

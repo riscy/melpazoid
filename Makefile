@@ -25,4 +25,4 @@ image:
 test-melpazoid:
 	mypy --strict --non-interactive --install-types melpazoid
 	pytest --doctest-modules --durations=5
-	black -S --check .
+	ruff format --check .
