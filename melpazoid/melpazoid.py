@@ -28,8 +28,9 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Set, TextIO
+from typing import Any, TextIO
 
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()).parent
@@ -45,7 +46,7 @@ CLR_INFO = '' if NO_COLOR else '\033[32m'
 MELPA_PR = r'https?://github.com/melpa/melpa/pull/([0-9]+)'
 
 
-def _return_code(return_code: Optional[int] = None) -> int:
+def _return_code(return_code: int | None = None) -> int:
     """Return (and optionally set) the current return code.
     If return_code matches env var EXPECT_ERROR, return 0 --
     this is useful for running CI checks on melpazoid itself.
@@ -141,7 +142,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
     print_packaging(recipe, elisp_dir)
 
 
-def _files_in_recipe(recipe: str, elisp_dir: Path) -> List[Path]:
+def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
     """Return a file listing, relative to elisp_dir.
     May raise ChildProcessError on encountering an invalid recipe.
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
@@ -177,7 +178,7 @@ def _default_recipe(recipe: str) -> str:
     return '(' + ' '.join(operator.itemgetter(*indices)(tokens)) + ')'
 
 
-def _tokenize_expression(expression: str) -> List[str]:
+def _tokenize_expression(expression: str) -> list[str]:
     """Turn an elisp expression into a list of tokens.
     Raise ValueError if the expression can't be parsed.
     >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
@@ -209,7 +210,7 @@ def package_name(recipe: str) -> str:
     return _tokenize_expression(recipe)[1]
 
 
-def _main_file(files: List[Path], recipe: str) -> Optional[Path]:
+def _main_file(files: list[Path], recipe: str) -> Path | None:
     """Figure out the 'main' file of the recipe, per MELPA convention.
     >>> _main_file([Path('pkg/a.el'), Path('pkg/b.el')], '(a :files ...)')
     PosixPath('pkg/a.el')
@@ -233,7 +234,7 @@ def _main_file(files: List[Path], recipe: str) -> Optional[Path]:
         return None
 
 
-def _write_requirements(files: List[Path], recipe: str) -> None:
+def _write_requirements(files: list[Path], recipe: str) -> None:
     """Create a little elisp script that Docker will run as setup."""
     with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
         requirements_el.write(
@@ -272,7 +273,7 @@ def _write_requirements(files: List[Path], recipe: str) -> None:
             )
 
 
-def requirements(files: List[Path], recipe: Optional[str] = None) -> Set[str]:
+def requirements(files: list[Path], recipe: str | None = None) -> set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
@@ -308,7 +309,7 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
     return reqs
 
 
-def _reqs_from_el_file(el_file: TextIO) -> Optional[str]:
+def _reqs_from_el_file(el_file: TextIO) -> str | None:
     """Hacky function to pull the requirements out of an elisp file.
     >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
@@ -374,12 +375,12 @@ def _check_license_api(clone_address: str) -> bool:
     return True
 
 
-@functools.lru_cache()
-def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
+@functools.lru_cache
+def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     """Use the GitHub or GitLab API to fetch details about a repository.
     Raise urllib.error.URLError if API request fails.
     """
-    repo_info: Dict[str, Any]
+    repo_info: dict[str, Any]
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
@@ -429,7 +430,7 @@ def _check_license_file(elisp_dir: Path) -> None:
         _fail('- Add a GPL-compatible LICENSE file to the repository')
 
 
-def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
+def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
     """Check an elisp file for some license boilerplate.
     >>> import io
     >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
@@ -469,8 +470,8 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     return None
 
 
-@functools.lru_cache()
-def _spdx_license(license_id: str) -> Optional[Dict[str, Any]]:
+@functools.lru_cache
+def _spdx_license(license_id: str) -> dict[str, Any] | None:
     license_id = license_id.replace(' ', '-')
     try:
         response = _url_get(f'https://spdx.org/licenses/{license_id.strip()}.json')
@@ -678,8 +679,8 @@ def check_package_name(name: str) -> None:
     print()
 
 
-@functools.lru_cache()
-def emacsattic_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def emacsattic_packages(*keywords: str) -> dict[str, str]:
     """(Obsolete) packages on Emacsattic matching 'keywords'.
     q.v. https://github.com/melpa/melpa/pull/8621#issuecomment-1616925395
     >>> emacsattic_packages('sos')
@@ -689,8 +690,8 @@ def emacsattic_packages(*keywords: str) -> Dict[str, str]:
     return {kw: url for kw, url in packages.items() if _url_ok(url)}
 
 
-@functools.lru_cache()
-def emacswiki_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def emacswiki_packages(*keywords: str) -> dict[str, str]:
     """Packages on emacswiki.org mirror matching 'keywords'.
     >>> emacswiki_packages('rss')
     {'rss': 'https://github.com/emacsmirror/emacswiki.org/blob/master/rss.el'}
@@ -704,8 +705,8 @@ def emacswiki_packages(*keywords: str) -> Dict[str, str]:
     return packages
 
 
-@functools.lru_cache()
-def emacsmirror_packages() -> Dict[str, str]:
+@functools.lru_cache
+def emacsmirror_packages() -> dict[str, str]:
     """All mirrored packages."""
     epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
     epkgs_parser = configparser.ConfigParser()
@@ -717,8 +718,8 @@ def emacsmirror_packages() -> Dict[str, str]:
     }
 
 
-@functools.lru_cache()
-def elpa_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def elpa_packages(*keywords: str) -> dict[str, str]:
     """ELPA packages matching keywords.
     >>> elpa_packages('git-modes')
     {'git-modes (nongnu)': 'https://elpa.nongnu.org/nongnu/git-modes.html'}
@@ -736,8 +737,8 @@ def elpa_packages(*keywords: str) -> Dict[str, str]:
     return {kw: url for kw, url in sources.items() if _url_ok(url)}
 
 
-@functools.lru_cache()
-def melpa_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def melpa_packages(*keywords: str) -> dict[str, str]:
     """MELPA packages matching keywords.
     >>> melpa_packages('highlight-symbol')
     {'highlight-symbol': 'https://melpa.org/#/highlight-symbol'}
@@ -794,13 +795,13 @@ def _fetcher(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
 
 
-def _local_repo() -> Optional[Path]:
+def _local_repo() -> Path | None:
     if not os.environ.get('LOCAL_REPO'):
         return None
     return Path.expanduser(Path(os.environ['LOCAL_REPO']))
 
 
-def _clone(repo: str, into: Path, branch: Optional[str], fetcher: str) -> bool:
+def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> bool:
     """Try to clone the repository; return whether we succeeded."""
     _note(f"<!-- Cloning {repo} {'@' + branch if branch else ''} -->")
 
@@ -834,7 +835,7 @@ def _clone(repo: str, into: Path, branch: Optional[str], fetcher: str) -> bool:
     return True
 
 
-def _branch(recipe: str) -> Optional[str]:
+def _branch(recipe: str) -> str | None:
     """Return the recipe's branch if available, else the empty string.
     >>> _branch('(shx :branch "develop" ...)')
     'develop'
@@ -895,7 +896,7 @@ def check_melpa_pr(pr_url: str) -> None:
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
-def _pr_changed_files(pr_number: str) -> List[Dict[str, Any]]:
+def _pr_changed_files(pr_number: str) -> list[dict[str, Any]]:
     """Get data from GitHub API."""
     melpa_pull_api = 'https://api.github.com/repos/melpa/melpa/pulls'
     return list(json.loads(_url_get(f"{melpa_pull_api}/{pr_number}/files")))
@@ -906,7 +907,7 @@ def _prettify_recipe(recipe: str) -> str:
     return ' '.join(recipe.split()).replace(' :', '\n    :')
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _clone_address(recipe: str) -> str:
     """Fetch the upstream repository URL for the recipe.
     Throw a ChildProcessError if Emacs encounters a problem.
@@ -924,7 +925,7 @@ def _clone_address(recipe: str) -> str:
     )
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _recipe_struct_elisp(recipe: str) -> str:
     """Turn the recipe into a serialized 'package-recipe' object.
     Throw a ChildProcessError if Emacs encounters a problem.
@@ -965,8 +966,8 @@ def eval_elisp(script: str) -> str:
         return str(result.stdout.decode()).strip()
 
 
-@functools.lru_cache()
-def _package_build_files() -> Dict[str, str]:
+@functools.lru_cache
+def _package_build_files() -> dict[str, str]:
     """Grab the required package-build files from the MELPA repo."""
     return {
         filename: _url_get(
