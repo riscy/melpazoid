@@ -18,7 +18,6 @@ import functools
 import json
 import operator
 import os
-import pdb
 import re
 import shlex
 import shutil
@@ -1000,7 +999,7 @@ def _check_loop() -> None:
                 else:
                     _note(f'<!-- Finished in {time.perf_counter() - start:.2f}s -->')
         except KeyboardInterrupt:
-            pdb.set_trace()  # pylint: disable=forgotten-debug-statement
+            breakpoint()  # noqa: T100
 
 
 def _fetch_targets() -> Iterator[str]:
