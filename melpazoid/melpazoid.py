@@ -189,10 +189,10 @@ def _tokenize_expression(expression: str) -> list[str]:
     lexer.wordchars = lexer.wordchars + "':-"
     tokens = list(lexer)
     unbalanced_parens = 0
-    for token in tokens:
-        if token == '(':
+    for t in tokens:
+        if t == '(':
             unbalanced_parens += 1
-        if token == ')':
+        if t == ')':
             unbalanced_parens -= 1
             if unbalanced_parens < 0:
                 break
@@ -277,10 +277,13 @@ def requirements(files: list[Path]) -> set[str]:
     reqs: set[str] = set()
     for file_ in (f for f in files if f.is_file()):
         with file_.open(encoding='utf-8', errors='replace') as stream:
-            if file_.name.endswith('-pkg.el'):
-                reqs = reqs.union(_reqs_from_pkg_el(stream))
-            elif file_.name.endswith('.el'):
-                reqs = reqs.union(_reqs_from_el_file(stream))
+            try:
+                if file_.name.endswith('-pkg.el'):
+                    reqs = reqs.union(_reqs_from_pkg_el(stream))
+                elif file_.name.endswith('.el'):
+                    reqs = reqs.union(_reqs_from_el_file(stream))
+            except ValueError as err:
+                _fail(f"Couldn't parse requirements in {file_.name}: {err}")
     return reqs
 
 
@@ -309,13 +312,12 @@ def _reqs_from_el_file(el_file: TextIO) -> set[str]:
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
     {'emacs "24.4"'}
     """
+    # TODO: if Package-Requires crosses multiple lines, parsing will fail.
+    # This is also currently an issue with package-lint (2024/09/02)
     for line in el_file:
         match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.I)
         if match:
-            try:
-                _tokenize_expression(match.groups()[0])
-            except ValueError as err:
-                _fail(str(err))
+            _tokenize_expression(match.groups()[0])
             return {
                 req.replace(')', '').strip().lower()
                 for req in re.split('[()]', match.groups()[0])
