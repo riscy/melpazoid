@@ -30,7 +30,7 @@
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
   (let ((inhibit-message t)
-        (load-path (append load-path (melpazoid--package-load-paths))))
+        (load-path (append (melpazoid--package-load-paths) load-path)))
     (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)

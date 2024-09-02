@@ -246,6 +246,7 @@ def _write_requirements(files: list[Path]) -> None:
             + "(package-initialize)\n"
             + """(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))\n"""
             + "(package-refresh-contents)\n"
+            + "(setq package-install-upgrade-built-in t)\n"
             + "(package-install 'pkg-info)\n"
             + "(package-install 'package-lint)\n"
         )
