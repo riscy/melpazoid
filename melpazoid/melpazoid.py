@@ -110,7 +110,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
         files[ii].parent.mkdir(parents=True, exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
         subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
-    _write_requirements(files, recipe)
+    _write_requirements(files)
 
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     run_env = dict(os.environ, DOCKER_OUTPUT='--quiet')  # or --progress=plain
@@ -233,25 +233,23 @@ def _main_file(files: list[Path], recipe: str) -> Path | None:
         return None
 
 
-def _write_requirements(files: list[Path], recipe: str) -> None:
+def _write_requirements(files: list[Path]) -> None:
     """Create a little elisp script that Docker will run as setup."""
-    with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
+    with Path('_requirements.el').open('w', encoding='utf-8') as requirements_el:
         requirements_el.write(
-            f'''
-            ;; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache
-            ;; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
-            ;; which can disrupt the compilation of packages that use that variable:
-            (setq load-file-name nil)
-            ;; (setq network-security-level 'low)  ; expired certs last resort
-            (require 'package)
-            (package-initialize)
-            (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-            (package-refresh-contents)
-            (package-install 'pkg-info)
-            (package-install 'package-lint)
-            '''
+            f";; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache\n\n"
+            + ";; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>\n"
+            + ";; which can disrupt the compilation of packages that use that variable:\n"
+            + "(setq load-file-name nil)\n"
+            + ";; (setq network-security-level 'low)  ; expired certs last resort\n"
+            + "(require 'package)\n"
+            + "(package-initialize)\n"
+            + """(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))\n"""
+            + "(package-refresh-contents)\n"
+            + "(package-install 'pkg-info)\n"
+            + "(package-install 'package-lint)\n"
         )
-        for req in requirements(files, recipe):
+        for req in requirements(files):
             req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
             if req_ == 'emacs':
@@ -265,64 +263,64 @@ def _write_requirements(files: list[Path], recipe: str) -> None:
                 )
             # always install the latest available version of the dependency.
             requirements_el.write(
-                f'''
-                (message "Installing {req_} {version}")
-                (ignore-errors (package-install (cadr (assq '{req_} package-archive-contents))))
-                '''
+                f'\n(message "Installing {req_} {version} or later")\n'
+                + f"(ignore-errors (package-install (cadr (assq '{req_} package-archive-contents))))\n"
             )
 
 
-def requirements(files: list[Path], recipe: str | None = None) -> set[str]:
+def requirements(files: list[Path]) -> set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
     """
-    reqs = []
-    if recipe:
-        main_file = _main_file(files, recipe)
-        if main_file:
-            files = [main_file]
+    reqs: set[str] = set()
     for file_ in (f for f in files if f.is_file()):
-        if file_.name.endswith('-pkg.el'):
-            with open(file_, encoding='utf-8', errors='replace') as pkg_el:
-                reqs.append(_reqs_from_pkg_el(pkg_el))
-        elif file_.name.endswith('.el'):
-            with open(file_, encoding='utf-8', errors='replace') as el_file:
-                reqs.append(_reqs_from_el_file(el_file) or '')
-    reqs = sum((re.split('[()]', req) for req in reqs), [])
-    return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
+        with file_.open(encoding='utf-8', errors='replace') as stream:
+            if file_.name.endswith('-pkg.el'):
+                reqs = reqs.union(_reqs_from_pkg_el(stream))
+            elif file_.name.endswith('.el'):
+                reqs = reqs.union(_reqs_from_el_file(stream))
+    return reqs
 
 
-def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
+def _reqs_from_pkg_el(pkg_el: TextIO) -> set[str]:
     """Pull the requirements out of a -pkg.el file.
     >>> import io
     >>> _reqs_from_pkg_el(io.StringIO(
     ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))'''))
-    '( a ( b "31.5" ) )'
+    {'a', 'b "31.5"'}
     """
     # TODO: fails if EXTRA-PROPERTIES args were given to #'define-package
     reqs = pkg_el.read()
     reqs = ' '.join(_tokenize_expression(reqs)[5:-1])
     reqs = reqs[reqs.find("' (") + 2 :]
     reqs = reqs[: reqs.find(') )') + 3]
-    return reqs
+    return {
+        req.replace(')', '').strip().lower()
+        for req in re.split('[()]', reqs)
+        if req.strip()
+    }
 
 
-def _reqs_from_el_file(el_file: TextIO) -> str | None:
+def _reqs_from_el_file(el_file: TextIO) -> set[str]:
     """Hacky function to pull the requirements out of an elisp file.
     >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
-    '((emacs "24.4"))'
+    {'emacs "24.4"'}
     """
-    for line in el_file.readlines():
+    for line in el_file:
         match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.I)
         if match:
             try:
                 _tokenize_expression(match.groups()[0])
             except ValueError as err:
                 _fail(str(err))
-            return match.groups()[0].strip()
-    return None
+            return {
+                req.replace(')', '').strip().lower()
+                for req in re.split('[()]', match.groups()[0])
+                if req.strip()
+            }
+    return set()
 
 
 def _check_license_api(clone_address: str) -> bool:
@@ -590,7 +588,7 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
     if not main_file:
         _fail("- Can't check Package-Requires if there is no 'main' file")
         return
-    main_file_requirements = requirements(files, recipe)
+    main_file_requirements = requirements([main_file])
     for file in files:
         file_requirements = requirements([file])
         if file_requirements - main_file_requirements > set():
@@ -601,7 +599,7 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
             )
     compat = next((r for r in main_file_requirements if r.startswith('compat ')), None)
     if compat:
-        _note(f"- This package depends on {compat}", CLR_INFO)
+        _note(f"- Reviewer note: this package depends on {compat}", CLR_INFO)
 
 
 def check_package_name(name: str) -> None:
