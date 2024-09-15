@@ -235,7 +235,8 @@ def _main_file(files: List[Path], recipe: str) -> Optional[Path]:
 
 def _write_requirements(files: List[Path], recipe: str) -> None:
     """Create a little elisp script that Docker will run as setup."""
-    with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
+    with (open('_requirements.el', 'w', encoding='utf-8') as requirements_el,
+          open('_native_deps', 'w', encoding='utf-8') as native_deps):
         requirements_el.write(
             f'''
             ;; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache
@@ -263,12 +264,17 @@ def _write_requirements(files: List[Path], recipe: str) -> None:
                 _fail(
                     "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
                 )
+
             # always install the latest available version of the dependency.
             requirements_el.write(f';; {req} {version}"\n')
             requirements_el.write(
                 f"(package-install (cadr (assq '{req} package-archive-contents)))\n"
             )
 
+            if req == 'vterm':
+                native_deps.write("cmake libvterm-dev ")
+                requirements_el.write('(setq vterm-always-compile-module t)\n')
+                requirements_el.write('(vterm-module-compile)\n')
 
 def requirements(files: List[Path], recipe: Optional[str] = None) -> Set[str]:
     """Return (downcased) requirements given a listing of files.
