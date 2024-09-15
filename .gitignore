@@ -1,4 +1,5 @@
 _requirements.el
+_native_deps
 pkg
 *.elc
 

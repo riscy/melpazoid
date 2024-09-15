@@ -17,8 +17,8 @@ term: image
 	$(DOCKER) run -it --rm --entrypoint=/bin/bash ${DOCKER_OPTIONS} ${IMAGE_NAME}
 
 .PHONY: image
-image:
-	@$(DOCKER) build --build-arg PACKAGE_MAIN ${DOCKER_OUTPUT} \
+image: _requirements.el _native_deps
+	@$(DOCKER) build --build-arg NATIVE_DEPS="$$(cat _native_deps)" --build-arg PACKAGE_MAIN ${DOCKER_OUTPUT} \
 		--tag ${IMAGE_NAME} -f docker/Dockerfile .
 
 .PHONY: test-melpazoid

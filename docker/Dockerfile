@@ -2,8 +2,10 @@
 # <https://ubuntuhandbook.org/index.php/2023/08/gnu-emacs-29-1-ubuntu-ppa/>
 FROM ubuntu:22.04
 
+ARG NATIVE_DEPS=""
+ENV NATIVE_DEPS="${NATIVE_DEPS}"
 RUN apt-get update \
-        && apt-get -y install curl gnupg openssh-client wget \
+        && apt-get -y install curl gnupg openssh-client wget ${NATIVE_DEPS} \
         && apt-get -y --no-install-recommends install software-properties-common \
         && add-apt-repository ppa:ubuntuhandbook1/emacs \
         && apt-get -y install emacs emacs-common \
