@@ -143,7 +143,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
 
 def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
     """Return a file listing, relative to elisp_dir.
-    May raise ChildProcessError on encountering an invalid recipe.
+    Raise ChildProcessError if the recipe does not work against elisp_dir.
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
     [PosixPath('melpazoid/melpazoid.el')]
     """
@@ -162,15 +162,15 @@ def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
 
 def _default_recipe(recipe: str) -> str:
     """Simplify the given recipe by removing ':files'.
-    >>> _default_recipe('(recipe :repo "a/b" :fetcher hg :branch na :files ("*.el"))')
-    '(recipe :repo "a/b" :fetcher hg :branch na)'
+    >>> _default_recipe('(recipe :fetcher hg :repo "a/b" :branch na :files ("*.el"))')
+    '(recipe :fetcher hg :repo "a/b" :branch na)'
     >>> _default_recipe('(recipe :fetcher hg :url "a/b")')
-    '(recipe :url "a/b" :fetcher hg)'
+    '(recipe :fetcher hg :url "a/b")'
     """
     tokens = _tokenize_expression(recipe)
     fetcher = tokens.index(':fetcher')
     repo = tokens.index(':repo' if ':repo' in tokens else ':url')
-    indices = [1, repo, repo + 1, fetcher, fetcher + 1]
+    indices = [1, fetcher, fetcher + 1, repo, repo + 1]
     if ':branch' in tokens:
         branch = tokens.index(':branch')
         indices += [branch, branch + 1]
@@ -562,11 +562,13 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':url' in recipe and 'https://github.com' in recipe:
         _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
+    if recipe.index(':fetcher') > recipe.index(':repo'):
+        _note('- Specify `:fetcher` before `:repo` in your recipe', CLR_WARN)
     if ':files' in recipe:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
         except ChildProcessError:
-            _note(f"Default recipe not viable: {_default_recipe(recipe)}")
+            _note(f"Default recipe is unusable: {_default_recipe(recipe)}")
             files_default_recipe = []
         if files == files_default_recipe:
             _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
@@ -912,7 +914,7 @@ def _clone_address(recipe: str) -> str:
     """Fetch the upstream repository URL for the recipe.
     Throw a ChildProcessError if Emacs encounters a problem.
     >>> _clone_address('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
-    'https://github.com/riscy/shx-for-emacs.git'
+    'https://github.com/riscy/shx-for-emacs'
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
@@ -920,7 +922,7 @@ def _clone_address(recipe: str) -> str:
         f"""
         (require 'package-recipe)
         (send-string-to-terminal
-          (package-recipe--upstream-url {_recipe_struct_elisp(recipe)}))
+          (oref {_recipe_struct_elisp(recipe)} url))
         """
     )
 
@@ -930,7 +932,7 @@ def _recipe_struct_elisp(recipe: str) -> str:
     """Turn the recipe into a serialized 'package-recipe' object.
     Throw a ChildProcessError if Emacs encounters a problem.
     >>> _recipe_struct_elisp('(melpazoid :fetcher github :repo "xyz")')
-    '#s(package-github-recipe "melpazoid" nil "xyz" nil nil nil nil nil nil nil nil)'
+    '#s(package-github-recipe "melpazoid" "https://github.com/xyz" "xyz" ...'
     """
     name = package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
