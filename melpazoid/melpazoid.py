@@ -486,6 +486,7 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
     _check_recipe(recipe, elisp_dir)
     _check_package_requires(recipe, elisp_dir)
     _check_url(recipe, elisp_dir)
+    _check_package_tags(recipe)
     _check_filenames(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
     print()
@@ -502,6 +503,18 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
             url = url_match.groups()[0]
             if not _url_ok(url):
                 _fail(f"- Unreachable package URL in {file.name}: {url}")
+
+
+def _check_package_tags(recipe: str) -> None:
+    clone_address = _clone_address(recipe)
+    if clone_address.endswith('.git'):
+        clone_address = clone_address[:-4]
+    if match := re.search(r'github.com/([^"]*)', clone_address, flags=re.I):
+        repo = match.groups()[0].rstrip('/')
+        if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
+            # TODO: also consider https://github.com/melpa/melpa/pull/9074#issuecomment-2381583577
+            reminder = f"- Reminder: ensure release {tags[0]['name']} is up-to-date with any changes"
+            _note(reminder, CLR_WARN)
 
 
 def _check_filenames(recipe: str, elisp_dir: Path) -> None:
