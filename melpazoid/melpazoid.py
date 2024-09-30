@@ -290,9 +290,9 @@ def requirements(files: list[Path]) -> set[str]:
 def _reqs_from_pkg_el(pkg_el: TextIO) -> set[str]:
     """Pull the requirements out of a -pkg.el file.
     >>> import io
-    >>> _reqs_from_pkg_el(io.StringIO(
-    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))'''))
-    {'a', 'b "31.5"'}
+    >>> sorted(_reqs_from_pkg_el(io.StringIO(
+    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))''')))
+    ['a', 'b "31.5"']
     """
     # TODO: fails if EXTRA-PROPERTIES args were given to #'define-package
     reqs = pkg_el.read()
