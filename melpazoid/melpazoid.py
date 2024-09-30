@@ -575,8 +575,8 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
         _fail(f"- No .el file matches the name '{package_name(recipe)}'")
     if ':url' in recipe and 'https://github.com' in recipe:
         _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
-    if recipe.index(':fetcher') > recipe.index(':repo'):
-        _note('- Specify `:fetcher` before `:repo` in your recipe', CLR_WARN)
+    if recipe.index(':fetcher') > max(recipe.find(':repo'), recipe.find(':url')):
+        _note('- Specify `:fetcher` before `:repo` or `:url` in your recipe', CLR_WARN)
     if ':files' in recipe:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
