@@ -38,8 +38,12 @@ jobs:
       env:
         CI_BRANCH: main    # always build the master branch on this repo
         EXPECT_ERROR: 2    # we expect it to have some nags
-      run: RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))' make
-
+      run:
+        RECIPE='(magit :fetcher github
+                       :repo "magit/magit"
+                       :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE"
+                              (:exclude "lisp/magit-libgit.el")))'
+        make
     - name: Test local 'melpazoid'
       env:
         CI_BRANCH: master

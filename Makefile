@@ -23,6 +23,7 @@ image:
 
 .PHONY: test-melpazoid
 test-melpazoid:
+	rm -rf _requirements.el
 	mypy --strict --non-interactive --install-types melpazoid
 	pytest --doctest-modules --durations=5
 	ruff format --check .
