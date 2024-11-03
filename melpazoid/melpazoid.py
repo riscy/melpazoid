@@ -27,9 +27,11 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 _RETURN_CODE = 0  # eventual return code when run as script
 _MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()).parent
@@ -50,11 +52,11 @@ def _return_code(return_code: int | None = None) -> int:
     If return_code matches env var EXPECT_ERROR, return 0 --
     this is useful for running CI checks on melpazoid itself.
     """
-    global _RETURN_CODE  # pylint: disable=global-statement
+    global _RETURN_CODE  # noqa: PLW0603
     if return_code is not None:
         _RETURN_CODE = return_code
     expect_error = int(os.environ.get('EXPECT_ERROR', 0))
-    return 0 if _RETURN_CODE == expect_error else _RETURN_CODE
+    return 0 if expect_error == _RETURN_CODE else _RETURN_CODE
 
 
 def is_recipe(recipe: str) -> bool:
@@ -352,7 +354,7 @@ def _check_license_api(clone_address: str) -> bool:
         'Creative Commons Zero v1.0 Universal',
         'Do What The F*ck You Want To Public License',
         'GNU Affero General Public License v3.0',
-        # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
+        # re: GPL v2.0 see https://github.com/johannes-mueller/company-wordfreq.el/issues/6
         'GNU General Public License v2.0 or later',
         'GNU General Public License v3.0 only',
         'GNU General Public License v3.0 or later',
@@ -647,11 +649,12 @@ def check_package_name(name: str) -> None:
     # is the package name an Emacs builtin?
     try:
         eval_elisp(f"(require '{name})")
+    except ChildProcessError:
+        pass
+    else:
         _note('Package name:', CLR_INFO)
         _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
         return
-    except ChildProcessError:
-        pass
 
     # do other packages have the same name (within some magin)?
     emacsmirror = emacsmirror_packages()
@@ -713,7 +716,7 @@ def emacswiki_packages(*keywords: str) -> dict[str, str]:
     """
     packages = {}
     for keyword in set(keywords):
-        el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
+        el_file = keyword if keyword.endswith('.el') else keyword + '.el'
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
         if _url_ok(pkg):
             packages[keyword] = pkg
@@ -777,7 +780,7 @@ def check_melpa_recipe(recipe: str) -> None:
         clone_address = _clone_address(recipe)
         local_repo = _local_repo()
         if local_repo:
-            print(f"Using local repository at {_local_repo()}")
+            print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, elisp_dir)
             check_containerized_build(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
@@ -1014,7 +1017,7 @@ def _check_loop() -> None:
                     _fail(f'<!-- Failed in {time.perf_counter() - start:.2f}s -->')
                 else:
                     _note(f'<!-- Finished in {time.perf_counter() - start:.2f}s -->')
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # noqa: PERF203
             breakpoint()  # noqa: T100
 
 
@@ -1095,8 +1098,8 @@ def _main() -> None:
     if pargs.license:
         if not os.environ.get('RECIPE'):
             _fail('Set a recipe using `target` or with: [--recipe RECIPE]')
-        else:
-            check_license(os.environ['RECIPE'])
+            return
+        check_license(os.environ['RECIPE'])
     elif 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
     elif 'RECIPE' in os.environ:
