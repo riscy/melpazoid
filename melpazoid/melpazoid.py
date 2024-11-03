@@ -10,6 +10,8 @@ optional arguments:
   --recipe RECIPE  a valid MELPA recipe
 """
 
+from __future__ import annotations
+
 __author__ = 'Chris Rayner <dchrisrayner@gmail.com>'
 __license__ = 'SPDX-License-Identifier: GPL-3.0-or-later'
 import argparse
