@@ -476,6 +476,12 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
 
 @functools.lru_cache
 def _spdx_license(license_id: str) -> dict[str, Any] | None:
+    for operator_ in (' OR ', ' AND ', ' WITH '):
+        # the SPDX API does not handle SPDX expressions; take a stab at it here:
+        if operator_ in license_id:
+            _note(f"- Reviewer note: nontrivial SPDX license '{license_id}'", CLR_INFO)
+            license_id = license_id.split(operator_)[0]
+            break
     license_id = license_id.replace(' ', '-')
     try:
         response = _url_get(f'https://spdx.org/licenses/{license_id.strip()}.json')
