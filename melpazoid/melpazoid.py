@@ -491,8 +491,8 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
     _check_package_requires(recipe, elisp_dir)
     _check_url(recipe, elisp_dir)
     _check_package_tags(recipe)
-    _check_filenames(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
+    _check_filenames(recipe, elisp_dir)
     print()
 
 
@@ -517,12 +517,14 @@ def _check_package_tags(recipe: str) -> None:
         repo = match.groups()[0].rstrip('/')
         if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
             # TODO: also consider https://github.com/melpa/melpa/pull/9074#issuecomment-2381583577
-            reminder = f"- Reminder: ensure release {tags[0]['name']} is up-to-date with any changes"
+            reminder = f"- Reminder: ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
             _note(reminder, CLR_WARN)
 
 
 def _check_filenames(recipe: str, elisp_dir: Path) -> None:
     for file in _files_in_recipe(recipe, elisp_dir):
+        if not file.name.endswith('.el'):
+            continue
         relpath = file.relative_to(elisp_dir)
         if file.name == f"{package_name(recipe)}-pkg.el":
             _note(
@@ -532,10 +534,10 @@ def _check_filenames(recipe: str, elisp_dir: Path) -> None:
             )
         elif file.name.endswith('-pkg.el'):
             _fail(f"- {relpath} -- files ending in `-pkg.el` are only for packaging")
-        if file.name.endswith('.el') and not re.match(
-            f"^{package_name(recipe)}[-.]", file.name
-        ):
-            _fail(f"- {relpath} -- not in package namespace `{package_name(recipe)}-`")
+        prefix = package_name(recipe)
+        prefix = prefix[:-5] if prefix.endswith('-mode') else prefix
+        if not re.match(f"^{prefix}[-.]", file.name):
+            _fail(f"- {relpath} -- not in package namespace `{prefix}-`")
 
 
 def _check_license(recipe: str, elisp_dir: Path) -> None:
@@ -560,12 +562,12 @@ def _check_license(recipe: str, elisp_dir: Path) -> None:
                 _return_code(2)
             boilerplate = _check_file_for_license_boilerplate(stream)
             print(
-                f"- {boilerplate or 'unknown license'} -- {relpath}"
-                + (f": {header}" if header else "")
+                f"- {relpath} -- {boilerplate or 'unknown license'}"
+                + (f" -- {header}" if header else "")
             )
             if boilerplate is None:
                 _fail(
-                    f"- {relpath} needs *formal* license boilerplate and/or an"
+                    f"  - {relpath} needs *formal* license boilerplate and/or an"
                     " [SPDX-License-Identifier](https://spdx.dev/ids/)"
                 )
 
@@ -574,13 +576,15 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     for specifier in (':branch', ':commit', ':version-regexp'):
         if specifier in recipe:
-            _note(f"- Avoid specifying `{specifier}` except in unusual cases", CLR_WARN)
+            _note(f"- Avoid `{specifier}` in recipes except in unusual cases", CLR_WARN)
     if not _main_file(files, recipe):
-        _fail(f"- No .el file matches the name '{package_name(recipe)}'")
+        _fail(f"- No 'main' file found, e.g. '{package_name(recipe)}.el'")
     if ':url' in recipe and 'https://github.com' in recipe:
         _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
-    if recipe.index(':fetcher') > max(recipe.find(':repo'), recipe.find(':url')):
-        _note('- Specify `:fetcher` before `:repo` or `:url` in your recipe', CLR_WARN)
+    if ':repo' in recipe and recipe.index(':fetcher') > recipe.index(':repo'):
+        _note('- Please specify `:fetcher` before `:repo` in your recipe', CLR_WARN)
+    if ':url' in recipe and recipe.index(':fetcher') > recipe.index(':url'):
+        _note('- Please specify `:fetcher` before `:url` in your recipe', CLR_WARN)
     if ':files' in recipe:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
