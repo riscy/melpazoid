@@ -176,7 +176,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-check-commentary)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
-  (melpazoid-check-autothemer)
+  (melpazoid-check-theme)
 
   (unless (equal melpazoid--pending "")
     (setq melpazoid--pending
@@ -186,8 +186,9 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
            melpazoid--pending))
     (melpazoid-commit-pending)))
 
-(defun melpazoid-check-autothemer ()
+(defun melpazoid-check-theme ()
   "Check that the name given to autothemer matches the filename."
+  ;; autothemer
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward
@@ -201,14 +202,26 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-commentary ()
   "Check the commentary."
-  (let ((commentary (lm-commentary)))
+  (require 'lisp-mnt)
+  (let ((filename (file-name-nondirectory (buffer-file-name)))
+        (commentary (lm-commentary)))
     (when commentary
+      (when (and
+             (< (length commentary) 20)
+             (string= filename (or (melpazoid--package-lint-main-file) filename)))
+        (melpazoid-insert "- `;;; Commentary` in main file should not be a stub"))
+      (when (let ((case-fold-search t)) (string-match "See README" commentary))
+        (melpazoid-insert "- `;;; Commentary` should usually not redirect to README"))
       (with-temp-buffer
         (insert commentary)
         (goto-char 0)
         (if (re-search-forward ".\\{90\\}" nil t)
             (melpazoid-insert
-             "- The `;;; Commentary` for this file is much wider than 80 characters"))))))
+             "- `;;; Commentary` is much wider than 80 characters"))
+        (goto-char 0)
+        (if (re-search-forward "^;;;;" nil t)
+            (melpazoid-insert
+             "- `;;; Commentary` decoration like `;;;;...` will appear downstream"))))))
 
 (defun melpazoid-check-mixed-indentation ()
   "Check for a mix of tabs and spaces."
@@ -252,8 +265,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(advice-add '[^#)]*)" msg)
     (melpazoid-misc "(advice-remove '[^#)]*)" msg)
     (melpazoid-misc "(defalias '[^#()]*)" msg)
-    (melpazoid-misc
-     "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
+    (melpazoid-misc "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
 (defun melpazoid-check-picky ()
@@ -323,12 +335,13 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; working with modes
   (melpazoid-misc "(equal major-mode \"" "Prefer e.g. `(derived-mode-p 'xyz)` over string comparison") ; nofmt
   (melpazoid-misc "(eq major-mode '" "You may want to prefer `(derived-mode-p 'xyz)`") ; nofmt
-  (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
   (melpazoid-misc "(setq mode-name \"" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(string= major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "lighter \"[^\"]+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
   (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space" t)
+  (melpazoid-misc "(setq auto-mode-alist" "Prefer `(add-to-list 'auto-mode-alist ...)`") ; nofmt
+  (melpazoid-misc "(push '([^)]+) auto-mode-alist)" "Prefer `(add-to-list 'auto-mode-alist ...)`")
   ;; modifying Emacs on load
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
