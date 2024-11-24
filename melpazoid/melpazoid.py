@@ -427,7 +427,7 @@ def _check_license_file(elisp_dir: Path) -> None:
             licenses = ', '.join(f"`{f.name}`" for f in license_.iterdir())
             print(f"- {license_.name} directory: {licenses}")
             return
-        with open(license_, encoding='utf-8', errors='replace') as stream:
+        with license_.open(encoding='utf-8', errors='replace') as stream:
             excerpt = ' '.join(stream.read(200).split())[:50]
             print(f"- {license_.name} excerpt: `{excerpt}`...")
     if not has_license_file:
@@ -500,7 +500,7 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
     for file in _files_in_recipe(recipe, elisp_dir):
         if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
             continue
-        with open(file, encoding='utf-8', errors='replace') as stream:
+        with file.open(encoding='utf-8', errors='replace') as stream:
             text = stream.read()
         url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.I)
         if url_match:
@@ -551,7 +551,7 @@ def _check_license(recipe: str, elisp_dir: Path) -> None:
         if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
             print(f"- {relpath} -- not elisp code")
             continue
-        with open(file, encoding='utf-8', errors='replace') as stream:
+        with file.open(encoding='utf-8', errors='replace') as stream:
             try:
                 header = stream.readline()
                 header = header.split('-*-')[0]
@@ -922,8 +922,8 @@ def check_melpa_pr(pr_url: str) -> None:
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
 def _pr_changed_files(pr_number: str) -> list[dict[str, Any]]:
     """Get data from GitHub API."""
-    melpa_pull_api = 'https://api.github.com/repos/melpa/melpa/pulls'
-    return list(json.loads(_url_get(f"{melpa_pull_api}/{pr_number}/files")))
+    pr_files_url = f"https://api.github.com/repos/melpa/melpa/pulls/{pr_number}/files"
+    return list(json.loads(_url_get(pr_files_url)))
 
 
 def _prettify_recipe(recipe: str) -> str:
