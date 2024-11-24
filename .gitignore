@@ -1,4 +1,5 @@
 _requirements.el
+_reminders.json
 pkg
 *.elc
 

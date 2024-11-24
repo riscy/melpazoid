@@ -922,6 +922,10 @@ def check_melpa_pr(pr_url: str) -> None:
                     print(f"- Created: {repo_info.get('created_at', 'N/A')}")
                     print(f"- Updated: {repo_info.get('updated_at', 'N/A')}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
+                if (reminders := _MELPAZOID_ROOT / '_reminders.json').is_file():
+                    for pattern, reminder in json.loads(reminders.read_text()).items():
+                        if re.search(pattern, recipe):
+                            _note(f"- REMINDER: {reminder}", CLR_WARN)
                 print('-->\n')
 
 
