@@ -452,34 +452,42 @@ OBJECTS are objects to interpolate into the string using `format'."
    (string= (file-name-extension filename) "el")))
 
 (when noninteractive
-  ;; Check every elisp file in `default-directory' (except melpazoid.el)
   (setq melpazoid-can-modify-buffers t)
   (add-to-list 'load-path ".")
 
-  (let ((filename nil)
-        (filenames (directory-files ".")))
-    (while filenames
-      (setq filename (car filenames) filenames (cdr filenames))
-      (when (melpazoid--check-file-p filename) (melpazoid filename))))
+  (let (filenames)
+    ;; Check every elisp file in `default-directory' (except melpazoid.el)
+    (dolist (filename (directory-files "."))
+      (when (melpazoid--check-file-p filename)
+        (setq filenames (cons filename filenames))))
 
-  (let ((load-error nil))
+    ;; run byte-compile BEFORE other checks, because the other checks might
+    ;; bring in arbitrary dependencies that will affect the compile runtime
+    (dolist (filename filenames nil)
+      (melpazoid-byte-compile filename))
+    (dolist (filename filenames nil)
+      (set-buffer (find-file filename))
+      (melpazoid-package-lint))
+    (dolist (filename filenames nil)
+      (set-buffer (find-file filename))
+      (melpazoid-check-experimentals))
+    (dolist (filename filenames nil)
+      (melpazoid-checkdoc filename))
+
     ;; check whether FILENAMEs can be simply loaded
-    (melpazoid-insert "\n`#'load`-check on each file:")
-    (melpazoid-insert "```")
-    (let ((filename nil)
-          (filenames (reverse (directory-files "."))))
-      (while filenames
-        (setq filename (car filenames) filenames (cdr filenames))
-        (when (melpazoid--check-file-p filename)
-          (melpazoid-insert "Loading %s" filename)
-          (condition-case err
-              (load (expand-file-name filename) nil t t)
-            (error
-             (setq load-error t)
-             (melpazoid-insert "  %s:Error: Emacs %s:\n  %S"
-                               filename emacs-version err))))))
-    (melpazoid-insert "```")
-    (when load-error (melpazoid-commit-pending))))
+    (let ((load-error nil))
+      (melpazoid-insert "\n`#'load`-check on each file:")
+      (melpazoid-insert "```")
+      (dolist (filename filenames nil)
+        (melpazoid-insert "Loading %s" filename)
+        (condition-case err
+            (load (expand-file-name filename) nil t t)
+          (error
+           (setq load-error t)
+           (melpazoid-insert "  %s:Error: Emacs %s:\n  %S"
+                             filename emacs-version err))))
+      (melpazoid-insert "```")
+      (when load-error (melpazoid-commit-pending)))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here
