@@ -121,7 +121,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
     cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'image']
     subprocess.run(cmd, check=True, env=run_env)
 
-    _note('\n<!-- Running melpazoid tests... -->')
+    _note('\n<!-- Running tests... -->')
     cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'test']
     main_file = _main_file(files, recipe)
     if main_file and sum(f.name.endswith('.el') for f in pkg_dir.iterdir()) > 1:
@@ -141,7 +141,6 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
             _note(line, CLR_INFO)
         elif not line.startswith('make[1]: Leaving directory'):
             print(line)
-    print()
     print_packaging(recipe, elisp_dir)
 
 
@@ -332,10 +331,8 @@ def _reqs_from_el_file(el_file: TextIO) -> set[str]:
 
 def _check_license_api(clone_address: str) -> bool:
     """Use the GitHub or GitLab API to check for a license.
-    Prints out the particular license as a side effect.
     Return False if unable to check (e.g. it's not on GitHub).
     >>> _check_license_api('https://github.com/riscy/elfmt')
-    - GNU General Public License v3.0 (via repo API)
     True
     """
     repo_info = _repo_info_api(clone_address)
@@ -367,7 +364,7 @@ def _check_license_api(clone_address: str) -> bool:
         'Mozilla Public License 2.0',
         'The Unlicense',
     }
-    print(f"- {license_.get('name')} (via repo API)")
+
     if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
@@ -492,14 +489,25 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
 
 def print_packaging(recipe: str, elisp_dir: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
-    _note('Package and license:', CLR_INFO)
+    print('\n⸺ Package and license:')
     _check_recipe(recipe, elisp_dir)
     _check_package_requires(recipe, elisp_dir)
     _check_url(recipe, elisp_dir)
-    _check_package_tags(recipe)
     _check_license(recipe, elisp_dir)
-    _check_filenames(recipe, elisp_dir)
-    print()
+    _check_other(recipe, elisp_dir)
+    _check_package_tags(recipe)
+    for file in _files_in_recipe(recipe, elisp_dir):
+        relpath = file.relative_to(elisp_dir)
+        if file.is_dir():
+            print(f"- pkg/{relpath} -- directory")
+            continue
+        with file.open(encoding='utf-8', errors='replace') as stream:
+            boilerplate = _check_file_for_license_boilerplate(stream)
+        print(f"- pkg/{relpath}: {boilerplate or 'license unknown'}")
+    if repo_info := _repo_info_api(_clone_address(recipe)):
+        print('- Repository:', (repo_info['license'] or {}).get('name'))
+        if repo_info.get('archived'):
+            _fail('- GitHub repository is archived')
 
 
 def _check_url(recipe: str, elisp_dir: Path) -> None:
@@ -527,7 +535,7 @@ def _check_package_tags(recipe: str) -> None:
             _note(reminder, CLR_WARN)
 
 
-def _check_filenames(recipe: str, elisp_dir: Path) -> None:
+def _check_other(recipe: str, elisp_dir: Path) -> None:
     for file in _files_in_recipe(recipe, elisp_dir):
         if not file.name.endswith('.el'):
             continue
@@ -538,25 +546,14 @@ def _check_filenames(recipe: str, elisp_dir: Path) -> None:
                 + f"MELPA can create one from {package_name(recipe)}.el",
                 CLR_WARN,
             )
-        elif file.name.endswith('-pkg.el'):
+            continue
+        if file.name.endswith('-pkg.el'):
             _fail(f"- {relpath} -- files ending in `-pkg.el` are only for packaging")
+            continue
         prefix = package_name(recipe)
         prefix = prefix[:-5] if prefix.endswith('-mode') else prefix
         if not re.match(f"^{prefix}[-.]", file.name):
             _fail(f"- {relpath} -- not in package namespace `{prefix}-`")
-
-
-def _check_license(recipe: str, elisp_dir: Path) -> None:
-    if not _check_license_api(_clone_address(recipe)):
-        _check_license_file(elisp_dir)
-    for file in _files_in_recipe(recipe, elisp_dir):
-        relpath = file.relative_to(elisp_dir)
-        if file.is_dir():
-            print(f"- {relpath} -- directory")
-            continue
-        if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
-            print(f"- {relpath} -- not elisp code")
-            continue
         with file.open(encoding='utf-8', errors='replace') as stream:
             try:
                 header = stream.readline()
@@ -564,17 +561,21 @@ def _check_license(recipe: str, elisp_dir: Path) -> None:
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except IndexError:
-                header = f"{CLR_ERROR}(no header){CLR_OFF}"
-                _return_code(2)
-            boilerplate = _check_file_for_license_boilerplate(stream)
-            print(
-                f"- {relpath} -- {boilerplate or 'unknown license'}"
-                + (f" -- {header}" if header else "")
-            )
-            if boilerplate is None:
+                _fail(f"- {relpath} -- no packaging header")
+
+
+def _check_license(recipe: str, elisp_dir: Path) -> None:
+    if not _check_license_api(_clone_address(recipe)):
+        _check_license_file(elisp_dir)
+    for file in _files_in_recipe(recipe, elisp_dir):
+        if not file.name.endswith('.el'):
+            continue
+        relpath = file.relative_to(elisp_dir)
+        with file.open(encoding='utf-8', errors='replace') as stream:
+            if not _check_file_for_license_boilerplate(stream):
                 _fail(
-                    f"  - {relpath} needs *formal* license boilerplate and/or an"
-                    " [SPDX-License-Identifier](https://spdx.dev/ids/)"
+                    f"- {relpath} needs *formal* license boilerplate and/or an"
+                    + " [SPDX-License-Identifier](https://spdx.dev/ids/)"
                 )
 
 
@@ -595,7 +596,7 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
         except ChildProcessError:
-            _note(f"Default recipe is unusable: {_default_recipe(recipe)}")
+            _note(f"<!-- Default recipe is unusable: {_default_recipe(recipe)} -->")
             files_default_recipe = []
         if files == files_default_recipe:
             _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
@@ -654,7 +655,7 @@ def check_package_name(name: str) -> None:
     )
     name_reserved = any(re.match(reserved, name) for reserved in reserved_names)
     if name_reserved:
-        _note('Package name:', CLR_INFO)
+        print('\n⸺ Package name:')
         _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
         return
 
@@ -664,7 +665,7 @@ def check_package_name(name: str) -> None:
     except ChildProcessError:
         pass
     else:
-        _note('Package name:', CLR_INFO)
+        print('\n⸺ Package name:')
         _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
         return
 
@@ -681,7 +682,7 @@ def check_package_name(name: str) -> None:
     resolved_same.update(elpa_packages(*same_names))
     resolved_same.update(melpa_packages(*same_names))
     for name_, url in resolved_same.items():
-        _note('Package name:', CLR_INFO)
+        print('\n⸺ Package name:')
         _fail(f"- `{name_}` already exists: {url}\n")
         return
 
@@ -703,10 +704,9 @@ def check_package_name(name: str) -> None:
     )
     if similar_names:
         similar_names.update(melpa_packages(*similar_names.keys()))
-        _note('Package name:', CLR_INFO)
+        print('\n⸺ Package name:')
         for name_, url in similar_names.items():
             print(f"- `{name_}` is similar: {url}")
-    print()
 
 
 @functools.lru_cache
@@ -913,12 +913,9 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
                     check_package_name(package_name(recipe))
-                print('<!-- Footnotes:')
+                print('\n<!-- PR reviewer footnotes:')
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
-                repo_info = _repo_info_api(_clone_address(recipe))
-                if repo_info:
-                    if repo_info.get('archived'):
-                        _fail('- GitHub repository is archived')
+                if repo_info := _repo_info_api(_clone_address(recipe)):
                     print(f"- Created: {repo_info.get('created_at', 'N/A')}")
                     print(f"- Updated: {repo_info.get('updated_at', 'N/A')}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
