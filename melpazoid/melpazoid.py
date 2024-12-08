@@ -889,6 +889,10 @@ def check_melpa_pr(pr_url: str) -> None:
             _note(f"Skipping {filename} (file is not in ./recipes/)")
             continue
 
+        if changed_file['status'] == 'removed':
+            _note(f"Skipping {filename} (file was removed in this PR)")
+            continue
+
         recipe = _url_get(changed_file['raw_url'])
         if Path(filename).name != package_name(recipe):
             _fail(f"'{filename}' does not match '{package_name(recipe)}'")
