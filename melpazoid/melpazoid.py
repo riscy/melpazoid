@@ -496,14 +496,13 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
     _check_license(recipe, elisp_dir)
     _check_other(recipe, elisp_dir)
     _check_package_tags(recipe)
-    for file in _files_in_recipe(recipe, elisp_dir):
-        relpath = file.relative_to(elisp_dir)
-        if file.is_dir():
-            print(f"- pkg/{relpath} -- directory")
+    for file_ in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
+        relpath = file_.relative_to(_MELPAZOID_ROOT)
+        if file_.is_dir():
             continue
-        with file.open(encoding='utf-8', errors='replace') as stream:
+        with file_.open(encoding='utf-8', errors='replace') as stream:
             boilerplate = _check_file_for_license_boilerplate(stream)
-        print(f"- pkg/{relpath}: {boilerplate or 'license unknown'}")
+        print(f"- {relpath}: {boilerplate or 'license unknown'}")
     if repo_info := _repo_info_api(_clone_address(recipe)):
         print('- Repository:', (repo_info['license'] or {}).get('name'))
         if repo_info.get('archived'):
