@@ -333,7 +333,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
   ;; working with modes
   (melpazoid-misc "(equal major-mode \"" "Prefer e.g. `(derived-mode-p 'xyz)` over string comparison") ; nofmt
-  (melpazoid-misc "(eq major-mode '" "You may want to prefer `(derived-mode-p 'xyz)`") ; nofmt
+  (melpazoid-misc "(eq major-mode '" "You may want to consider `(derived-mode-p 'xyz)`") ; nofmt
   (melpazoid-misc "(setq mode-name \"" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(string= major-mode" "Prefer `(derived-mode-p 'xyz)`")
@@ -346,6 +346,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
   (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
   (melpazoid-misc "^(advice-add" "Loading a package should not add advice" nil t) ; nofmt
+  (melpazoid-misc "^(defadvice" "Loading a package should not add advice" nil t) ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
   ;; Keybindings

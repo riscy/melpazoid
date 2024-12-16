@@ -372,7 +372,7 @@ def _check_license_api(clone_address: str) -> bool:
         print('    See: https://github.com/licensee/licensee')
         print('    e.g. https://www.gnu.org/licenses/gpl-3.0.txt')
     else:
-        _note("  - License not in melpazoid's recognized list", CLR_WARN)
+        _note(f"- License {license_.get('name')} may not be compatible", CLR_WARN)
     return True
 
 
@@ -523,14 +523,14 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
 
 
 def _check_package_tags(recipe: str) -> None:
+    # Example of rationale: https://github.com/melpa/melpa/pull/9074
     clone_address = _clone_address(recipe)
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     if match := re.search(r'github.com/([^"]*)', clone_address, flags=re.I):
         repo = match.groups()[0].rstrip('/')
         if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
-            # TODO: also consider https://github.com/melpa/melpa/pull/9074#issuecomment-2381583577
-            reminder = f"- Reminder: ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
+            reminder = f"- In case you haven't, ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
             _note(reminder, CLR_WARN)
 
 
@@ -682,7 +682,7 @@ def check_package_name(name: str) -> None:
     resolved_same.update(melpa_packages(*same_names))
     for name_, url in resolved_same.items():
         print('\n⸺ Package name:')
-        _fail(f"- `{name_}` already exists: {url}\n")
+        _fail(f"- `{name_}` may already exist: {url}\n")
         return
 
     # do other packages have similar names, especially namespace conflicts
