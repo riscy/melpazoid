@@ -672,6 +672,7 @@ def check_package_name(name: str) -> None:
     emacsmirror = emacsmirror_packages()
     same_names = [name, f"{name}-mode"]
     same_names += [name[:-5]] if name.endswith('-mode') else []
+    same_names += [name[:-1]] if name.endswith('s') else []
     same_names += ['org-' + name[3:]] if name.startswith('ox-') else []
     same_names += ['ox-' + name[4:]] if name.startswith('org-') else []
     same_names = [name_ for name_ in same_names if name_ in emacsmirror]
