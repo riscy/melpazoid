@@ -26,4 +26,5 @@ test-melpazoid:
 	rm -rf _requirements.el
 	mypy --strict --non-interactive --install-types melpazoid
 	pytest --doctest-modules --durations=5
+	ruff check . --extend-select=ISC001
 	ruff format --check .
