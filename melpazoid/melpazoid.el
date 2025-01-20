@@ -23,14 +23,13 @@
 
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
-  ;; TODO: use flycheck or its pattern for cleanroom byte-compiling
-  (melpazoid-insert "\n`%s` with byte-compile using Emacs %s:"
+  (melpazoid-insert "\n⸺ `%s` with byte-compile using Emacs %s:"
                     (file-name-nondirectory filename)
                     emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
   (let ((inhibit-message t)
-        (load-path (append load-path (melpazoid--package-load-paths))))
+        (load-path (append (melpazoid--package-load-paths) load-path)))
     (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
     (if (melpazoid--buffer-almost-empty-p)
@@ -77,7 +76,7 @@ affect the output of `byte-compile-file'."
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)
-  (melpazoid-insert "\n`%s` with checkdoc %s (fix *within reason*):"
+  (melpazoid-insert "\n⸺ `%s` with checkdoc %s (fix *within reason*):"
                     (file-name-nondirectory filename)
                     checkdoc-version)
   (ignore-errors (kill-buffer "*Warnings*"))
@@ -113,7 +112,7 @@ affect the output of `byte-compile-file'."
   (ignore-errors (kill-buffer "*Package-Lint*"))
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
     (melpazoid-insert
-     "\n`%s` with package-lint %s%s:"
+     "\n⸺ `%s` with package-lint %s%s:"
      (buffer-name)
      (pkg-info-format-version (pkg-info-package-version "package-lint"))
      (if package-lint-main-file
@@ -176,18 +175,19 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-check-commentary)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
-  (melpazoid-check-autothemer)
+  (melpazoid-check-theme)
 
   (unless (equal melpazoid--pending "")
     (setq melpazoid--pending
           (format
-           "\n`%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
+           "\n⸺ `%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
            (buffer-name)
            melpazoid--pending))
     (melpazoid-commit-pending)))
 
-(defun melpazoid-check-autothemer ()
+(defun melpazoid-check-theme ()
   "Check that the name given to autothemer matches the filename."
+  ;; autothemer
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward
@@ -201,14 +201,26 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-commentary ()
   "Check the commentary."
-  (let ((commentary (lm-commentary)))
+  (require 'lisp-mnt)
+  (let ((filename (file-name-nondirectory (buffer-file-name)))
+        (commentary (lm-commentary)))
     (when commentary
+      (when (and
+             (< (length commentary) 20)
+             (string= filename (or (melpazoid--package-lint-main-file) filename)))
+        (melpazoid-insert "- `;;; Commentary` in main file should not be a stub"))
+      (when (let ((case-fold-search t)) (string-match "See README" commentary))
+        (melpazoid-insert "- `;;; Commentary` should usually not redirect to README"))
       (with-temp-buffer
         (insert commentary)
         (goto-char 0)
         (if (re-search-forward ".\\{90\\}" nil t)
             (melpazoid-insert
-             "- The `;;; Commentary` for this file is much wider than 80 characters"))))))
+             "- `;;; Commentary` is much wider than 80 characters"))
+        (goto-char 0)
+        (if (re-search-forward "^;;;;" nil t)
+            (melpazoid-insert
+             "- `;;; Commentary` decoration like `;;;;...` will appear downstream"))))))
 
 (defun melpazoid-check-mixed-indentation ()
   "Check for a mix of tabs and spaces."
@@ -252,8 +264,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(advice-add '[^#)]*)" msg)
     (melpazoid-misc "(advice-remove '[^#)]*)" msg)
     (melpazoid-misc "(defalias '[^#()]*)" msg)
-    (melpazoid-misc
-     "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
+    (melpazoid-misc "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
 (defun melpazoid-check-picky ()
@@ -275,28 +286,37 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "\n;;; .*\n;;; " "Triple semicolons `;;;` are usually for section headings" t nil) ; no fmt
   (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
-  (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
+  ;; paths
+  (melpazoid-misc "~/.emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs.d/init.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.config/emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
+  ;; possible hacks
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
+  (melpazoid-misc "(with-no-warnings" "Avoid `with-no-warnings` if the root cause can be addressed") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
+  ;; scoping
   (melpazoid-misc "(eval-when-compile (progn" "No `progn` required under `eval-when-compile`") ; nofmt
   (melpazoid-misc "(ignore-errors (progn" "No `progn` required under `ignore-errors`") ; nofmt
+  (melpazoid-misc "(unless .+ (progn" "`unless` body does not need to be wrapped in `progn`") ; nofmt
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(setq inhibit-read-only t" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/line-end-position comparison use `eolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this point/point-at-bol comparison use `bolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this point/point-at-eol comparison use `eolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (pos-bol))" "Could this point/pos-bol comparison use `bolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (pos-eol))" "Could this point/pos-eol comparison use `eolp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this point/point-max comparison use `eobp`?") ; nofmt
-  (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this point/point-min comparison use `bobp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-at-bol))" "Could this `point`/`point-at-bol` comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-at-eol))" "Could this `point`/`point-at-eol` comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (pos-bol))" "Could this `point`/`pos-bol` comparison use `bolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (pos-eol))" "Could this `point`/`pos-eol` comparison use `eolp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-max))" "Could this `point`/`point-max` comparison use `eobp`?") ; nofmt
+  (melpazoid-misc "([<>eq/=]+ (point) (point-min))" "Could this `point`/`point-min` comparison use `bobp`?") ; nofmt
   (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`")
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
   (melpazoid-misc "(goto-char (line-beginning-position))" "Consider `beginning-of-line`") ; nofmt
@@ -305,27 +325,32 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
   (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `line-beginning-position`") ; nofmt
   (melpazoid-misc "(progn (end-of-line) (point))" "Consider `point-at-eol`") ; nofmt
+  ;; boolean expressions
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
   (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
   (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt
   (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`") ; nofmt
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
   ;; working with modes
-  (melpazoid-misc "(equal major-mode \"" "Prefer `(derived-mode-p 'xyz)`")
-  (melpazoid-misc "(setq auto-mode-alist" "Prefer `add-to-list` to add to auto-mode-alist") ; nofmt
-  (melpazoid-misc "(setq major-mode" "Unnecessary if you use `define-derived-mode`") ; nofmt
-  (melpazoid-misc "(setq mode-name" "Unnecessary if you use `define-derived-mode`") ; nofmt
+  (melpazoid-misc "(equal major-mode \"" "Prefer e.g. `(derived-mode-p 'xyz)` over string comparison") ; nofmt
+  (melpazoid-misc "(eq major-mode '" "You may want to prefer `(derived-mode-p 'xyz)`") ; nofmt
+  (melpazoid-misc "(setq mode-name \"" "Unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(string= major-mode" "Prefer `(derived-mode-p 'xyz)`")
-  (melpazoid-misc "lighter \".+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
+  (melpazoid-misc "lighter \"[^\"]+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
   (melpazoid-misc "lighter \"[^ \"]" "Lighter should start with a space" t)
+  (melpazoid-misc "(setq auto-mode-alist" "Prefer `(add-to-list 'auto-mode-alist ...)`") ; nofmt
+  (melpazoid-misc "(push '([^)]+) auto-mode-alist)" "Prefer `(add-to-list 'auto-mode-alist ...)`")
   ;; modifying Emacs on load
-  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
+  ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
-  (melpazoid-misc "^(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
-  (melpazoid-misc "^(advice-add" "Loading a package should rarely add advice" nil t) ; nofmt
+  (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
+  (melpazoid-misc "^(advice-add" "Loading a package should not add advice" nil t) ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
+  ;; Keybindings
+  ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
+  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   ;; f-strings
@@ -427,34 +452,42 @@ OBJECTS are objects to interpolate into the string using `format'."
    (string= (file-name-extension filename) "el")))
 
 (when noninteractive
-  ;; Check every elisp file in `default-directory' (except melpazoid.el)
   (setq melpazoid-can-modify-buffers t)
   (add-to-list 'load-path ".")
 
-  (let ((filename nil)
-        (filenames (directory-files ".")))
-    (while filenames
-      (setq filename (car filenames) filenames (cdr filenames))
-      (when (melpazoid--check-file-p filename) (melpazoid filename))))
+  (let (filenames)
+    ;; Check every elisp file in `default-directory' (except melpazoid.el)
+    (dolist (filename (directory-files "."))
+      (when (melpazoid--check-file-p filename)
+        (setq filenames (cons filename filenames))))
 
-  (let ((load-error nil))
+    ;; run byte-compile BEFORE other checks, because the other checks might
+    ;; bring in arbitrary dependencies that will affect the compile runtime
+    (dolist (filename filenames nil)
+      (melpazoid-byte-compile filename))
+    (dolist (filename filenames nil)
+      (set-buffer (find-file filename))
+      (melpazoid-package-lint))
+    (dolist (filename filenames nil)
+      (set-buffer (find-file filename))
+      (melpazoid-check-experimentals))
+    (dolist (filename filenames nil)
+      (melpazoid-checkdoc filename))
+
     ;; check whether FILENAMEs can be simply loaded
-    (melpazoid-insert "\n`#'load`-check on each file:")
-    (melpazoid-insert "```")
-    (let ((filename nil)
-          (filenames (directory-files ".")))
-      (while filenames
-        (setq filename (car filenames) filenames (cdr filenames))
-        (when (melpazoid--check-file-p filename)
-          (melpazoid-insert "Loading %s" filename)
-          (condition-case err
-              (load (expand-file-name filename) nil t t)
-            (error
-             (setq load-error t)
-             (melpazoid-insert "  %s:Error: Emacs %s:\n  %S"
-                               filename emacs-version err))))))
-    (melpazoid-insert "```")
-    (when load-error (melpazoid-commit-pending))))
+    (let ((load-error nil))
+      (melpazoid-insert "\n`#'load`-check on each file:")
+      (melpazoid-insert "```")
+      (dolist (filename filenames nil)
+        (melpazoid-insert "Loading %s" filename)
+        (condition-case err
+            (load (expand-file-name filename) nil t t)
+          (error
+           (setq load-error t)
+           (melpazoid-insert "  %s:Error: Emacs %s:\n  %S"
+                             filename emacs-version err))))
+      (melpazoid-insert "```")
+      (when load-error (melpazoid-commit-pending)))))
 
 (provide 'melpazoid)
 ;;; melpazoid.el ends here

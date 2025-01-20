@@ -1,7 +1,7 @@
 IMAGE_NAME = melpazoid
 DOCKER ?= docker
-DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=5
-DOCKER_OUTPUT = --quiet  # e.g. '--progress=plain' xor '--quiet'
+DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=50
+DOCKER_OUTPUT ?= --progress=plain  # e.g. '--progress=plain' xor '--quiet'
 BUILD_OPTIONS = --load
 
 .PHONY: run
@@ -24,6 +24,7 @@ image:
 
 .PHONY: test-melpazoid
 test-melpazoid:
+	rm -rf _requirements.el
 	mypy --strict --non-interactive --install-types melpazoid
 	pytest --doctest-modules --durations=5
-	black -S --check .
+	ruff format --check .

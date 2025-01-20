@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9]
+        python-version: ["3.10"]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -18,7 +18,7 @@ jobs:
         sudo apt-get install emacs
         emacs --version
         python -m pip install --upgrade pip
-        pip install . mypy pytest black
+        pip install . mypy pytest ruff
     - name: Test
       run: make test-melpazoid
 
@@ -38,8 +38,12 @@ jobs:
       env:
         CI_BRANCH: main    # always build the master branch on this repo
         EXPECT_ERROR: 2    # we expect it to have some nags
-      run: RECIPE='(magit :fetcher github :repo "magit/magit" :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE" (:exclude "lisp/magit-libgit.el")))' make
-
+      run:
+        RECIPE='(magit :fetcher github
+                       :repo "magit/magit"
+                       :files ("lisp/magit" "lisp/magit*.el" "lisp/git-rebase.el" "Documentation/magit.texi" "Documentation/AUTHORS.md" "LICENSE"
+                              (:exclude "lisp/magit-libgit.el")))'
+        make
     - name: Test local 'melpazoid'
       env:
         CI_BRANCH: master

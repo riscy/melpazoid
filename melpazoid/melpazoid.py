@@ -9,6 +9,9 @@ optional arguments:
   --license        only check licenses
   --recipe RECIPE  a valid MELPA recipe
 """
+
+from __future__ import annotations
+
 __author__ = 'Chris Rayner <dchrisrayner@gmail.com>'
 __license__ = 'SPDX-License-Identifier: GPL-3.0-or-later'
 import argparse
@@ -17,7 +20,6 @@ import functools
 import json
 import operator
 import os
-import pdb
 import re
 import shlex
 import shutil
@@ -27,13 +29,14 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Iterator, List, Optional, Set, TextIO
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TextIO
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 _RETURN_CODE = 0  # eventual return code when run as script
-_MELPAZOID_ROOT = os.path.join(
-    os.path.dirname(__file__) if '__file__' in vars() else os.getcwd(),
-    '..',
-)
+_MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()).parent
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -46,16 +49,16 @@ CLR_INFO = '' if NO_COLOR else '\033[32m'
 MELPA_PR = r'https?://github.com/melpa/melpa/pull/([0-9]+)'
 
 
-def _return_code(return_code: Optional[int] = None) -> int:
+def _return_code(return_code: int | None = None) -> int:
     """Return (and optionally set) the current return code.
     If return_code matches env var EXPECT_ERROR, return 0 --
     this is useful for running CI checks on melpazoid itself.
     """
-    global _RETURN_CODE  # pylint: disable=global-statement
+    global _RETURN_CODE  # noqa: PLW0603
     if return_code is not None:
         _RETURN_CODE = return_code
     expect_error = int(os.environ.get('EXPECT_ERROR', 0))
-    return 0 if _RETURN_CODE == expect_error else _RETURN_CODE
+    return 0 if expect_error == _RETURN_CODE else _RETURN_CODE
 
 
 def is_recipe(recipe: str) -> bool:
@@ -92,34 +95,38 @@ def _fail(message: str, color: str = CLR_ERROR, highlight: str = '') -> None:
     _return_code(2)
 
 
-def check_containerized_build(recipe: str, elisp_dir: str) -> None:
+def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
     """Build a Docker container to run checks on elisp_dir, given a recipe."""
     if not is_recipe(recipe):
         _fail(f"Not a valid recipe: {recipe}")
         return
 
-    files = [os.path.relpath(f, elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
-    elisp_files = [file_ for file_ in files if file_.endswith('.el')]
-    if len({os.path.basename(file_) for file_ in elisp_files}) != len(elisp_files):
-        _fail(f"Multiple elisp files share the same basename: {', '.join(files)}")
+    files = [f.relative_to(elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
+    elisp_files = [file_.name for file_ in files if file_.name.endswith('.el')]
+    if len(elisp_files) != len(set(elisp_files)):
+        _fail(f"Multiple .el files with the same name: {' '.join(sorted(elisp_files))}")
         return
 
-    pkg_dir = os.path.join(_MELPAZOID_ROOT, 'pkg')
+    pkg_dir = _MELPAZOID_ROOT / 'pkg'
     shutil.rmtree(pkg_dir, ignore_errors=True)
-    _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     for ii, file in enumerate(files):
-        target = os.path.basename(file) if file.endswith('.el') else file
-        target = os.path.join(pkg_dir, target)
-        os.makedirs(os.path.dirname(target), exist_ok=True)
+        files[ii] = pkg_dir / (file.name if file.name.endswith('.el') else file)
+        files[ii].parent.mkdir(parents=True, exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
-        subprocess.run(['cp', '-r', os.path.join(elisp_dir, file), target], check=True)
-        files[ii] = target
-    _write_requirements(files, recipe)
-    cmd = ['make', '-C', _MELPAZOID_ROOT, 'test']
+        subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
+    _write_requirements(files)
+
+    _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
+    run_env = dict(os.environ, DOCKER_OUTPUT='--quiet')  # or --progress=plain
+    cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'image']
+    subprocess.run(cmd, check=True, env=run_env)
+
+    _note('\n<!-- Running tests... -->')
+    cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'test']
     main_file = _main_file(files, recipe)
-    if main_file and sum(f.endswith('.el') for f in os.listdir(pkg_dir)) > 1:
-        cmd.append(f"PACKAGE_MAIN={os.path.basename(main_file)}")
-    run_result = subprocess.run(cmd, capture_output=True, check=False)
+    if main_file and sum(f.name.endswith('.el') for f in pkg_dir.iterdir()) > 1:
+        cmd.append(f"PACKAGE_MAIN={main_file.name}")
+    run_result = subprocess.run(cmd, capture_output=True, check=False, env=run_env)
     lines = run_result.stdout.decode().strip().split('\n')
     if run_result.stderr:
         lines += ['\nStderr output while compiling/loading:']
@@ -134,47 +141,46 @@ def check_containerized_build(recipe: str, elisp_dir: str) -> None:
             _note(line, CLR_INFO)
         elif not line.startswith('make[1]: Leaving directory'):
             print(line)
-    print()
     print_packaging(recipe, elisp_dir)
 
 
-def _files_in_recipe(recipe: str, elisp_dir: str) -> List[str]:
+def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
     """Return a file listing, relative to elisp_dir.
-    May raise ChildProcessError on encountering an invalid recipe.
-    >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', 'melpazoid')
-    ['melpazoid/melpazoid.el']
+    Raise ChildProcessError if the recipe does not work against elisp_dir.
+    >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
+    [PosixPath('melpazoid/melpazoid.el')]
     """
-    files = eval_elisp(
+    filenames = eval_elisp(
         f"""
         (require 'package-build)
-        (setq package-build-working-dir "{os.path.dirname(elisp_dir)}")
+        (setq package-build-working-dir "{elisp_dir.parent}")
         (setq rcp {_recipe_struct_elisp(recipe)})
         (send-string-to-terminal
             (mapconcat #'car (package-build-expand-files-spec rcp t) "\n"))
         """
     ).split('\n')
-    files = [os.path.join(elisp_dir, file) for file in files]
-    return sorted(file for file in files if os.path.exists(file))
+    files = [elisp_dir / filename for filename in filenames]
+    return sorted(file for file in files if file.exists())
 
 
 def _default_recipe(recipe: str) -> str:
     """Simplify the given recipe by removing ':files'.
-    >>> _default_recipe('(recipe :repo "a/b" :fetcher hg :branch na :files ("*.el"))')
-    '(recipe :repo "a/b" :fetcher hg :branch na)'
+    >>> _default_recipe('(recipe :fetcher hg :repo "a/b" :branch na :files ("*.el"))')
+    '(recipe :fetcher hg :repo "a/b" :branch na)'
     >>> _default_recipe('(recipe :fetcher hg :url "a/b")')
-    '(recipe :url "a/b" :fetcher hg)'
+    '(recipe :fetcher hg :url "a/b")'
     """
     tokens = _tokenize_expression(recipe)
     fetcher = tokens.index(':fetcher')
     repo = tokens.index(':repo' if ':repo' in tokens else ':url')
-    indices = [1, repo, repo + 1, fetcher, fetcher + 1]
+    indices = [1, fetcher, fetcher + 1, repo, repo + 1]
     if ':branch' in tokens:
         branch = tokens.index(':branch')
         indices += [branch, branch + 1]
     return '(' + ' '.join(operator.itemgetter(*indices)(tokens)) + ')'
 
 
-def _tokenize_expression(expression: str) -> List[str]:
+def _tokenize_expression(expression: str) -> list[str]:
     """Turn an elisp expression into a list of tokens.
     Raise ValueError if the expression can't be parsed.
     >>> _tokenize_expression('(shx :repo "riscy/xyz" :fetcher github) ; comment')
@@ -186,10 +192,10 @@ def _tokenize_expression(expression: str) -> List[str]:
     lexer.wordchars = lexer.wordchars + "':-"
     tokens = list(lexer)
     unbalanced_parens = 0
-    for token in tokens:
-        if token == '(':
+    for t in tokens:
+        if t == '(':
             unbalanced_parens += 1
-        if token == ')':
+        if t == ')':
             unbalanced_parens -= 1
             if unbalanced_parens < 0:
                 break
@@ -206,14 +212,14 @@ def package_name(recipe: str) -> str:
     return _tokenize_expression(recipe)[1]
 
 
-def _main_file(files: List[str], recipe: str) -> Optional[str]:
+def _main_file(files: list[Path], recipe: str) -> Path | None:
     """Figure out the 'main' file of the recipe, per MELPA convention.
-    >>> _main_file(['pkg/a.el', 'pkg/b.el'], '(a :files ...)')
-    'pkg/a.el'
-    >>> _main_file(['a.el', 'b.el'], '(b :files ...)')
-    'b.el'
-    >>> _main_file(['a.el', 'a-pkg.el'], '(a :files ...)')
-    'a-pkg.el'
+    >>> _main_file([Path('pkg/a.el'), Path('pkg/b.el')], '(a :files ...)')
+    PosixPath('pkg/a.el')
+    >>> _main_file([Path('a.el'), Path('b.el')], '(b :files ...)')
+    PosixPath('b.el')
+    >>> _main_file([Path('a.el'), Path('a-pkg.el')], '(a :files ...)')
+    PosixPath('a-pkg.el')
     """
     name = package_name(recipe)
     try:
@@ -224,109 +230,109 @@ def _main_file(files: List[str], recipe: str) -> Optional[str]:
             # looks for name-pkg.el, then name-pkg.el.in, and then name.el,
             # which happens to match sorted() order:
             for el in sorted(files)
-            if os.path.basename(el)
-            in (f"{name}-pkg.el", f"{name}-pkg.el.in", f"{name}.el")
+            if el.name in (f"{name}-pkg.el", f"{name}-pkg.el.in", f"{name}.el")
         )
     except StopIteration:
         return None
 
 
-def _write_requirements(files: List[str], recipe: str) -> None:
+def _write_requirements(files: list[Path]) -> None:
     """Create a little elisp script that Docker will run as setup."""
-    with open('_requirements.el', 'w', encoding='utf-8') as requirements_el:
+    with Path('_requirements.el').open('w', encoding='utf-8') as requirements_el:
         requirements_el.write(
-            f'''
-            ;; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache
-            ;; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>
-            ;; which can disrupt the compilation of packages that use that variable:
-            (setq load-file-name nil)
-            ;; (setq network-security-level 'low)  ; expired certs last resort
-            (require 'package)
-            (package-initialize)
-            (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-            (package-refresh-contents)
-            (package-install 'pkg-info)
-            (package-install 'package-lint)
-            '''
+            f";; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache\n\n"
+            + ";; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>\n"
+            + ";; which can disrupt the compilation of packages that use that variable:\n"
+            + "(setq load-file-name nil)\n"
+            + ";; (setq network-security-level 'low)  ; expired certs last resort\n"
+            + "(require 'package)\n"
+            + "(package-initialize)\n"
+            + """(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))\n"""
+            + "(package-refresh-contents)\n"
+            + "(setq package-install-upgrade-built-in t)\n"
+            + "(package-install 'pkg-info)\n"
+            + "(package-install 'package-lint)\n"
         )
-        for req in requirements(files, recipe):
-            req, *version_maybe = req.split()
+        for req in requirements(files):
+            req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
-            if req == 'emacs':
+            if req_ == 'emacs':
                 continue
-            if '"' in req:  # common failure mode: misplaced quotation marks
-                _fail(f"- Invalid dependency in Package-Requires: `{req}`")
+            if '"' in req_:  # common failure mode: misplaced quotation marks
+                _fail(f"- Package names should not be quoted: `{req}`")
                 continue
-            if req == 'marginalia':
+            if req_ == 'marginalia':
                 _fail(
                     "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
                 )
             # always install the latest available version of the dependency.
-            requirements_el.write(f';; {req} {version}"\n')
             requirements_el.write(
-                f"(package-install (cadr (assq '{req} package-archive-contents)))\n"
+                f'\n(message "Installing {req_} {version} or later")\n'
+                + f"(ignore-errors (package-install (cadr (assq '{req_} package-archive-contents))))\n"
             )
 
 
-def requirements(files: List[str], recipe: Optional[str] = None) -> Set[str]:
+def requirements(files: list[Path]) -> set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
     """
-    reqs = []
-    if recipe:
-        main_file = _main_file(files, recipe)
-        if main_file:
-            files = [main_file]
-    for filename in (f for f in files if os.path.isfile(f)):
-        if filename.endswith('-pkg.el'):
-            with open(filename, encoding='utf-8', errors='replace') as pkg_el:
-                reqs.append(_reqs_from_pkg_el(pkg_el))
-        elif filename.endswith('.el'):
-            with open(filename, encoding='utf-8', errors='replace') as el_file:
-                reqs.append(_reqs_from_el_file(el_file) or '')
-    reqs = sum((re.split('[()]', req) for req in reqs), [])
-    return {req.replace(')', '').strip().lower() for req in reqs if req.strip()}
+    reqs: set[str] = set()
+    for file_ in (f for f in files if f.is_file()):
+        with file_.open(encoding='utf-8', errors='replace') as stream:
+            try:
+                if file_.name.endswith('-pkg.el'):
+                    reqs = reqs.union(_reqs_from_pkg_el(stream))
+                elif file_.name.endswith('.el'):
+                    reqs = reqs.union(_reqs_from_el_file(stream))
+            except ValueError as err:
+                _fail(f"Couldn't parse requirements in {file_.name}: {err}")
+    return reqs
 
 
-def _reqs_from_pkg_el(pkg_el: TextIO) -> str:
+def _reqs_from_pkg_el(pkg_el: TextIO) -> set[str]:
     """Pull the requirements out of a -pkg.el file.
     >>> import io
-    >>> _reqs_from_pkg_el(io.StringIO(
-    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))'''))
-    '( a ( b "31.5" ) )'
+    >>> sorted(_reqs_from_pkg_el(io.StringIO(
+    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))''')))
+    ['a', 'b "31.5"']
     """
     # TODO: fails if EXTRA-PROPERTIES args were given to #'define-package
     reqs = pkg_el.read()
     reqs = ' '.join(_tokenize_expression(reqs)[5:-1])
     reqs = reqs[reqs.find("' (") + 2 :]
     reqs = reqs[: reqs.find(') )') + 3]
-    return reqs
+    return {
+        req.replace(')', '').strip().lower()
+        for req in re.split('[()]', reqs)
+        if req.strip()
+    }
 
 
-def _reqs_from_el_file(el_file: TextIO) -> Optional[str]:
+def _reqs_from_el_file(el_file: TextIO) -> set[str]:
     """Hacky function to pull the requirements out of an elisp file.
     >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
-    '((emacs "24.4"))'
+    {'emacs "24.4"'}
     """
-    for line in el_file.readlines():
+    # TODO: if Package-Requires crosses multiple lines, parsing will fail.
+    # This is also currently an issue with package-lint (2024/09/02)
+    for line in el_file:
         match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.I)
         if match:
-            try:
-                _tokenize_expression(match.groups()[0])
-            except ValueError as err:
-                _fail(str(err))
-            return match.groups()[0].strip()
-    return None
+            _tokenize_expression(match.groups()[0])
+            return {
+                req.replace(')', '').strip().lower()
+                for req in re.split('[()]', match.groups()[0])
+                if req.strip()
+            }
+    return set()
 
 
 def _check_license_api(clone_address: str) -> bool:
     """Use the GitHub or GitLab API to check for a license.
-    Prints out the particular license as a side effect.
     Return False if unable to check (e.g. it's not on GitHub).
     >>> _check_license_api('https://github.com/riscy/elfmt')
-    - GNU General Public License v3.0 (via API)
     True
     """
     repo_info = _repo_info_api(clone_address)
@@ -347,7 +353,7 @@ def _check_license_api(clone_address: str) -> bool:
         'Creative Commons Zero v1.0 Universal',
         'Do What The F*ck You Want To Public License',
         'GNU Affero General Public License v3.0',
-        # 'GNU General Public License v2.0',  # https://github.com/johannes-mueller/company-wordfreq.el/issues/6
+        # re: GPL v2.0 see https://github.com/johannes-mueller/company-wordfreq.el/issues/6
         'GNU General Public License v2.0 or later',
         'GNU General Public License v3.0 only',
         'GNU General Public License v3.0 or later',
@@ -358,11 +364,11 @@ def _check_license_api(clone_address: str) -> bool:
         'Mozilla Public License 2.0',
         'The Unlicense',
     }
-    print(f"- {license_.get('name')} (via API)")
+
     if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
-        _note('  - Try to use a standard license file format', CLR_WARN)
+        _note('  - Try to use a standard license file format for your repo', CLR_WARN)
         print('    See: https://github.com/licensee/licensee')
         print('    e.g. https://www.gnu.org/licenses/gpl-3.0.txt')
     else:
@@ -370,12 +376,12 @@ def _check_license_api(clone_address: str) -> bool:
     return True
 
 
-@functools.lru_cache()
-def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
+@functools.lru_cache
+def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     """Use the GitHub or GitLab API to fetch details about a repository.
     Raise urllib.error.URLError if API request fails.
     """
-    repo_info: Dict[str, Any]
+    repo_info: dict[str, Any]
     if clone_address.endswith('.git'):
         clone_address = clone_address[:-4]
     match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
@@ -397,7 +403,7 @@ def _repo_info_api(clone_address: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _check_license_file(elisp_dir: str) -> None:
+def _check_license_file(elisp_dir: Path) -> None:
     """Scan any COPYING or LICENSE files."""
     license_names = (
         'copying',
@@ -408,20 +414,24 @@ def _check_license_file(elisp_dir: str) -> None:
         'licenses',
         'unlicense',
     )
-    for license_ in os.scandir(elisp_dir):
-        if license_.name.lower() not in license_names:
+    has_license_file = False
+    for license_ in elisp_dir.iterdir():
+        # handles e.g. LICENSE.GPL, LICENSE.APACHE
+        if not any(license_.name.lower().startswith(name) for name in license_names):
             continue
+        has_license_file = True
         if license_.is_dir():
-            licenses = ', '.join(f"`{f.name}`" for f in os.scandir(license_.path))
+            licenses = ', '.join(f"`{f.name}`" for f in license_.iterdir())
             print(f"- {license_.name} directory: {licenses}")
             return
-        with open(license_.path, encoding='utf-8', errors='replace') as stream:
-            print(f"- {license_.name} excerpt: `{stream.readline().strip()}...`")
-        return
-    _fail('- Add a GPL-compatible LICENSE file to the repository')
+        with license_.open(encoding='utf-8', errors='replace') as stream:
+            excerpt = ' '.join(stream.read(200).split())[:50]
+            print(f"- {license_.name} excerpt: `{excerpt}`...")
+    if not has_license_file:
+        _fail('- Add a GPL-compatible LICENSE file to the repository')
 
 
-def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
+def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
     """Check an elisp file for some license boilerplate.
     >>> import io
     >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
@@ -435,12 +445,13 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     if match:
         # TODO: one can AND and OR licenses together
         # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
-        license_ = _spdx_license(license_id=match.groups()[0])
+        license_id = match.groups()[0]
+        license_ = _spdx_license(license_id)
         if license_ is None:
-            _fail(f"- Invalid SPDX license: {match.groups()[0]}")
+            _fail(f"- Invalid SPDX id `{license_id}`; check https://spdx.dev/ids/")
             return None
         if not license_['isFsfLibre']:
-            _fail(f"Not free/libre: {match.groups()[0]}")
+            _fail(f"- Non-free/libre license: {match.groups()[0]}")
         return str(license_['name'])
 
     gpl_compatible_license_excerpts = {
@@ -460,8 +471,14 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> Optional[str]:
     return None
 
 
-@functools.lru_cache()
-def _spdx_license(license_id: str) -> Optional[Dict[str, Any]]:
+@functools.lru_cache
+def _spdx_license(license_id: str) -> dict[str, Any] | None:
+    for operator_ in (' OR ', ' AND ', ' WITH '):
+        # the SPDX API does not handle SPDX expressions; take a stab at it here:
+        if operator_ in license_id:
+            _note(f"- Reviewer note: nontrivial SPDX license '{license_id}'", CLR_INFO)
+            license_id = license_id.split(operator_)[0]
+            break
     license_id = license_id.replace(' ', '-')
     try:
         response = _url_get(f'https://spdx.org/licenses/{license_id.strip()}.json')
@@ -470,69 +487,116 @@ def _spdx_license(license_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def print_packaging(recipe: str, elisp_dir: str) -> None:
+def print_packaging(recipe: str, elisp_dir: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
-    _note('Package and license:', CLR_INFO)
+    print('\n⸺ Package and license:')
     _check_recipe(recipe, elisp_dir)
     _check_package_requires(recipe, elisp_dir)
+    _check_url(recipe, elisp_dir)
     _check_license(recipe, elisp_dir)
-    print()
-
-
-def _check_license(recipe: str, elisp_dir: str) -> None:
-    clone_address = _clone_address(recipe)
-    if not _check_license_api(clone_address):
-        _check_license_file(elisp_dir)
+    _check_other(recipe, elisp_dir)
+    _check_package_tags(recipe)
     for file in _files_in_recipe(recipe, elisp_dir):
-        relpath = os.path.relpath(file, elisp_dir)
-        if os.path.isdir(file):
-            print(f"- {relpath} -- directory")
+        relpath = file.relative_to(elisp_dir)
+        if file.is_dir():
+            print(f"- pkg/{relpath} -- directory")
             continue
-        if not file.endswith('.el'):
-            print(f"- {relpath} -- not elisp")
+        with file.open(encoding='utf-8', errors='replace') as stream:
+            boilerplate = _check_file_for_license_boilerplate(stream)
+        print(f"- pkg/{relpath}: {boilerplate or 'license unknown'}")
+    if repo_info := _repo_info_api(_clone_address(recipe)):
+        print('- Repository:', (repo_info['license'] or {}).get('name'))
+        if repo_info.get('archived'):
+            _fail('- GitHub repository is archived')
+
+
+def _check_url(recipe: str, elisp_dir: Path) -> None:
+    for file in _files_in_recipe(recipe, elisp_dir):
+        if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
             continue
-        if file.endswith('-pkg.el'):
+        with file.open(encoding='utf-8', errors='replace') as stream:
+            text = stream.read()
+        url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.I)
+        if url_match:
+            url = url_match.groups()[0]
+            if not _url_ok(url):
+                _fail(f"- Unreachable package URL in {file.name}: {url}")
+
+
+def _check_package_tags(recipe: str) -> None:
+    clone_address = _clone_address(recipe)
+    if clone_address.endswith('.git'):
+        clone_address = clone_address[:-4]
+    if match := re.search(r'github.com/([^"]*)', clone_address, flags=re.I):
+        repo = match.groups()[0].rstrip('/')
+        if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
+            # TODO: also consider https://github.com/melpa/melpa/pull/9074#issuecomment-2381583577
+            reminder = f"- Reminder: ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
+            _note(reminder, CLR_WARN)
+
+
+def _check_other(recipe: str, elisp_dir: Path) -> None:
+    for file in _files_in_recipe(recipe, elisp_dir):
+        if not file.name.endswith('.el'):
+            continue
+        relpath = file.relative_to(elisp_dir)
+        if file.name == f"{package_name(recipe)}-pkg.el":
             _note(
                 f"- {relpath} -- consider excluding; "
-                + f"MELPA can create one from {os.path.basename(file)[:-7]}.el",
+                + f"MELPA can create one from {package_name(recipe)}.el",
                 CLR_WARN,
             )
             continue
-        with open(file, encoding='utf-8', errors='replace') as stream:
+        if file.name.endswith('-pkg.el'):
+            _fail(f"- {relpath} -- files ending in `-pkg.el` are only for packaging")
+            continue
+        prefix = package_name(recipe)
+        prefix = prefix[:-5] if prefix.endswith('-mode') else prefix
+        if not re.match(f"^{prefix}[-.]", file.name):
+            _fail(f"- {relpath} -- not in package namespace `{prefix}-`")
+        with file.open(encoding='utf-8', errors='replace') as stream:
             try:
                 header = stream.readline()
                 header = header.split('-*-')[0]
                 header = header.split(' --- ')[1]
                 header = header.strip()
             except IndexError:
-                header = f"{CLR_ERROR}(no header){CLR_OFF}"
-                _return_code(2)
-            boilerplate = _check_file_for_license_boilerplate(stream)
-            print(
-                f"- {boilerplate or 'unknown license'} -- {relpath}"
-                + (f": {header}" if header else "")
-            )
-            if boilerplate is None:
+                _fail(f"- {relpath} -- no packaging header")
+
+
+def _check_license(recipe: str, elisp_dir: Path) -> None:
+    if not _check_license_api(_clone_address(recipe)):
+        _check_license_file(elisp_dir)
+    for file in _files_in_recipe(recipe, elisp_dir):
+        if not file.name.endswith('.el'):
+            continue
+        relpath = file.relative_to(elisp_dir)
+        with file.open(encoding='utf-8', errors='replace') as stream:
+            if not _check_file_for_license_boilerplate(stream):
                 _fail(
                     f"- {relpath} needs *formal* license boilerplate and/or an"
-                    " [SPDX-License-Identifier](https://spdx.dev/ids/)"
+                    + " [SPDX-License-Identifier](https://spdx.dev/ids/)"
                 )
 
 
-def _check_recipe(recipe: str, elisp_dir: str) -> None:
+def _check_recipe(recipe: str, elisp_dir: Path) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     for specifier in (':branch', ':commit', ':version-regexp'):
         if specifier in recipe:
-            _note(f"- Avoid specifying `{specifier}` except in unusual cases", CLR_WARN)
+            _note(f"- Avoid `{specifier}` in recipes except in unusual cases", CLR_WARN)
     if not _main_file(files, recipe):
-        _fail(f"- No .el file matches the name '{package_name(recipe)}'")
+        _fail(f"- No 'main' file found, e.g. '{package_name(recipe)}.el'")
     if ':url' in recipe and 'https://github.com' in recipe:
         _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
+    if ':repo' in recipe and recipe.index(':fetcher') > recipe.index(':repo'):
+        _note('- Please specify `:fetcher` before `:repo` in your recipe', CLR_WARN)
+    if ':url' in recipe and recipe.index(':fetcher') > recipe.index(':url'):
+        _note('- Please specify `:fetcher` before `:url` in your recipe', CLR_WARN)
     if ':files' in recipe:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
         except ChildProcessError:
-            _note("Default recipe invalid: {_default_recipe(recipe)}", CLR_WARN)
+            _note(f"<!-- Default recipe is unusable: {_default_recipe(recipe)} -->")
             files_default_recipe = []
         if files == files_default_recipe:
             _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
@@ -544,10 +608,10 @@ def _check_recipe(recipe: str, elisp_dir: str) -> None:
                 return
             _note('- Prefer :defaults instead of *.el, if possible')
         if '"*.el"' in recipe:
-            _note(f"- Prefer `{package_name(recipe)}-*.el` over `*.el`", CLR_WARN)
+            _note(f"- Prefer `{package_name(recipe)}*.el` over `*.el`", CLR_WARN)
 
 
-def _check_package_requires(recipe: str, elisp_dir: str) -> None:
+def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
@@ -557,15 +621,18 @@ def _check_package_requires(recipe: str, elisp_dir: str) -> None:
     if not main_file:
         _fail("- Can't check Package-Requires if there is no 'main' file")
         return
-    main_file_requirements = requirements(files, recipe)
+    main_file_requirements = requirements([main_file])
     for file in files:
         file_requirements = requirements([file])
-        if file_requirements > main_file_requirements:
+        if file_requirements - main_file_requirements > set():
             _fail(
-                f"- {os.path.basename(main_file)} must include all of the "
-                + f"Package-Requires listed in {os.path.basename(file)}: "
+                f"- {main_file.name} must include all of the "
+                + f"Package-Requires listed in {file.name}, including: "
                 + ', '.join(sorted(file_requirements - main_file_requirements))
             )
+    compat = next((r for r in main_file_requirements if r.startswith('compat ')), None)
+    if compat:
+        _note(f"- Reviewer note: this package depends on {compat}", CLR_INFO)
 
 
 def check_package_name(name: str) -> None:
@@ -574,21 +641,33 @@ def check_package_name(name: str) -> None:
     This function will print nothing if there are no issues.
     """
     # is the package name implicitly reserved?
-    reserved_names = ('^git-rebase$', '^helm-source-')
+    reserved_names = (
+        # used by distel
+        '^erl$',
+        '^derl$',
+        '^epmd$',
+        '^erlext$',
+        '^mcase$',
+        '^net-fsm$',
+        # other
+        '^git-rebase$',
+        '^helm-source-',
+    )
     name_reserved = any(re.match(reserved, name) for reserved in reserved_names)
     if name_reserved:
-        _note('Package name:', CLR_INFO)
+        print('\n⸺ Package name:')
         _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
         return
 
     # is the package name an Emacs builtin?
     try:
         eval_elisp(f"(require '{name})")
-        _note('Package name:', CLR_INFO)
-        _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
-        return
     except ChildProcessError:
         pass
+    else:
+        print('\n⸺ Package name:')
+        _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
+        return
 
     # do other packages have the same name (within some magin)?
     emacsmirror = emacsmirror_packages()
@@ -603,12 +682,12 @@ def check_package_name(name: str) -> None:
     resolved_same.update(elpa_packages(*same_names))
     resolved_same.update(melpa_packages(*same_names))
     for name_, url in resolved_same.items():
-        _note('Package name:', CLR_INFO)
+        print('\n⸺ Package name:')
         _fail(f"- `{name_}` already exists: {url}\n")
         return
 
     # do other packages have similar names, especially namespace conflicts
-    # (to save url_ok calls, we don't specify package index for similars):
+    # (to save network calls, we only scan packages listed on emacsmirror):
     tokens = name.split('-')
     prefices = ['-'.join(tokens[: i + 1]) for i in range(len(tokens))]
     similar_names = {  # packages that are implicitly a parent of 'name'
@@ -624,15 +703,16 @@ def check_package_name(name: str) -> None:
         }
     )
     if similar_names:
-        _note('Package name:', CLR_INFO)
+        similar_names.update(melpa_packages(*similar_names.keys()))
+        print('\n⸺ Package name:')
         for name_, url in similar_names.items():
             print(f"- `{name_}` is similar: {url}")
-    print()
 
 
-@functools.lru_cache()
-def emacsattic_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def emacsattic_packages(*keywords: str) -> dict[str, str]:
     """(Obsolete) packages on Emacsattic matching 'keywords'.
+    q.v. https://github.com/melpa/melpa/pull/8621#issuecomment-1616925395
     >>> emacsattic_packages('sos')
     {'sos': 'https://github.com/emacsattic/sos'}
     """
@@ -640,23 +720,23 @@ def emacsattic_packages(*keywords: str) -> Dict[str, str]:
     return {kw: url for kw, url in packages.items() if _url_ok(url)}
 
 
-@functools.lru_cache()
-def emacswiki_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def emacswiki_packages(*keywords: str) -> dict[str, str]:
     """Packages on emacswiki.org mirror matching 'keywords'.
     >>> emacswiki_packages('rss')
     {'rss': 'https://github.com/emacsmirror/emacswiki.org/blob/master/rss.el'}
     """
     packages = {}
     for keyword in set(keywords):
-        el_file = keyword if keyword.endswith('.el') else (keyword + '.el')
+        el_file = keyword if keyword.endswith('.el') else keyword + '.el'
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
         if _url_ok(pkg):
             packages[keyword] = pkg
     return packages
 
 
-@functools.lru_cache()
-def emacsmirror_packages() -> Dict[str, str]:
+@functools.lru_cache
+def emacsmirror_packages() -> dict[str, str]:
     """All mirrored packages."""
     epkgs = 'https://raw.githubusercontent.com/emacsmirror/epkgs/master/.gitmodules'
     epkgs_parser = configparser.ConfigParser()
@@ -668,8 +748,8 @@ def emacsmirror_packages() -> Dict[str, str]:
     }
 
 
-@functools.lru_cache()
-def elpa_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def elpa_packages(*keywords: str) -> dict[str, str]:
     """ELPA packages matching keywords.
     >>> elpa_packages('git-modes')
     {'git-modes (nongnu)': 'https://elpa.nongnu.org/nongnu/git-modes.html'}
@@ -687,8 +767,8 @@ def elpa_packages(*keywords: str) -> Dict[str, str]:
     return {kw: url for kw, url in sources.items() if _url_ok(url)}
 
 
-@functools.lru_cache()
-def melpa_packages(*keywords: str) -> Dict[str, str]:
+@functools.lru_cache
+def melpa_packages(*keywords: str) -> dict[str, str]:
     """MELPA packages matching keywords.
     >>> melpa_packages('highlight-symbol')
     {'highlight-symbol': 'https://melpa.org/#/highlight-symbol'}
@@ -706,13 +786,14 @@ def melpa_packages(*keywords: str) -> Dict[str, str]:
 def check_melpa_recipe(recipe: str) -> None:
     """Check a MELPA recipe definition."""
     _return_code(0)
-    with tempfile.TemporaryDirectory() as elisp_dir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = os.path.join(elisp_dir, package_name(recipe))
+        elisp_dir = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
-        if _local_repo():
-            print(f"Using local repository at {_local_repo()}")
-            shutil.copytree(_local_repo(), elisp_dir)
+        local_repo = _local_repo()
+        if local_repo:
+            print(f"Using local repository at {local_repo}")
+            shutil.copytree(local_repo, elisp_dir)
             check_containerized_build(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             check_containerized_build(recipe, elisp_dir)
@@ -722,13 +803,14 @@ def check_license(recipe: str) -> None:
     """Check license for a given recipe."""
     # TODO: DRY up wrt check_melpa_recipe
     _return_code(0)
-    with tempfile.TemporaryDirectory() as elisp_dir:
+    with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = os.path.join(elisp_dir, package_name(recipe))
+        elisp_dir = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
-        if _local_repo():
-            print(f"Using local repository at {_local_repo()}")
-            shutil.copytree(_local_repo(), elisp_dir)
+        local_repo = _local_repo()
+        if local_repo:
+            print(f"Using local repository at {local_repo}")
+            shutil.copytree(local_repo, elisp_dir)
             _check_license(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             _check_license(recipe, elisp_dir)
@@ -743,13 +825,13 @@ def _fetcher(recipe: str) -> str:
     return tokenized_recipe[tokenized_recipe.index(':fetcher') + 1]
 
 
-def _local_repo() -> str:
-    local_repo = os.path.expanduser(os.environ.get('LOCAL_REPO', ''))
-    assert not local_repo or os.path.isdir(local_repo)
-    return local_repo
+def _local_repo() -> Path | None:
+    if not os.environ.get('LOCAL_REPO'):
+        return None
+    return Path.expanduser(Path(os.environ['LOCAL_REPO']))
 
 
-def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
+def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> bool:
     """Try to clone the repository; return whether we succeeded."""
     _note(f"<!-- Cloning {repo} {'@' + branch if branch else ''} -->")
 
@@ -764,7 +846,7 @@ def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
         if branch:
             _note(f"CI workflow detected; using branch '{branch}'", CLR_INFO)
 
-    os.makedirs(into)
+    into.mkdir()
     scm = 'hg' if fetcher == 'hg' else 'git'
     if scm == 'git':
         options = ['--single-branch']
@@ -774,7 +856,7 @@ def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
             options += ['--depth', '1']
     elif scm == 'hg':
         options = ['--branch', branch if branch else 'default']
-    scm_command = [scm, 'clone', *options, repo, into]
+    scm_command = [scm, 'clone', *options, repo, str(into)]
     run_result = subprocess.run(scm_command, capture_output=True, check=False)
     if run_result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
@@ -783,7 +865,7 @@ def _clone(repo: str, into: str, branch: Optional[str], fetcher: str) -> bool:
     return True
 
 
-def _branch(recipe: str) -> Optional[str]:
+def _branch(recipe: str) -> str | None:
     """Return the recipe's branch if available, else the empty string.
     >>> _branch('(shx :branch "develop" ...)')
     'develop'
@@ -809,13 +891,19 @@ def check_melpa_pr(pr_url: str) -> None:
             continue
 
         recipe = _url_get(changed_file['raw_url'])
-        if os.path.basename(filename) != package_name(recipe):
+        if Path(filename).name != package_name(recipe):
             _fail(f"'{filename}' does not match '{package_name(recipe)}'")
+            continue
+
+        try:
+            _recipe_struct_elisp(recipe)
+        except ChildProcessError as err:
+            _fail(f"Invalid recipe in PR `{recipe.strip()}`: {err}")
             continue
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # package-build prefers the directory to be named after the package:
-            elisp_dir = os.path.join(tmpdir, package_name(recipe))
+            elisp_dir = Path(tmpdir) / package_name(recipe)
             if _clone(
                 _clone_address(recipe),
                 into=elisp_dir,
@@ -825,23 +913,24 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
                     check_package_name(package_name(recipe))
-                print('<!-- Footnotes:')
+                print('\n<!-- PR reviewer footnotes:')
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
-                repo_info = _repo_info_api(_clone_address(recipe))
-                if repo_info:
-                    if repo_info.get('archived'):
-                        _fail('- GitHub repository is archived')
+                if repo_info := _repo_info_api(_clone_address(recipe)):
                     print(f"- Created: {repo_info.get('created_at', 'N/A')}")
                     print(f"- Updated: {repo_info.get('updated_at', 'N/A')}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
+                if (reminders := _MELPAZOID_ROOT / '_reminders.json').is_file():
+                    for pattern, reminder in json.loads(reminders.read_text()).items():
+                        if re.search(pattern, recipe):
+                            _note(f"- REMINDER: {reminder}", CLR_WARN)
                 print('-->\n')
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
-def _pr_changed_files(pr_number: str) -> List[Dict[str, Any]]:
+def _pr_changed_files(pr_number: str) -> list[dict[str, Any]]:
     """Get data from GitHub API."""
-    melpa_pull_api = 'https://api.github.com/repos/melpa/melpa/pulls'
-    return list(json.loads(_url_get(f"{melpa_pull_api}/{pr_number}/files")))
+    pr_files_url = f"https://api.github.com/repos/melpa/melpa/pulls/{pr_number}/files"
+    return list(json.loads(_url_get(pr_files_url)))
 
 
 def _prettify_recipe(recipe: str) -> str:
@@ -849,11 +938,12 @@ def _prettify_recipe(recipe: str) -> str:
     return ' '.join(recipe.split()).replace(' :', '\n    :')
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _clone_address(recipe: str) -> str:
     """Fetch the upstream repository URL for the recipe.
+    Throw a ChildProcessError if Emacs encounters a problem.
     >>> _clone_address('(shx :repo "riscy/shx-for-emacs" :fetcher github)')
-    'https://github.com/riscy/shx-for-emacs.git'
+    'https://github.com/riscy/shx-for-emacs'
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
@@ -861,22 +951,21 @@ def _clone_address(recipe: str) -> str:
         f"""
         (require 'package-recipe)
         (send-string-to-terminal
-          (package-recipe--upstream-url {_recipe_struct_elisp(recipe)}))
+          (oref {_recipe_struct_elisp(recipe)} url))
         """
     )
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _recipe_struct_elisp(recipe: str) -> str:
     """Turn the recipe into a serialized 'package-recipe' object.
     Throw a ChildProcessError if Emacs encounters a problem.
     >>> _recipe_struct_elisp('(melpazoid :fetcher github :repo "xyz")')
-    '#s(package-github-recipe "melpazoid" nil "xyz" nil nil nil nil nil nil nil nil)'
+    '#s(package-github-recipe "melpazoid" "https://github.com/xyz" "xyz" ...'
     """
     name = package_name(recipe)
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.path.join(tmpdir, name), 'w', encoding='utf-8') as file:
-            file.write(recipe)
+        (Path(tmpdir) / name).write_text(recipe, 'utf-8')
         return eval_elisp(
             f"""
             (require 'package-build)
@@ -896,8 +985,7 @@ def eval_elisp(script: str) -> str:
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename, content in _package_build_files().items():
-            with open(os.path.join(tmpdir, filename), 'w', encoding='utf-8') as file:
-                file.write(content)
+            (Path(tmpdir) / filename).write_text(content, 'utf-8')
         script = f"""(progn (add-to-list 'load-path "{tmpdir}") {script})"""
         result = subprocess.run(
             ['emacs', '--quick', '--batch', '--eval', script],
@@ -909,8 +997,8 @@ def eval_elisp(script: str) -> str:
         return str(result.stdout.decode()).strip()
 
 
-@functools.lru_cache()
-def _package_build_files() -> Dict[str, str]:
+@functools.lru_cache
+def _package_build_files() -> dict[str, str]:
     """Grab the required package-build files from the MELPA repo."""
     return {
         filename: _url_get(
@@ -939,11 +1027,11 @@ def _check_loop() -> None:
                     _note(f"<!-- Checking pull request: {target} -->")
                     check_melpa_pr(target)
                 if _return_code() != 0:
-                    _fail(f'<!-- Failed in {time.perf_counter() - start:.2}s -->')
+                    _fail(f'<!-- Failed in {time.perf_counter() - start:.2f}s -->')
                 else:
-                    _note(f'<!-- Finished in {time.perf_counter() - start:.2}s -->')
-        except KeyboardInterrupt:
-            pdb.set_trace()  # pylint: disable=forgotten-debug-statement
+                    _note(f'<!-- Finished in {time.perf_counter() - start:.2f}s -->')
+        except KeyboardInterrupt:  # noqa: PERF203
+            breakpoint()  # noqa: T100
 
 
 def _fetch_targets() -> Iterator[str]:
@@ -972,13 +1060,12 @@ def _argparse_target(target: str) -> str:
     """For near-term backward compatibility this parser just sets env vars."""
     if re.match(MELPA_PR, target):
         os.environ['MELPA_PR_URL'] = target
-    elif os.path.isfile(target):
-        with open(target, encoding='utf-8') as file:
-            potential_recipe = file.read()
+    elif Path(target).is_file():
+        potential_recipe = Path(target).read_text('utf-8')
         if not is_recipe(potential_recipe):
             raise argparse.ArgumentTypeError(f"{target!r} contains an invalid recipe")
         os.environ['RECIPE'] = potential_recipe
-    elif os.path.isdir(target):
+    elif Path(target).is_dir():
         os.environ['LOCAL_REPO'] = target
     else:
         raise argparse.ArgumentTypeError(f"{target!r} must be a MELPA PR or local path")
@@ -994,13 +1081,20 @@ def _argparse_recipe(recipe: str) -> str:
 
 
 def _url_get(url: str) -> str:
-    with urllib.request.urlopen(url) as response:
-        return str(response.read().decode())
+    if not url.startswith(('http://', 'https://')):
+        raise ValueError(url)
+    try:
+        with urllib.request.urlopen(url) as response:  # noqa: S310
+            return str(response.read().decode())
+    except urllib.error.URLError as err:
+        raise ValueError(url) from err
 
 
 def _url_ok(url: str) -> bool:
+    if not url.startswith(('http://', 'https://')):
+        raise ValueError(url)
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):
+        with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):  # noqa: S310
             return True
     except urllib.error.URLError:
         return False
@@ -1017,8 +1111,8 @@ def _main() -> None:
     if pargs.license:
         if not os.environ.get('RECIPE'):
             _fail('Set a recipe using `target` or with: [--recipe RECIPE]')
-        else:
-            check_license(os.environ['RECIPE'])
+            return
+        check_license(os.environ['RECIPE'])
     elif 'MELPA_PR_URL' in os.environ:
         check_melpa_pr(os.environ['MELPA_PR_URL'])
     elif 'RECIPE' in os.environ:
