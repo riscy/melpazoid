@@ -288,6 +288,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
+  (melpazoid-misc ";; fill-column:" "Prefer `byte-compile-docstring-max-column` over `fill-column`" nil t) ; nofmt
   ;; paths
   (melpazoid-misc "~/.emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
   (melpazoid-misc "~/.emacs.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
