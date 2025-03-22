@@ -368,9 +368,8 @@ def _check_license_api(clone_address: str) -> bool:
     if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
-        _note('  - Try to use a standard license file format for your repo', CLR_WARN)
-        print('    See: https://github.com/licensee/licensee')
-        print('    e.g. https://www.gnu.org/licenses/gpl-3.0.txt')
+        _note('- Try to use a standard license file format for your repo', CLR_WARN)
+        print('  This helps detection tools like: https://github.com/licensee/licensee')
     else:
         _note(f"- License {license_.get('name')} may not be compatible", CLR_WARN)
     return True
@@ -504,7 +503,7 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
             boilerplate = _check_file_for_license_boilerplate(stream)
         print(f"- {relpath}: {boilerplate or 'license unknown'}")
     if repo_info := _repo_info_api(_clone_address(recipe)):
-        print('- Repository:', (repo_info['license'] or {}).get('name'))
+        print('- Repository:', (repo_info['license'] or {}).get('name', 'Unlicensed'))
         if repo_info.get('archived'):
             _fail('- GitHub repository is archived')
 
