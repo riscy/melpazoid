@@ -1,6 +1,6 @@
 # Based on:
 # <https://ubuntuhandbook.org/index.php/2023/08/gnu-emacs-29-1-ubuntu-ppa/>
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 RUN apt-get update \
         && apt-get -y install curl gnupg openssh-client wget \
