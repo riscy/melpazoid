@@ -535,7 +535,10 @@ def _check_package_tags(recipe: str) -> None:
 
 
 def _check_other(recipe: str, elisp_dir: Path) -> None:
-    for file in _files_in_recipe(recipe, elisp_dir):
+    files_in_recipe = _files_in_recipe(recipe, elisp_dir)
+    if not any(file.name == f"{package_name(recipe)}.el" for file in files_in_recipe):
+        _fail(f"- MELPA requires a file called {package_name(recipe)}.el")
+    for file in files_in_recipe:
         if not file.name.endswith('.el'):
             continue
         relpath = file.relative_to(elisp_dir)
