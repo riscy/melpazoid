@@ -997,10 +997,11 @@ def eval_elisp(script: str) -> str:
             ['emacs', '--quick', '--batch', '--eval', script],
             capture_output=True,
             check=False,
+            text=True,
         )
         if result.returncode != 0:
-            raise ChildProcessError(f"Emacs crashed: {result.stderr.decode()}")
-        return str(result.stdout.decode()).strip()
+            raise ChildProcessError(f"Emacs crashed ({result.stderr}) on: {script!r}")
+        return str(result.stdout.strip())
 
 
 @functools.lru_cache
