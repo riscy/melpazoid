@@ -518,7 +518,7 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
         if url_match:
             url = url_match.groups()[0]
             if not _url_ok(url):
-                _fail(f"- Unreachable package URL in {file.name}: {url}")
+                _fail(f"- Unreachable package URL in {file.name}: {url!r}")
 
 
 def _check_package_tags(recipe: str) -> None:
@@ -1086,21 +1086,31 @@ def _argparse_recipe(recipe: str) -> str:
     return recipe
 
 
-def _url_get(url: str) -> str:
+def _url_get(url: str, retry: int = 3) -> str:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
     try:
         with urllib.request.urlopen(url) as response:  # noqa: S310
             return str(response.read().decode())
     except urllib.error.URLError as err:
-        raise ValueError(url) from err
+        if retry < 1:
+            raise
+        print(f'Retrying {url} in 10 seconds: {err}')
+        time.sleep(10)
+        return _url_get(url, retry - 1)
 
 
 def _url_ok(url: str) -> bool:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
+    if ' ' in url:
+        return False
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, method='HEAD')):  # noqa: S310
+        with urllib.request.urlopen(
+            urllib.request.Request(
+                url, method='HEAD', headers={'User-Agent': 'Mozilla/5.0'}
+            )
+        ):
             return True
     except urllib.error.URLError:
         return False
