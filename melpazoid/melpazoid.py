@@ -286,7 +286,7 @@ def requirements(files: list[Path]) -> set[str]:
                 elif file_.name.endswith('.el'):
                     reqs = reqs.union(_reqs_from_el_file(stream))
             except ValueError as err:
-                _fail(f"Couldn't parse requirements in {file_.name}: {err}")
+                _fail(f"- Couldn't parse requirements in {file_.name}: {err}")
     return reqs
 
 
@@ -601,10 +601,10 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
             _note(f"<!-- Default recipe is unusable: {_default_recipe(recipe)} -->")
             files_default_recipe = []
         if files == files_default_recipe:
-            _note(f"- Prefer equivalent recipe: `{_default_recipe(recipe)}`", CLR_WARN)
+            _note(f"- Prefer default recipe: `{_default_recipe(recipe)}`", CLR_WARN)
             return
         if '"*.el"' in recipe and ':defaults' not in recipe:
-            new_recipe = recipe.replace('"*.el"', ':defaults')
+            new_recipe = ' '.join(recipe.replace('"*.el"', ':defaults').split())
             if files == _files_in_recipe(new_recipe, elisp_dir):
                 _note(f"- Prefer equivalent recipe: `{new_recipe}`", CLR_WARN)
                 return
