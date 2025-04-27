@@ -363,6 +363,7 @@ def _check_license_api(clone_address: str) -> bool:
         'MIT License',
         'Mozilla Public License 2.0',
         'The Unlicense',
+        'Vim License',
     }
 
     if license_.get('name') in gpl_compatible_licensee_licenses:
