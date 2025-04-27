@@ -292,6 +292,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
+  (melpazoid-misc "`[A-Z]+'" "Only use back/front quotes to link to top-level elisp symbols" nil t t)
   (melpazoid-misc ";; fill-column:" "Prefer `byte-compile-docstring-max-column` over `fill-column`" nil t) ; nofmt
   ;; paths
   (melpazoid-misc "~/.emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
@@ -313,6 +314,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(ignore-errors (re-search-[fb]" "Use `re-search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(setq inhibit-read-only t" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "(ignore-errors (require '" "Use `require`'s NOERROR argument") ; nofmt
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/line-end-position comparison use `eolp`?") ; nofmt
@@ -339,7 +341,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; working with modes
   (melpazoid-misc "(equal major-mode \"" "Prefer e.g. `(derived-mode-p 'xyz)` over string comparison") ; nofmt
   (melpazoid-misc "(eq major-mode '" "You may want to consider `(derived-mode-p 'xyz)`") ; nofmt
-  (melpazoid-misc "(setq mode-name \"" "Unnecessary if you use `define-derived-mode`") ; nofmt
+  (melpazoid-misc "(setq mode-name \"" "`setq mode-name` is unnecessary if you use `define-derived-mode`") ; nofmt
   (melpazoid-misc "(string-equal major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "(string= major-mode" "Prefer `(derived-mode-p 'xyz)`")
   (melpazoid-misc "lighter \"[^\"]+ \"" "Lighter should start, but not end, with a space" t) ; nofmt
@@ -354,6 +356,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(defadvice" "Loading a package should not add advice" nil t) ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
+  (melpazoid-misc "^(make-variable-buffer-local" "Prefer `defvar-local`, or `defcustom` with `:local t`") ; nofmt
   ;; Keybindings
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
   (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
