@@ -684,9 +684,13 @@ def check_package_name(name: str) -> None:
     resolved_same.update(emacswiki_packages(*same_names))
     resolved_same.update(elpa_packages(*same_names))
     resolved_same.update(melpa_packages(*same_names))
-    for name_, url in resolved_same.items():
+    if resolved_same:
         print('\n⸺ Package name:')
-        _fail(f"- `{name_}` may already exist: {url}\n")
+        conflicting_packages = '\n'.join(
+            f"- `{name_}` may already exist: {url}"
+            for name_, url in resolved_same.items()
+        )
+        _fail(conflicting_packages + '\n')
         return
 
     # do other packages have similar names, especially namespace conflicts
@@ -707,6 +711,7 @@ def check_package_name(name: str) -> None:
     )
     if similar_names:
         similar_names.update(melpa_packages(*similar_names.keys()))
+        similar_names.update(elpa_packages(*similar_names.keys()))
         print('\n⸺ Package name:')
         for name_, url in similar_names.items():
             print(f"- `{name_}` is similar: {url}")
@@ -763,6 +768,7 @@ def elpa_packages(*keywords: str) -> dict[str, str]:
     elpa = 'https://elpa.gnu.org'
     nongnu_elpa = 'https://elpa.nongnu.org'
     sources = {
+        # note: devel CAN have unique packages, e.g. shell-quasiquote (2025/02/12)
         **{f"{kw} (devel)": f"{elpa}/devel/{kw}.html" for kw in keywords},
         **{kw: f"{elpa}/packages/{kw}.html" for kw in keywords},
         **{f"{kw} (nongnu)": f"{nongnu_elpa}/nongnu/{kw}.html" for kw in keywords},
