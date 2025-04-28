@@ -1,5 +1,6 @@
 _requirements.el
 _reminders.json
+_native_deps
 pkg
 *.elc
 
