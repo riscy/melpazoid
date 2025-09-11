@@ -399,9 +399,10 @@ CASE-INSENSITIVE determines the case-sensitivity of the matches."
 
 (defun melpazoid--annotate-line (msg)
   "Annotate the current line with MSG."
-  (melpazoid-insert "- %s#L%s: %s"
+  (melpazoid-insert "- %s:%s:%s: %s"
                     (file-name-nondirectory (buffer-file-name))
                     (line-number-at-pos)
+                    (1+ (- (point) (line-beginning-position)))
                     msg))
 
 (defun melpazoid-insert (f-str &rest objects)
