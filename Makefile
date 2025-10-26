@@ -28,3 +28,42 @@ test-melpazoid:
 	pytest --doctest-modules --durations=5
 	ruff check . --extend-select=ISC001
 	ruff format --check .
+
+prefix_system = /usr
+prefix_user   = $(HOME)/.local
+prefix_file   = .prefix_selected
+
+# Default prefix (can be overridden)
+prefix = $(prefix_user)
+
+
+.PHONY: setup_prefix
+setup_prefix:
+	@uid=$$(id -u); \
+	if [ "$$uid" -eq 0 ]; then \
+		prefix="$(prefix_system)"; \
+		echo "Detected root — using system prefix at $$prefix"; \
+	else \
+		prefix="$(prefix_user)"; \
+		echo "User install — using prefix at $$prefix"; \
+	fi; \
+	echo "$$prefix" > $(prefix_file)
+
+.PHONY: install
+install: setup_prefix
+	@prefix=$$(cat $(prefix_file)); \
+	echo "Installing to $$prefix"; \
+	mkdir -p $(DESTDIR)$$prefix/lib/melpazoid ; \
+	cp --preserve=mode -r -t $(DESTDIR)$$prefix/lib/melpazoid * ; \
+	mv $(DESTDIR)$$prefix/lib/melpazoid/melpazoid-local.sh  $(DESTDIR)$$prefix/bin/ ; \
+	rm  $(prefix_file); \
+	echo "Done."
+
+.PHONY: uninstall
+uninstall: setup_prefix
+	@prefix=$$(cat $(prefix_file)); \
+	echo "Uninstalling from $$prefix"; \
+	rm -f  $(DESTDIR)$$prefix/bin/melpazoid-local.sh; \
+	rm -rf $(DESTDIR)$$prefix/lib/melpazoid; \
+	rm  $(prefix_file); \
+	echo "Done."
