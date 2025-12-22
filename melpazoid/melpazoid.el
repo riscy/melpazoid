@@ -209,8 +209,16 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
              (< (length commentary) 20)
              (string= filename (or (melpazoid--package-lint-main-file) filename)))
         (melpazoid-insert "- `;;; Commentary` in main file should not be a stub"))
-      (when (let ((case-fold-search t)) (string-match "See .*README" commentary))
-        (melpazoid-insert "- `;;; Commentary` should usually not redirect to README"))
+      (when (and
+             (< (length commentary) 80)
+             (let ((case-fold-search t))
+               (string-match "See .*README" commentary)))
+        (melpazoid-insert "- `;;; Commentary` should not just redirect to a README"))
+      (when (and
+             (< (length commentary) 80)
+             (let ((case-fold-search t))
+               (string-match "See https://*" commentary)))
+        (melpazoid-insert "- `;;; Commentary` should not just redirect to a URL"))
       (with-temp-buffer
         (insert commentary)
         (goto-char 0)
@@ -218,9 +226,9 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
             (melpazoid-insert
              "- `;;; Commentary` is much wider than 80 characters"))
         (goto-char 0)
-        (if (re-search-forward "^;; T[Oo][Dd][Oo]" nil t)
+        (if (re-search-forward "^T[Oo][Dd][Oo]" nil t)
             (melpazoid-insert
-             "- Separate TODOs from `;;; Commentary:` with a `;;; TODO:` section"))
+             "- You can separate TODOs from package `;;; Commentary:` with a `;;; TODO:` section"))
         (goto-char 0)
         (if (re-search-forward "^;;;;" nil t)
             (melpazoid-insert
