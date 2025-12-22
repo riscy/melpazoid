@@ -286,7 +286,7 @@ def requirements(files: list[Path]) -> set[str]:
                 elif file_.name.endswith('.el'):
                     reqs = reqs.union(_reqs_from_el_file(stream))
             except ValueError as err:
-                _fail(f"- Couldn't parse requirements in {file_.name}: {err}")
+                _fail(f"<!-- Couldn't parse requirements in {file_.name}: {err} -->")
     return reqs
 
 
@@ -314,17 +314,22 @@ def _reqs_from_el_file(el_file: TextIO) -> set[str]:
     >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
     {'emacs "24.4"'}
+    >>> sorted(_reqs_from_el_file(io.StringIO(';; Package-Requires: ((emacs "27.1") websocket f)')))
+    ['emacs "27.1"', 'f', 'websocket']
+    >>> sorted(_reqs_from_el_file(io.StringIO('Package-Requires: ((emacs "29.1") (calfw "2.0"))')))
+    ['calfw "2.0"', 'emacs "29.1"']
     """
     # TODO: if Package-Requires crosses multiple lines, parsing will fail.
     # This is also currently an issue with package-lint (2024/09/02)
     for line in el_file:
         match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.I)
         if match:
-            _tokenize_expression(match.groups()[0])
+            tokens = _tokenize_expression(match.groups()[0])
+            assert tokens[0] == '(' and tokens[-1] == ')', tokens
+            substring = ' '.join(tokens[1:-1])
             return {
-                req.replace(')', '').strip().lower()
-                for req in re.split('[()]', match.groups()[0])
-                if req.strip()
+                x.group().lower().replace('( ', '').replace(' )', '')
+                for x in re.finditer(r'\( [^()]+ \)|[a-z]+', substring)
             }
     return set()
 
