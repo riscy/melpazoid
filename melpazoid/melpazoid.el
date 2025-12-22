@@ -190,6 +190,10 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; autothemer
   (save-excursion
     (goto-char (point-min))
+    (and (re-search-forward "(custom-theme-set-faces" nil t)
+         (not (re-search-forward "(add-to-list[[:space:]\n]+'custom-theme-load-path" nil t))
+         (melpazoid-insert "- Warning: No `add-to-list 'custom-theme-load-path` found"))
+    (goto-char (point-min))
     (while (re-search-forward
             "(autothemer-deftheme[[:space:]\n]+\\(\\<\\w+\\>\\)" nil t)
       (let ((autothemer-name (concat (match-string 1) "-theme"))
@@ -252,6 +256,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(apply-partially '[^,]" msg)
     (melpazoid-misc "(apply '[^,]" msg)
     (melpazoid-misc "(cancel-function-timers '[^,]" msg)
+    (melpazoid-misc "(disassemble '" msg)
     (melpazoid-misc "(seq-do '[^,]" msg)
     (melpazoid-misc "(seq-do-indexed '[^,]" msg)
     (melpazoid-misc "(seq-filter '[^,]" msg)
@@ -275,7 +280,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
     (melpazoid-misc "(remove-hook '[^[:space:]]+ '" msg)
     (melpazoid-misc "(advice-add '[^#)]*)" msg)
     (melpazoid-misc "(advice-remove '[^#)]*)" msg)
-    (melpazoid-misc "(defalias '[^#()]*)" msg)
+    (melpazoid-misc "(defalias '[^[:space:]]+ '[^#()]*)" msg)
     (melpazoid-misc "(define-obsolete-function-alias '[[:graph:]]+ '[[:graph:]]" msg)
     (melpazoid-misc "(run-with-idle-timer[^(#]*[^#]'" msg)))
 
@@ -295,8 +300,11 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   "Miscellaneous checker."
   ;; comment style
   (melpazoid-misc "^ ;[^;]" "Single-line comments should usually begin with `;;`" t nil) ; nofmt
-  (melpazoid-misc "\n;;; .*\n;;; " "Triple semicolons `;;;` are usually for section headings" t nil) ; no fmt
-  (melpazoid-misc "\n.*lexical-binding:" "`lexical-binding` must be on the end of the first line" nil t)
+  (melpazoid-misc "\n\\(;;;\\) .*\n;;; " "Triple semicolons `;;;` are usually for section headings like: `;;; Heading:`" t nil) ; no fmt
+  ;; function signatures
+  (melpazoid-misc "(defun [^ ,]+(" "No space between the function name and argument list" t)
+  (melpazoid-misc "(cl-defun [^ ,]+(" "No space between the function name and argument list" t)
+  (melpazoid-misc "(defmacro [^ ,]+(" "No space between the macro name and argument list" t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
@@ -307,7 +315,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "~/.emacs.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
   (melpazoid-misc "~/.emacs.d/init.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
   (melpazoid-misc "~/.config/emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
-  (melpazoid-misc "\"/tmp/" "Use `(temporary-file-directory)` instead of /tmp in code") ; nofmt
+  (melpazoid-misc "\"/tmp/" "Use Emacs 26.1's `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   ;; possible hacks
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
@@ -341,12 +349,13 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `line-beginning-position`") ; nofmt
   (melpazoid-misc "(progn (end-of-line) (point))" "Consider `point-at-eol`") ; nofmt
   ;; boolean expressions
-  (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `not` or `null`")
-  (melpazoid-misc "(not (not " "This double negation can be collapsed") ; nofmt
-  (melpazoid-misc "(not (null " "This double negation can be collapsed (`not` aliases `null`)") ; nofmt
+  (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `null` (or `not`) instead of `eq`")
+  (melpazoid-misc "(not (not " "It may be possible to collapse this double negation") ; nofmt
+  (melpazoid-misc "(not (null " "It may be possible to collapse this double negation (`not` aliases `null`)") ; nofmt
   (melpazoid-misc "(unless (not " "Use `when ...` instead of `unless (not ...)`") ; nofmt
   (melpazoid-misc "(unless (null " "Use `when ...` instead of `unless (null ...)`") ; nofmt
   ;; working with modes
+  (melpazoid-misc "(defun [^ ]-mode" "Use `define-minor-mode` or `define-derived-mode`" t) ; nofmt
   (melpazoid-misc "(equal major-mode \"" "Prefer e.g. `(derived-mode-p 'xyz)` over string comparison") ; nofmt
   (melpazoid-misc "(eq major-mode '" "You may want to consider `(derived-mode-p 'xyz)`") ; nofmt
   (melpazoid-misc "(setq mode-name \"" "`setq mode-name` is unnecessary if you use `define-derived-mode`") ; nofmt
@@ -365,6 +374,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
   (melpazoid-misc "^(make-variable-buffer-local" "Prefer `defvar-local`, or `defcustom` with `:local t`") ; nofmt
+  ;; Testing at load-time
+  (melpazoid-misc "^(cl-assert" "Top-level `cl-assert` should go in a dedicated test suite") ; nofmt
   ;; Keybindings
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
   (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
@@ -380,7 +391,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
   (melpazoid-misc "(user-error (format " "No `format` required; `user-error` takes an f-string") ; nofmt
-  (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` can take multiple arguments") ; nofmt
+  (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` concatenates its arguments") ; nofmt
   (melpazoid-misc "(warn (format " "No `format` required; `warn` takes an f-string") ; nofmt
   ;; n.b. the opposite, (concat (format ...)), often can't be combined cleanly:
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
@@ -388,6 +399,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-misc (regexp msg &optional no-smart-space include-comments include-strings case-insensitive)
   "If a search for REGEXP passes, report MSG as a misc check.
+If REGEXP defines any groups, group 1's position is reported.
 If NO-SMART-SPACE is nil, use smart spaces -- i.e. replace all
 SPC characters in REGEXP with [[:space:]]+.  If INCLUDE-COMMENTS
 then also scan comments for REGEXP; similar for INCLUDE-STRINGS.
@@ -399,7 +411,7 @@ CASE-INSENSITIVE determines the case-sensitivity of the matches."
     (let ((case-fold-search case-insensitive))
       (while (re-search-forward regexp nil t)
         (save-excursion
-          (goto-char (match-beginning 0))
+          (goto-char (or (match-beginning 1) (match-beginning 0)))
           (when (and
                  (or include-comments (not (nth 4 (syntax-ppss))))
                  (or include-strings (not (nth 3 (syntax-ppss)))))
