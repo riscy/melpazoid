@@ -441,7 +441,7 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
     'GPL*'
     """
     text = el_file.read()
-    match = re.search(r'SPDX-License-Identifier:[ ]*(.+)', text, flags=re.I)
+    match = re.search(r'SPDX-License-Identifier:[ ]*([A-Za-z0-9].+)', text, flags=re.I)
     if match:
         # TODO: one can AND and OR licenses together
         # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
@@ -570,7 +570,7 @@ def _check_license(recipe: str, elisp_dir: Path) -> None:
     if not _check_license_api(_clone_address(recipe)):
         _check_license_file(elisp_dir)
     for file in _files_in_recipe(recipe, elisp_dir):
-        if not file.name.endswith('.el'):
+        if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
             continue
         relpath = file.relative_to(elisp_dir)
         with file.open(encoding='utf-8', errors='replace') as stream:
