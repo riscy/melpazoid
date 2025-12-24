@@ -266,7 +266,6 @@ def _write_requirements(files: list[Path]) -> None:
                 _fail(
                     "- Don't require marginalia: https://github.com/minad/marginalia#adding-custom-annotators-or-classifiers"
                 )
-
             # always install the latest available version of the dependency.
             requirements_el.write(
                 f'\n(message "Installing {req_} {version} or later")\n'
