@@ -240,7 +240,7 @@ def _write_requirements(files: list[Path]) -> None:
     """Create a little elisp script that Docker will run as setup."""
     with (
         Path('_requirements.el').open('w', encoding='utf-8') as requirements_el,
-        Path('_native_deps').open('w', encoding='utf-8') as native_deps
+        Path('_native_deps').open('w', encoding='utf-8') as native_deps,
     ):
         requirements_el.write(
             f";; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache\n\n"
@@ -274,7 +274,7 @@ def _write_requirements(files: list[Path]) -> None:
                 + f"(ignore-errors (package-install (cadr (assq '{req_} package-archive-contents))))\n"
             )
 
-            if req == 'vterm':
+            if req_ == 'vterm':
                 native_deps.write("cmake libvterm-dev ")
                 requirements_el.write('(setq vterm-always-compile-module t)\n')
                 requirements_el.write('(vterm-module-compile)\n')

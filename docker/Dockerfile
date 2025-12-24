@@ -2,16 +2,19 @@
 # <https://ubuntuhandbook.org/index.php/2023/08/gnu-emacs-29-1-ubuntu-ppa/>
 FROM ubuntu:24.04
 
-ARG NATIVE_DEPS=""
-ENV NATIVE_DEPS="${NATIVE_DEPS}"
 RUN apt-get update \
-        && apt-get -y install curl gnupg openssh-client wget ${NATIVE_DEPS} \
+        && apt-get -y install curl gnupg openssh-client wget \
         && apt-get -y --no-install-recommends install software-properties-common \
         && add-apt-repository ppa:ubuntuhandbook1/emacs \
         && apt-get -y install emacs emacs-common \
         && apt-get -y purge software-properties-common \
         && apt-get -y autoremove \
         && rm -rf /var/lib/apt/lists/* /root/.cache/*
+
+# install any special system-level packages we depend on (e.g. cmake):
+ARG NATIVE_DEPS=""
+ENV NATIVE_DEPS="${NATIVE_DEPS}"
+RUN [ -n "$NATIVE_DEPS" ] && apt-get update && apt-get -y install ${NATIVE_DEPS} || :
 
 ENV WORKSPACE "/workspace"
 ENV ELISP_PATH "${WORKSPACE}/pkg"
