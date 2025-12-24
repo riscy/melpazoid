@@ -28,6 +28,7 @@
                     emacs-version)
   (melpazoid--remove-no-compile)
   (ignore-errors (kill-buffer "*Compile-Log*"))
+  (setq-default text-quoting-style 'grave)
   (let ((inhibit-message t)
         (load-path (append (melpazoid--package-load-paths) load-path)))
     (byte-compile-file filename))

@@ -150,6 +150,8 @@ def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
     [PosixPath('melpazoid/melpazoid.el')]
     """
+    if not list(elisp_dir.rglob('*.el')):
+        _fail('There are no *.el files in the elisp_dir.')
     filenames = eval_elisp(
         f"""
         (require 'package-build)
@@ -523,6 +525,9 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
         url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.I)
         if url_match:
             url = url_match.groups()[0]
+            if '"' in url:
+                _fail(f"- Remove quotation marks around URL {url!r}")
+                url = url.strip('"')
             if not _url_ok(url):
                 _fail(f"- Unreachable package URL in {file.name}: {url!r}")
 
@@ -1021,7 +1026,7 @@ def eval_elisp(script: str) -> str:
             text=True,
         )
         if result.returncode != 0:
-            raise ChildProcessError(f"Emacs crashed ({result.stderr}) on: {script!r}")
+            raise ChildProcessError(f"Emacs crashed {result.stderr!r} on: {script!r}")
         return str(result.stdout.strip())
 
 
@@ -1117,7 +1122,7 @@ def _url_get(url: str, retry: int = 3) -> str:
     except urllib.error.URLError as err:
         if retry < 1:
             raise
-        print(f'Retrying {url} in 10 seconds: {err}')
+        print(f'<!-- Retrying {url} in 10 seconds: {err} -->')
         time.sleep(10)
         return _url_get(url, retry - 1)
 
