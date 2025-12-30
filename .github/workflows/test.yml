@@ -24,7 +24,7 @@ jobs:
 
     - name: Test 'shx' Pull Request  # a small package with few dependencies
       env:  
-        CI_BRANCH: master  # always build the master branch for this repo
+        CI_BRANCH: main    # always build the main branch for this repo
         EXIST_OK: true     # we expect that it already exists on MELPA
       run: MELPA_PR_URL=https://github.com/melpa/melpa/pull/4749 make
 
@@ -36,7 +36,7 @@ jobs:
 
     - name: Test 'magit' Recipe  # magit is a large recipe
       env:
-        CI_BRANCH: main    # always build the master branch on this repo
+        CI_BRANCH: main    # always build the main branch on this repo
         EXPECT_ERROR: 2    # we expect it to have some nags
       run:
         RECIPE='(magit :fetcher github
@@ -46,5 +46,6 @@ jobs:
         make
     - name: Test local 'melpazoid'
       env:
-        CI_BRANCH: master
+        CI_BRANCH: main
+        WARN_IS_ERROR: true
       run: python melpazoid/melpazoid.py . --license --recipe '(melpazoid :fetcher github :repo "riscy/melpazoid" :files ("melpazoid/melpazoid.el"))'

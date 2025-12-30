@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 _RETURN_CODE = 0  # eventual return code when run as script
+_WARN_IS_ERROR = os.environ.get('WARN_IS_ERROR', 'false').lower() == 'true'
 _MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()).parent
 
 # define the colors of the report (or none), per https://no-color.org
@@ -90,9 +91,15 @@ def _note(message: str, color: str = '', highlight: str = '') -> None:
         print(f"{color}{message}{CLR_OFF}")
 
 
-def _fail(message: str, color: str = CLR_ERROR, highlight: str = '') -> None:
-    _note(message, color, highlight)
+def _fail(message: str, highlight: str = '') -> None:
+    _note(message, CLR_ERROR, highlight)
     _return_code(2)
+
+
+def _warn(message: str, highlight: str = '') -> None:
+    _note(message, CLR_WARN, highlight)
+    if _WARN_IS_ERROR:
+        _return_code(2)
 
 
 def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
@@ -136,7 +143,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
         if ':Error: ' in line or ': error: ' in line:
             _fail(line, highlight=r' ?[Ee]rror:')
         elif ':Warning: ' in line or ': warning: ' in line:
-            _note(line, CLR_WARN, highlight=r' ?[Ww]arning:')
+            _warn(line, highlight=r' ?[Ww]arning:')
         elif line.startswith('### '):
             _note(line, CLR_INFO)
         elif not line.startswith('make[1]: Leaving directory'):
@@ -384,10 +391,10 @@ def _check_license_api(clone_address: str) -> bool:
     if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
-        _note('- Try to use a standard license file format for your repo', CLR_WARN)
+        _warn('- Try to use a standard license file format for your repo')
         print('  This helps detection tools like: https://github.com/licensee/licensee')
     else:
-        _note(f"- License {license_.get('name')} may not be compatible", CLR_WARN)
+        _warn(f"- License {license_.get('name')} may not be compatible")
     return True
 
 
@@ -549,7 +556,7 @@ def _check_package_tags(recipe: str) -> None:
         repo = match.groups()[0].rstrip('/')
         if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
             reminder = f"- In case you haven't, ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
-            _note(reminder, CLR_WARN)
+            _note(reminder, CLR_INFO)
 
 
 def _check_other(recipe: str, elisp_dir: Path) -> None:
@@ -561,10 +568,9 @@ def _check_other(recipe: str, elisp_dir: Path) -> None:
             continue
         relpath = file.relative_to(elisp_dir)
         if file.name == f"{package_name(recipe)}-pkg.el":
-            _note(
+            _warn(
                 f"- {relpath} -- consider excluding; "
                 + f"MELPA can create one from {package_name(recipe)}.el",
-                CLR_WARN,
             )
             continue
         if file.name.endswith('-pkg.el'):
@@ -606,15 +612,15 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     for specifier in (':branch', ':commit', ':version-regexp'):
         if specifier in recipe:
-            _note(f"- Avoid `{specifier}` in recipes except in unusual cases", CLR_WARN)
+            _warn(f"- Avoid `{specifier}` in recipes except in unusual cases")
     if not _main_file(files, recipe):
         _fail(f"- No 'main' file found, e.g. '{package_name(recipe)}.el'")
     if ':url' in recipe and 'https://github.com' in recipe:
         _fail('- Use `:fetcher github :repo <repo>` instead of `:url`')
     if ':repo' in recipe and recipe.index(':fetcher') > recipe.index(':repo'):
-        _note('- Please specify `:fetcher` before `:repo` in your recipe', CLR_WARN)
+        _warn('- Please specify `:fetcher` before `:repo` in your recipe')
     if ':url' in recipe and recipe.index(':fetcher') > recipe.index(':url'):
-        _note('- Please specify `:fetcher` before `:url` in your recipe', CLR_WARN)
+        _warn('- Please specify `:fetcher` before `:url` in your recipe')
     if ':files' in recipe:
         try:
             files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
@@ -622,16 +628,16 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
             _note(f"<!-- Default recipe is unusable: {_default_recipe(recipe)} -->")
             files_default_recipe = []
         if files == files_default_recipe:
-            _note(f"- Prefer default recipe: `{_default_recipe(recipe)}`", CLR_WARN)
+            _warn(f"- Prefer default recipe: `{_default_recipe(recipe)}`")
             return
         if '"*.el"' in recipe and ':defaults' not in recipe:
             new_recipe = ' '.join(recipe.replace('"*.el"', ':defaults').split())
             if files == _files_in_recipe(new_recipe, elisp_dir):
-                _note(f"- Prefer equivalent recipe: `{new_recipe}`", CLR_WARN)
+                _warn(f"- Prefer equivalent recipe: `{new_recipe}`")
                 return
             _note('- Prefer :defaults instead of *.el, if possible')
         if '"*.el"' in recipe:
-            _note(f"- Prefer `{package_name(recipe)}*.el` over `*.el`", CLR_WARN)
+            _warn(f"- Prefer `{package_name(recipe)}*.el` over `*.el`")
 
 
 def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
@@ -963,7 +969,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 if (reminders := _MELPAZOID_ROOT / '_reminders.json').is_file():
                     for pattern, reminder in json.loads(reminders.read_text()).items():
                         if re.search(pattern, recipe):
-                            _note(f"- REMINDER: {reminder}", CLR_WARN)
+                            _note(f"- REMINDER: {reminder}", CLR_INFO)
                 print('-->\n')
 
 
