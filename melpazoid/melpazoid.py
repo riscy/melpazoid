@@ -40,7 +40,7 @@ _MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
-NO_COLOR = os.environ.get('NO_COLOR', False)
+NO_COLOR = os.environ.get('NO_COLOR')
 CLR_OFF = '' if NO_COLOR else '\033[0m'
 CLR_ERROR = '' if NO_COLOR else '\033[31m'
 CLR_WARN = '' if NO_COLOR else '\033[33m'
@@ -57,7 +57,7 @@ def _return_code(return_code: int | None = None) -> int:
     global _RETURN_CODE  # noqa: PLW0603
     if return_code is not None:
         _RETURN_CODE = return_code
-    expect_error = int(os.environ.get('EXPECT_ERROR', 0))
+    expect_error = int(os.environ.get('EXPECT_ERROR', '0'))
     return 0 if expect_error == _RETURN_CODE else _RETURN_CODE
 
 
@@ -332,7 +332,7 @@ def _reqs_from_el_file(el_file: TextIO) -> set[str]:
     # TODO: if Package-Requires crosses multiple lines, parsing will fail.
     # This is also currently an issue with package-lint (2024/09/02)
     for line in el_file:
-        match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.I)
+        match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.IGNORECASE)
         if match:
             tokens = _tokenize_expression(match.groups()[0])
             assert tokens[0] == '(' and tokens[-1] == ')', tokens
@@ -397,15 +397,14 @@ def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     Raise urllib.error.URLError if API request fails.
     """
     repo_info: dict[str, Any]
-    if clone_address.endswith('.git'):
-        clone_address = clone_address[:-4]
-    match = re.search(r'github.com/([^"]*)', clone_address, flags=re.I)
+    repo_address = clone_address.removesuffix('.git')
+    match = re.search(r'github.com/([^"]*)', repo_address, flags=re.IGNORECASE)
     if match:
         project_id = match.groups()[0].rstrip('/')
         repo_info = json.loads(_url_get(f"https://api.github.com/repos/{project_id}"))
         return repo_info
 
-    match = re.search(r'gitlab.com/([^"]*)', clone_address, flags=re.I)
+    match = re.search(r'gitlab.com/([^"]*)', repo_address, flags=re.IGNORECASE)
     if match:
         project_id = match.groups()[0].rstrip('/').replace('/', '%2F')
         gitlab_projects = 'https://gitlab.com/api/v4/projects'
@@ -456,7 +455,9 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
     'GPL*'
     """
     text = el_file.read()
-    match = re.search(r'SPDX-License-Identifier:[ ]*([A-Za-z0-9].+)', text, flags=re.I)
+    match = re.search(
+        r'SPDX-License-Identifier:[ ]*([A-Za-z0-9].+)', text, flags=re.IGNORECASE
+    )
     if match:
         # TODO: one can AND and OR licenses together
         # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
@@ -530,7 +531,7 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
             continue
         with file.open(encoding='utf-8', errors='replace') as stream:
             text = stream.read()
-        url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.I)
+        url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.IGNORECASE)
         if url_match:
             url = url_match.groups()[0]
             if '"' in url:
@@ -543,9 +544,8 @@ def _check_url(recipe: str, elisp_dir: Path) -> None:
 def _check_package_tags(recipe: str) -> None:
     # Example of rationale: https://github.com/melpa/melpa/pull/9074
     clone_address = _clone_address(recipe)
-    if clone_address.endswith('.git'):
-        clone_address = clone_address[:-4]
-    if match := re.search(r'github.com/([^"]*)', clone_address, flags=re.I):
+    clone_address = clone_address.removesuffix('.git')
+    if match := re.search(r'github.com/([^"]*)', clone_address, flags=re.IGNORECASE):
         repo = match.groups()[0].rstrip('/')
         if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
             reminder = f"- In case you haven't, ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
@@ -815,7 +815,7 @@ def melpa_packages(*keywords: str) -> dict[str, str]:
 
 @functools.lru_cache
 def _pkg_ok(url: str) -> bool:
-    """Cached wrapped around _url_ok."""
+    """Cached wrapper around _url_ok."""
     return _url_ok(url)
 
 
@@ -896,6 +896,7 @@ def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> bool:
     run_result = subprocess.run(scm_command, capture_output=True, check=False)
     if run_result.returncode != 0:
         _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
+        _fail(run_result.stdout.decode())
         _fail(run_result.stderr.decode())
         return False
     return True
@@ -1125,7 +1126,7 @@ def _url_get(url: str, retry: int = 3) -> str:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
     try:
-        with urllib.request.urlopen(url) as response:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=30) as response:
             return str(response.read().decode())
     except urllib.error.URLError as err:
         if retry < 1:
@@ -1144,7 +1145,8 @@ def _url_ok(url: str) -> bool:
         with urllib.request.urlopen(
             urllib.request.Request(
                 url, method='HEAD', headers={'User-Agent': 'Mozilla/5.0'}
-            )
+            ),
+            timeout=30,
         ):
             return True
     except urllib.error.URLError:
