@@ -370,8 +370,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
   (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
-  (melpazoid-misc "^(advice-add" "Loading a package should not add advice" nil t) ; nofmt
-  (melpazoid-misc "^(defadvice" "Loading a package should not add advice" nil t) ; nofmt
+  (melpazoid-misc "^(advice-add" "Avoid top-level advice or ensure you support `(unload-feature)` support" nil t) ; nofmt
+  (melpazoid-misc "^(defadvice" "Avoid top-level advice or ensure you support `(unload-feature)`" nil t) ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
   (melpazoid-misc "^(make-variable-buffer-local" "Prefer `defvar-local`, or `defcustom` with `:local t`") ; nofmt
@@ -379,16 +379,16 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(cl-assert" "Top-level `cl-assert` should go in a dedicated test suite") ; nofmt
   ;; Keybindings
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
-  (melpazoid-misc "(global-set-key" "Don't set global bindings; tell users how in your `;;; Commentary`.") ; nofmt
+  (melpazoid-misc "(global-set-key" "Don't set global bindings; create a global minor-mode map or instruct users in `;;; Commentary`.") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   ;; f-strings
-  (melpazoid-misc "format-time-string .*%+4Y-%m-%d" "Consider using %F instead of %+4Y-%m-%d in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%Y-%m-%d" "Consider using %F instead of %Y-%m-%d in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%H:%M:%S" "Consider using %T instead of %H:%M:%S in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%I:%M:%S %p" "Consider using %r instead of %I:%M:%S %p in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%m/%d/%y" "Consider using %D instead of %m/%d/%y in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time.string .*%H:%M[^:]" "Consider using %R instead of %H:%M in time strings" nil nil t)
+  (melpazoid-misc "format-time-string .*%+4Y-%m-%d" "FYI only: %F is equivalent to %+4Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%Y-%m-%d" "FYI only: %F is equivalent to %Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%H:%M:%S" "FYI only: %T is equivalent to %H:%M:%S in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%I:%M:%S %p" "FYI only: %r is equivalent to %I:%M:%S %p in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%m/%d/%y" "FYI only: %D is equivalent to %m/%d/%y in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time.string .*%H:%M[^:]" "FYI only: %R is equivalent to %H:%M in time strings" nil nil t)
   (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
   (melpazoid-misc "(user-error (format " "No `format` required; `user-error` takes an f-string") ; nofmt
