@@ -636,8 +636,8 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
                 _warn(f"- Prefer equivalent recipe: `{new_recipe}`")
                 return
             _note('- Prefer :defaults instead of *.el, if possible')
-        if '"*.el"' in recipe:
-            _warn(f"- Prefer `{package_name(recipe)}*.el` over `*.el`")
+        if '/*.el"' in recipe:
+            _warn(f"- Prefer `/{package_name(recipe)}*.el` over `/*.el`")
 
 
 def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
