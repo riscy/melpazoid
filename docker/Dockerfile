@@ -35,4 +35,4 @@ ARG PACKAGE_MAIN
 ENV PACKAGE_MAIN "${PACKAGE_MAIN}"
 
 WORKDIR $ELISP_PATH
-CMD ["emacs", "--quick", "--batch", "--load=melpazoid.el"]
+CMD ["emacs", "--no-site-file", "--batch", "--load=melpazoid.el"]

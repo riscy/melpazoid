@@ -121,7 +121,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
         files[ii].parent.mkdir(parents=True, exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
         subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
-    _write_requirements(files)
+    _write_requirements(package_name(recipe), files)
 
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
     run_env = dict(os.environ, DOCKER_OUTPUT='--quiet')  # or --progress=plain
@@ -245,7 +245,7 @@ def _main_file(files: list[Path], recipe: str) -> Path | None:
         return None
 
 
-def _write_requirements(files: list[Path]) -> None:
+def _write_requirements(name: str, files: list[Path]) -> None:
     """Create a little elisp script that Docker will run as setup."""
     with (
         Path('_requirements.el').open('w', encoding='utf-8') as requirements_el,
@@ -265,6 +265,8 @@ def _write_requirements(files: list[Path]) -> None:
             + "(package-install 'pkg-info)\n"
             + "(package-install 'package-lint)\n"
         )
+        if name.startswith('mu4e-'):
+            native_deps.write('mu4e ')
         for req in requirements(files):
             req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
@@ -287,6 +289,8 @@ def _write_requirements(files: list[Path]) -> None:
                 native_deps.write("cmake libvterm-dev ")
                 requirements_el.write('(setq vterm-always-compile-module t)\n')
                 requirements_el.write('(vterm-module-compile)\n')
+            if req_ == 'forge':
+                native_deps.write('git ')
 
 
 def requirements(files: list[Path]) -> set[str]:
