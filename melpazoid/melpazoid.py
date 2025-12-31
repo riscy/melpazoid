@@ -139,6 +139,8 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
         lines += ['\nStderr output while compiling/loading:']
         lines += ['```', run_result.stderr.decode().strip(), '```']
     for line in lines:
+        if re.match(r'^[a-f0-9]{64}$', line):  # sha264 image id
+            continue
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in line or ': error: ' in line:
             _fail(line, highlight=r' ?[Ee]rror:')
