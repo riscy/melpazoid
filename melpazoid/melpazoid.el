@@ -113,9 +113,9 @@ affect the output of `byte-compile-file'."
   (ignore-errors (kill-buffer "*Package-Lint*"))
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
     (melpazoid-insert
-     "\n⸺ `%s` with package-lint %s%s:"
+     "\n⸺ `%s` with %s%s:"
      (buffer-name)
-     (pkg-info-format-version (pkg-info-package-version "package-lint"))
+     (melpazoid--package-lint-version)
      (if package-lint-main-file
          (format " and `package-lint-main-file` = %S" package-lint-main-file)
        "")
@@ -129,6 +129,17 @@ affect the output of `byte-compile-file'."
         (melpazoid-insert issues)
         (melpazoid-insert "```")
         (melpazoid-commit-pending)))))
+
+(defun melpazoid--package-lint-version ()
+  "Determine `package-lint' version number."
+  (format "package-lint %s"
+          (condition-case nil
+              (pkg-info-format-version
+               (pkg-info-package-version "package-lint"))
+            (error  ; i.e. if package-lint wasn't pkg-installed
+             (with-temp-buffer
+               (insert-file-contents (symbol-file 'package-lint))
+               (lm-version))))))
 
 (defun melpazoid-elint ()
   "Experimental elint call."
