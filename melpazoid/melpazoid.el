@@ -252,7 +252,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
    "#'(lambda " "There is no need to quote lambdas (neither #' nor ')")
   (melpazoid-misc
    "[^#]'(lambda " "Quoting this lambda may prevent it from being compiled")
-  (let ((msg "It's safer to sharp-quote function names; use `#'`"))
+  (let ((msg "It's safer to sharp-quote the names of existing functions; use `#'`"))
     (melpazoid-misc "(apply-on-rectangle '[^,]" msg)
     (melpazoid-misc "(apply-partially '[^,]" msg)
     (melpazoid-misc "(apply '[^,]" msg)
