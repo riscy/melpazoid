@@ -1,6 +1,7 @@
 ;;; melpazoid.el --- A MELPA review tool  -*- lexical-binding: t -*-
 
-;; Authors: Chris Rayner (dchrisrayner@gmail.com)
+;; Author: <https://github.com/riscy/melpazoid/graphs/contributors>
+;; Maintainer: Chris Rayner <dchrisrayner@gmail.com>
 ;; Created: June 9 2019
 ;; Keywords: tools, convenience
 ;; URL: https://github.com/riscy/melpazoid
@@ -184,6 +185,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-experimentals ()
   "Run miscs checker."
+  (melpazoid-check-metadata)
   (melpazoid-check-commentary)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
@@ -214,6 +216,14 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
           (melpazoid--annotate-line
            (format "Theme `%s` does not match filename %s.el"
                    autothemer-name basename)))))))
+
+(defun melpazoid-check-metadata ()
+  "Check Authors metadata."
+  (require 'lisp-mnt)
+  (unless (lm-authors)
+    (melpazoid-insert "- `;;; Author:` line is missing/malformed; see `(lm-authors)`"))
+  (unless (lm-maintainers)
+    (melpazoid-insert "- `;;; Maintainer:` line is missing/malformed; see: `(lm-maintainers)`")))
 
 (defun melpazoid-check-commentary ()
   "Check the commentary."
