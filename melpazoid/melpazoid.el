@@ -463,19 +463,66 @@ OBJECTS are objects to interpolate into the string using `format'."
     str))
 
 ;;;###autoload
-(defun melpazoid (&optional filename)
-  "Check current buffer, or FILENAME's buffer if given."
+(defun melpazoid (&rest args)
+  "Check current buffer, or FILENAME's buffer if given.
+ARGS may be [FILENAME] followed by keyword-value pairs:
+  :use-all
+    Set all checks to this value.
+    Useful to disable all, then selectively enable some.
+  :use-byte-compile
+    Run byte-compile check (default t).
+  :use-checkdoc
+    Run checkdoc check (default t).
+  :use-package-lint
+    Run package-lint check (default t).
+  :use-experimentals
+    Run experimental checks (default t).
+Each keyword must be followed by a value."
   (interactive)
   (melpazoid--reset-state)
-  (let ((filename (or filename (buffer-file-name (current-buffer)))))
+  (let* ((filename (if (and args (car args) (not (keywordp (car args))))
+                       (pop args)
+                     (buffer-file-name)))
+         (checks-default (list :use-byte-compile t
+                               :use-checkdoc t
+                               :use-package-lint t
+                               :use-experimentals t))
+         (checks-from-args nil)
+         (checks nil)
+         (keyw nil)
+         (val nil))
+    (unless filename
+      (user-error "Buffer is not visiting a file"))
+    (while (keywordp (car args))
+      (setq keyw (pop args))
+      (unless args
+        (error "melpazoid: keyword %S has no value" keyw))
+      (setq val (pop args))
+      (cond
+       ((eq keyw :use-all)
+        (let ((ptr checks-default))
+          (while ptr
+            (setq ptr (cdr ptr))
+            (setcar ptr val)
+            (setq ptr (cdr ptr)))))
+       ((plist-member checks-default keyw)
+        (setq checks-from-args (plist-put checks-from-args keyw val)))
+       (t
+        (error "melpazoid: unknown keyword %S" keyw))))
+    (when args
+      (error "melpazoid: unexpected trailing non-keywords: %S" args))
+    (setq checks (copy-sequence checks-default))
+    (let ((ptr checks-from-args))
+      (while ptr
+        (setq checks (plist-put checks (pop ptr) (pop ptr)))))
     (save-window-excursion
       (set-buffer (find-file filename))
-      (melpazoid-byte-compile filename)
-      (melpazoid-checkdoc filename)
+      (when (plist-get checks :use-byte-compile) (melpazoid-byte-compile filename))
+      (when (plist-get checks :use-checkdoc) (melpazoid-checkdoc filename))
       ;; (melpazoid-check-declare)
-      (melpazoid-package-lint)
+      (when (plist-get checks :use-package-lint) (melpazoid-package-lint))
       ;; (melpazoid-elint)
-      (melpazoid-check-experimentals))
+      (when (plist-get checks :use-experimentals) (melpazoid-check-experimentals)))
     (pop-to-buffer melpazoid-buffer)
     (goto-char (point-min))))
 
