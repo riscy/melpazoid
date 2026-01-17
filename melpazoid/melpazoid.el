@@ -185,7 +185,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 
 (defun melpazoid-check-experimentals ()
   "Run miscs checker."
-  (melpazoid-check-metadata)
+  (melpazoid-check-maintainers)
   (melpazoid-check-commentary)
   (melpazoid-check-sharp-quotes)
   (melpazoid-check-misc)
@@ -217,13 +217,17 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
            (format "Theme `%s` does not match filename %s.el"
                    autothemer-name basename)))))))
 
-(defun melpazoid-check-metadata ()
-  "Check Authors metadata."
+(defun melpazoid-check-maintainers ()
+  "Check Authors/Maintainers metadata."
   (require 'lisp-mnt)
-  (unless (lm-authors)
-    (melpazoid-insert "- `;;; Author:` line is missing/malformed; see `(lm-authors)`"))
-  (unless (lm-maintainers)
-    (melpazoid-insert "- `;;; Maintainer:` line is missing/malformed; see: `(lm-maintainers)`")))
+  (goto-char (point-min))
+  (and (re-search-forward "^;; Author" nil t)
+       (not (lm-authors))
+       (melpazoid--annotate-line "To get `(lm-authors)` to work, write `;; Author: Your Name <email/url/@handle>`"))
+  (goto-char (point-min))
+  (and (re-search-forward "^;; Maintainer" nil t)
+       (not (lm-maintainers))
+       (melpazoid--annotate-line "To get `(lm-maintainers)` to work, write `;; Maintainer: Your Name <email/url/@handle>`")))
 
 (defun melpazoid-check-commentary ()
   "Check the commentary."
