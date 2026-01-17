@@ -381,7 +381,7 @@ def _check_license_api(clone_address: str) -> bool:
         'Creative Commons Zero v1.0 Universal',
         'Do What The F*ck You Want To Public License',
         'GNU Affero General Public License v3.0',
-        # re: GPL v2.0 see https://github.com/johannes-mueller/company-wordfreq.el/issues/6
+        # GPL-2.0-only is MELPA-incompatible.  Use GPL-2.0-or-later, GPL-3.0-only, or GPL-3.0-or-later.
         'GNU General Public License v2.0 or later',
         'GNU General Public License v3.0 only',
         'GNU General Public License v3.0 or later',
@@ -641,9 +641,9 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
             if files == _files_in_recipe(new_recipe, elisp_dir):
                 _warn(f"- Prefer equivalent recipe: `{new_recipe}`")
                 return
-            _note('- Prefer :defaults instead of *.el, if possible')
+            _note('- Prefer :defaults instead of *.el in the recipe, if possible')
         if '/*.el"' in recipe:
-            _warn(f"- Prefer `/{package_name(recipe)}*.el` over `/*.el`")
+            _warn(f"- Prefer `/{package_name(recipe)}*.el` over `/*.el` in the recipe")
 
 
 def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
@@ -665,9 +665,6 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
                 + f"Package-Requires listed in {file.name}, including: "
                 + ', '.join(sorted(file_requirements - main_file_requirements))
             )
-    compat = next((r for r in main_file_requirements if r.startswith('compat ')), None)
-    if compat:
-        _note(f"- Reviewer note: this package depends on {compat}", CLR_INFO)
 
 
 def check_package_name(name: str) -> None:
