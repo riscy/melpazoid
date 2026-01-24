@@ -395,8 +395,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Coding-Conventions.html
   (melpazoid-misc "^(add-hook" "Loading a package should rarely add hooks" nil t) ; nofmt
   (melpazoid-misc "(add-to-list 'auto-mode-alist.*\\$" "Terminate auto-mode-alist entries with `\\\\'`") ; nofmt
-  (melpazoid-misc "^(advice-add" "Avoid top-level advice or ensure you support `(unload-feature)` support" nil t) ; nofmt
-  (melpazoid-misc "^(defadvice" "Avoid top-level advice or ensure you support `(unload-feature)`" nil t) ; nofmt
+  (melpazoid-misc "^(advice-add" "Prefer a minor mode to top-level advice. If you can't, ensure you support `(unload-feature)`" nil t) ; nofmt
+  (melpazoid-misc "^(defadvice" "Prefer a minor mode to top-level advice. If you can't, ensure you support `(unload-feature)`" nil t) ; nofmt
   (melpazoid-misc "^(setq " "Top-level `setq` should usually be replaced by `defvar` or `defconst`") ; nofmt
   (melpazoid-misc "^(setq-default " "Top-level `setq-default` should usually be replaced by `defvar-local`") ; nofmt
   (melpazoid-misc "^(make-variable-buffer-local" "Prefer `defvar-local`, or `defcustom` with `:local t`") ; nofmt
