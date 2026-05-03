@@ -5,7 +5,7 @@
 ;; Created: June 9 2019
 ;; Keywords: tools, convenience
 ;; URL: https://github.com/riscy/melpazoid
-;; Package-Requires: ((emacs "25.1") (pkg-info "0.6") (epl "0.9"))
+;; Package-Requires: ((emacs "28.1") (pkg-info "0.6") (epl "0.9"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; Version: 0.0.0
 
@@ -72,15 +72,14 @@ affect the output of `byte-compile-file'."
   "Return non-nil if current buffer is almost empty."
   (<= (- (point-max) (point)) 3))
 
-(defvar checkdoc-version)
 (defvar checkdoc-proper-noun-list)
 (defvar checkdoc-verb-check-experimental-flag)
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)
-  (melpazoid-insert "\n⸺ `%s` with checkdoc %s (fix *within reason*):"
+  (melpazoid-insert "\n⸺ `%s` with checkdoc using Emacs %s (fix *within reason*):"
                     (file-name-nondirectory filename)
-                    checkdoc-version)
+                    emacs-version)
   (ignore-errors (kill-buffer "*Warnings*"))
   (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
