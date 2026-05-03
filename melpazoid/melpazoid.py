@@ -29,6 +29,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
@@ -415,6 +416,11 @@ def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     if match:
         project_id = match.groups()[0].rstrip('/')
         repo_info = json.loads(_url_get(f"https://api.github.com/repos/{project_id}"))
+        return repo_info
+
+    if match := re.search(r'codeberg.org/([^"]*)', repo_address, flags=re.IGNORECASE):
+        codeberg_repos = 'https://codeberg.org/api/v1/repos'
+        repo_info = json.loads(_url_get(f"{codeberg_repos}/{match.groups()[0]}"))
         return repo_info
 
     match = re.search(r'gitlab.com/([^"]*)', repo_address, flags=re.IGNORECASE)
@@ -966,14 +972,32 @@ def check_melpa_pr(pr_url: str) -> None:
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
-                    print(f"- Created: {repo_info.get('created_at', 'N/A')}")
-                    print(f"- Updated: {repo_info.get('updated_at', 'N/A')}")
+                    created_at = repo_info.get('created_at')
+                    print(f"- Created: {_render_iso_date(created_at, too_recent=15)}")
+                    print(f"- Updated: {_render_iso_date(repo_info.get('updated_at'))}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
                 if (reminders := _MELPAZOID_ROOT / '_reminders.json').is_file():
                     for pattern, reminder in json.loads(reminders.read_text()).items():
                         if re.search(pattern, recipe):
                             _note(f"- REMINDER: {reminder}", CLR_INFO)
                 print('-->\n')
+
+
+def _render_iso_date(date: str | None, too_recent: int = 0) -> str:
+    if date is None:
+        return 'N/A'
+    try:
+        dt = datetime.fromisoformat(date)
+    except ValueError:
+        return 'N/A'
+    days_ago = (datetime.now(timezone.utc) - dt).days
+    if days_ago < too_recent:
+        x_days_ago = f"{CLR_ERROR}{days_ago} days ago{CLR_OFF}"
+    elif days_ago < too_recent * 2:
+        x_days_ago = f"{CLR_WARN}{days_ago} days ago{CLR_OFF}"
+    else:
+        x_days_ago = f"{days_ago} days ago"
+    return f"{dt:%Y/%b/%d} ({x_days_ago})"
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
