@@ -579,9 +579,12 @@ def _check_other(recipe: str, elisp_dir: Path) -> None:
     if not any(file.name == f"{package_name(recipe)}.el" for file in files_in_recipe):
         _fail(f"- MELPA requires a file called {package_name(recipe)}.el")
     for file in files_in_recipe:
+        relpath = file.relative_to(elisp_dir)
+        if file.stem == 'README':
+            _warn(f"- {relpath} -- loose README files should typically be excluded")
+            continue
         if not file.name.endswith('.el'):
             continue
-        relpath = file.relative_to(elisp_dir)
         if file.name == f"{package_name(recipe)}-pkg.el":
             _warn(
                 f"- {relpath} -- consider excluding; "
