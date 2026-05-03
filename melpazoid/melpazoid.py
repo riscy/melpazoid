@@ -365,10 +365,10 @@ def _check_license_api(clone_address: str) -> bool:
     True
     """
     repo_info = _repo_info_api(clone_address)
-    if repo_info is None:
+    if repo_info is None or 'license' not in repo_info:
         return False
 
-    license_ = repo_info.get('license')
+    license_ = repo_info['license']
     if not license_:
         _fail('- Add a LICENSE file to the repository')
         print('  See: https://github.com/licensee/licensee')
@@ -485,8 +485,10 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
         if license_ is None:
             _fail(f"- Invalid SPDX id `{license_id}`; check https://spdx.dev/ids/")
             return None
-        if not license_['isFsfLibre']:
-            _fail(f"- Non-free/libre license: {match.groups()[0]}")
+        if license_.get('isDeprecatedLicenseId'):
+            _fail(f"- Deprecated license: {license_id}")
+        if not license_.get('isFsfLibre'):
+            _fail(f"- Possible non-free/libre license: {license_id}")
         return str(license_['name'])
 
     gpl_compatible_license_excerpts = {
@@ -512,7 +514,7 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
         # the SPDX API does not handle SPDX expressions; take a stab at it here:
         if operator_ in license_id:
             _note(f"- Reviewer note: nontrivial SPDX license '{license_id}'", CLR_INFO)
-            license_id = license_id.split(operator_)[0]
+            license_id = license_id.split(operator_, maxsplit=1)[0]
             break
     license_id = license_id.replace(' ', '-')
     try:
@@ -539,7 +541,8 @@ def print_packaging(recipe: str, elisp_dir: Path) -> None:
             boilerplate = _check_file_for_license_boilerplate(stream)
         print(f"- {relpath}: {boilerplate or 'license unknown'}")
     if repo_info := _repo_info_api(_clone_address(recipe)):
-        print('- Repository:', (repo_info['license'] or {}).get('name', 'Unlicensed'))
+        license_ = repo_info.get('license') or {}
+        print('- Repository:', license_.get('name', 'Unlicensed'))
         if repo_info.get('archived'):
             _fail('- GitHub repository is archived')
 
