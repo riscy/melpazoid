@@ -680,8 +680,8 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
             )
 
 
-def check_package_name_conflict(recipe: str) -> None:
-    """Print list of conflictingly named packages.
+def check_package_name_same(recipe: str) -> None:
+    """Print list of same- (or too-similarly) named packages.
     Report any occurrences of invalid/reserved package names.
     This function will print nothing if there are no issues.
     """
@@ -704,79 +704,74 @@ def check_package_name_conflict(recipe: str) -> None:
         '^git-rebase$',
         '^helm-source-',
     )
-    name_reserved = any(re.match(reserved, name) for reserved in reserved_names)
-    if name_reserved:
+    if any(re.match(reserved_name, name) for reserved_name in reserved_names):
         print('\n⸺ Package name:')
         _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
         return
 
+    variations = [name, f"{name}-mode"]
+    variations += [name[:-5]] if name.endswith('-mode') else []
+    variations += [name[:-1]] if name.endswith('s') else []
+    variations += ['org-' + name[3:]] if name.startswith('ox-') else []
+    variations += ['ox-' + name[4:]] if name.startswith('org-') else []
+
     # is the package name an Emacs builtin?
     try:
-        eval_elisp(f"(require '{name})")
+        for variation in variations:
+            eval_elisp(f"(when (require '{variation} nil t) (error t))")
     except ChildProcessError:
-        pass
-    else:
         print('\n⸺ Package name:')
-        _fail(f"- Error: `{name}` is an Emacs builtin\n", highlight='Error')
+        _fail(f"- Error: `{variation}` is an Emacs builtin\n", highlight='Error')
         return
 
-    # do other packages have the same name (within some magin)?
-    emacsmirror = emacsmirror_packages()
-    same_names = [name, f"{name}-mode"]
-    same_names += [name[:-5]] if name.endswith('-mode') else []
-    same_names += [name[:-1]] if name.endswith('s') else []
-    same_names += ['org-' + name[3:]] if name.startswith('ox-') else []
-    same_names += ['ox-' + name[4:]] if name.startswith('org-') else []
-    same_names = [name_ for name_ in same_names if name_ in emacsmirror]
-    resolved_same = {name_: url for name_, url in emacsmirror.items() if name_ == name}
-    resolved_same.update(emacsattic_packages(*same_names))
-    resolved_same.update(emacswiki_packages(*same_names))
-    resolved_same.update(elpa_packages(*same_names))
-    resolved_same.update(melpa_packages(*same_names))
-    if resolved_same:
+    emacsmirror = emacsmirror_packages()  # only check emacsmirror for fewer url_gets
+    variations = [pkg for pkg in variations if pkg in emacsmirror]
+    too_similar = (
+        {pkg: url for pkg, url in emacsmirror.items() if pkg == name}
+        | {pkg: emacsmirror[pkg] for pkg in variations if pkg in emacsmirror}
+        | emacsattic_packages(*variations)
+        | emacswiki_packages(*variations)
+        | elpa_packages(*variations)
+        | melpa_packages(*variations)
+    )
+    if too_similar:
         print('\n⸺ Package name:')
-        conflicting_packages = '\n'.join(
-            f"- `{name_}` may already exist: {url}"
-            for name_, url in resolved_same.items()
-        )
-        _fail(conflicting_packages + '\n')
+        listing = [f"- `{pkg}` exists: {url}" for pkg, url in too_similar.items()]
+        _fail('\n'.join(listing) + '\n')
 
 
 def check_package_name_similar(recipe: str, elisp_dir: Path) -> None:
     """Print list of packages with potential namespace conflicts.
-    (To save network calls, only scan packages listed on emacsmirror.)
     This function will print nothing if there are no issues.
     """
+    emacsmirror = emacsmirror_packages()  # only check emacsmirror for fewer url_gets
     name = package_name(recipe)
+    tokens = name.split('-')
+    prefixes = ['-'.join(tokens[: i + 1]) for i in range(len(tokens) - 1)]
+    parents = {  # packages that are implicitly a parent of 'name'
+        pkg: url for pkg, url in emacsmirror.items() if any(pkg == p for p in prefixes)
+    }
+    children = {  # packages that are implicitly a child of 'name'
+        pkg: url for pkg, url in emacsmirror.items() if pkg.startswith(f"{name}-")
+    }
+    if not parents and not children:
+        return
+    # update the mappings to use ELPA or MELPA links if possible:
+    parents |= melpa_packages(*parents.keys()) | elpa_packages(*parents.keys())
+    children |= melpa_packages(*children.keys()) | elpa_packages(*children.keys())
+    # look at our package's dependencies and all the files it contains:
     files = _files_in_recipe(recipe, elisp_dir)
     main_file = _main_file(files, recipe)
     main_file_requirements = requirements(main_file) if main_file else set()
-
-    tokens = name.split('-')
-    prefices = ['-'.join(tokens[: i + 1]) for i in range(len(tokens))]
-    emacsmirror = emacsmirror_packages()
-    implicit_parents = {  # packages that are implicitly a parent of 'name'
-        name_: url
-        for name_, url in emacsmirror.items()
-        if any(name_ == prefix for prefix in prefices)
-    }
-    implicit_children = {  # packages that 'name' is implicitly a parent of
-        name_: url for name_, url in emacsmirror.items() if name_.startswith(f"{name}-")
-    }
-    if implicit_parents or implicit_children:
-        implicit_parents.update(melpa_packages(*implicit_parents.keys()))
-        implicit_parents.update(elpa_packages(*implicit_parents.keys()))
-        implicit_children.update(melpa_packages(*implicit_children.keys()))
-        implicit_children.update(elpa_packages(*implicit_children.keys()))
-        print('\n⸺ Package name:')
-        for name_, url in implicit_parents.items():
-            print(f"- `{name_}` {url} is an implicit parent of `{name}`")
-            if not any(name_ in req for req in main_file_requirements):
-                _warn(f"  - `{name}` doesn't depend on `{name_}` - consider renaming")
-        for name_, url in implicit_children.items():
-            print(f"- `{name_}` {url} is an implicit child of `{name}`")
-            if conflict := next((f.name for f in files if f.stem == name_), None):
-                _fail(f"  - `{conflict}` conflicts with `{name_}` namespace!")
+    print('\n⸺ Package name:')
+    for pkg, url in parents.items():
+        print(f"- `{pkg}` {url} is an implicit parent of `{name}`")
+        if not any(pkg in req for req in main_file_requirements):
+            _warn(f"  - `{name}` does not depend on `{pkg}` - consider renaming")
+    for pkg, url in children.items():
+        print(f"- `{pkg}` {url} is an implicit child of `{name}`")
+        if conflict := next((f.name for f in files if f.stem == pkg), None):
+            _fail(f"  - `{conflict}` conflicts with the `{pkg}` namespace!")
 
 
 @functools.lru_cache
@@ -826,7 +821,6 @@ def elpa_packages(*keywords: str) -> dict[str, str]:
     >>> sorted(elpa_packages('ivy'))
     ['ivy', 'ivy (devel)']
     """
-    # q.v. http://elpa.gnu.org/packages/archive-contents
     elpa = 'https://elpa.gnu.org'
     nongnu_elpa = 'https://elpa.nongnu.org'
     sources = {
@@ -996,7 +990,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 check_packaging(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
-                    check_package_name_conflict(recipe)
+                    check_package_name_same(recipe)
                     check_package_name_similar(recipe, elisp_dir)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
