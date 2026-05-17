@@ -76,6 +76,8 @@ def is_recipe(recipe: str) -> bool:
     len_minimal_recipe = 7  # 1 for name, 2 for repo, 2 for fetcher, 2 for parens
     if len(tokens) < len_minimal_recipe or tokens[0] != '(' or tokens[-1] != ')':
         return False
+    if ':fetcher' not in recipe or (':repo' not in recipe and ':url' not in recipe):
+        return False
     if not re.match(r"[A-Za-z\-]", tokens[1]):
         return False
     try:
@@ -912,7 +914,7 @@ def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> bool:
         if fetcher in {'github', 'gitlab', 'bitbucket'}:
             options += ['--depth', '1']
     elif scm == 'hg':
-        options = ['--branch', branch if branch else 'default']
+        options = ['--branch', branch or 'default']
     scm_command = [scm, 'clone', *options, repo, str(into)]
     run_result = subprocess.run(scm_command, capture_output=True, check=False)
     if run_result.returncode != 0:
@@ -1131,6 +1133,10 @@ def _fetch_targets() -> Iterator[str]:
             target = melpa_pr_match.string[: melpa_pr_match.end()]
         elif is_recipe(possible_target):
             target = _prettify_recipe(possible_target)
+        elif Path(possible_target).is_file() and '/melpa/recipes' in possible_target:
+            possible_target_text = Path(possible_target.strip()).read_text()
+            if is_recipe(possible_target_text):
+                target = _prettify_recipe(possible_target_text)
         if target and target != previous_target:
             previous_target = target
             yield target
