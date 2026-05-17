@@ -271,7 +271,7 @@ def _write_requirements(name: str, files: list[Path]) -> None:
         )
         if name.startswith('mu4e-'):
             native_deps.write('mu4e ')
-        for req in requirements(files):
+        for req in requirements(*files):
             req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
             if req_ == 'emacs':
@@ -297,7 +297,7 @@ def _write_requirements(name: str, files: list[Path]) -> None:
                 native_deps.write('git ')
 
 
-def requirements(files: list[Path]) -> set[str]:
+def requirements(*files: Path) -> set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
@@ -669,9 +669,9 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
     if not main_file:
         _fail("- Can't check Package-Requires if there is no 'main' file")
         return
-    main_file_requirements = requirements([main_file])
+    main_file_requirements = requirements(main_file)
     for file in files:
-        file_requirements = requirements([file])
+        file_requirements = requirements(file)
         if file_requirements - main_file_requirements > set():
             _fail(
                 f"- {main_file.name} must include all of the "
