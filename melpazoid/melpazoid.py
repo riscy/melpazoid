@@ -153,7 +153,6 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
             _note(line, CLR_INFO)
         elif not line.startswith('make[1]: Leaving directory'):
             print(line)
-    print_packaging(recipe, elisp_dir)
 
 
 def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
@@ -526,7 +525,7 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
         return None
 
 
-def print_packaging(recipe: str, elisp_dir: Path) -> None:
+def check_packaging(recipe: str, elisp_dir: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
     print('\n⸺ Package and license:')
     _check_recipe(recipe, elisp_dir)
@@ -856,6 +855,7 @@ def check_melpa_recipe(recipe: str) -> None:
             check_containerized_build(recipe, elisp_dir)
         elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
             check_containerized_build(recipe, elisp_dir)
+        check_packaging(recipe, elisp_dir)
 
 
 def check_license(recipe: str) -> None:
@@ -975,6 +975,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 fetcher=_fetcher(recipe),
             ):
                 check_containerized_build(recipe, elisp_dir)
+                check_packaging(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
                     check_package_name(package_name(recipe))
                 print('\n<!-- PR reviewer footnotes:')
