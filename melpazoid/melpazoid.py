@@ -680,11 +680,12 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
             )
 
 
-def check_package_name(name: str) -> None:
-    """Print list of similar, or at least similarly named, packages.
+def check_package_name_conflict(recipe: str) -> None:
+    """Print list of conflictingly named packages.
     Report any occurrences of invalid/reserved package names.
     This function will print nothing if there are no issues.
     """
+    name = package_name(recipe)  # TODO: recipe :old-names?
     # is the package name implicitly reserved?
     reserved_names = (
         # used by distel
@@ -694,6 +695,11 @@ def check_package_name(name: str) -> None:
         '^erlext$',
         '^mcase$',
         '^net-fsm$',
+        # used by matlab
+        '^mlgud',
+        '^mlint',
+        '^tlc',
+        '^linemark',
         # other
         '^git-rebase$',
         '^helm-source-',
@@ -734,30 +740,43 @@ def check_package_name(name: str) -> None:
             for name_, url in resolved_same.items()
         )
         _fail(conflicting_packages + '\n')
-        return
 
-    # do other packages have similar names, especially namespace conflicts
-    # (to save network calls, we only scan packages listed on emacsmirror):
+
+def check_package_name_similar(recipe: str, elisp_dir: Path) -> None:
+    """Print list of packages with potential namespace conflicts.
+    (To save network calls, only scan packages listed on emacsmirror.)
+    This function will print nothing if there are no issues.
+    """
+    name = package_name(recipe)
+    files = _files_in_recipe(recipe, elisp_dir)
+    main_file = _main_file(files, recipe)
+    main_file_requirements = requirements(main_file) if main_file else set()
+
     tokens = name.split('-')
     prefices = ['-'.join(tokens[: i + 1]) for i in range(len(tokens))]
-    similar_names = {  # packages that are implicitly a parent of 'name'
+    emacsmirror = emacsmirror_packages()
+    implicit_parents = {  # packages that are implicitly a parent of 'name'
         name_: url
         for name_, url in emacsmirror.items()
         if any(name_ == prefix for prefix in prefices)
     }
-    similar_names.update(
-        {  # packages that 'name' is implicitly a parent of
-            name_: url
-            for name_, url in emacsmirror.items()
-            if name_.startswith(f"{name}-")
-        }
-    )
-    if similar_names:
-        similar_names.update(melpa_packages(*similar_names.keys()))
-        similar_names.update(elpa_packages(*similar_names.keys()))
+    implicit_children = {  # packages that 'name' is implicitly a parent of
+        name_: url for name_, url in emacsmirror.items() if name_.startswith(f"{name}-")
+    }
+    if implicit_parents or implicit_children:
+        implicit_parents.update(melpa_packages(*implicit_parents.keys()))
+        implicit_parents.update(elpa_packages(*implicit_parents.keys()))
+        implicit_children.update(melpa_packages(*implicit_children.keys()))
+        implicit_children.update(elpa_packages(*implicit_children.keys()))
         print('\n⸺ Package name:')
-        for name_, url in similar_names.items():
-            print(f"- `{name_}` is similar: {url}")
+        for name_, url in implicit_parents.items():
+            print(f"- `{name_}` {url} is an implicit parent of `{name}`")
+            if not any(name_ in req for req in main_file_requirements):
+                _warn(f"  - `{name}` doesn't depend on `{name_}` - consider renaming")
+        for name_, url in implicit_children.items():
+            print(f"- `{name_}` {url} is an implicit child of `{name}`")
+            if conflict := next((f.name for f in files if f.stem == name_), None):
+                _fail(f"  - `{conflict}` conflicts with `{name_}` namespace!")
 
 
 @functools.lru_cache
@@ -977,7 +996,8 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 check_packaging(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
-                    check_package_name(package_name(recipe))
+                    check_package_name_conflict(recipe)
+                    check_package_name_similar(recipe, elisp_dir)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
