@@ -465,7 +465,7 @@ def _check_license_file(elisp_dir: Path) -> None:
         _fail('- Add a GPL-compatible LICENSE file to the repository')
 
 
-def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
+def _check_file_for_license_boilerplate(file: TextIO) -> str | None:
     """Check an elisp file for some license boilerplate.
     >>> import io
     >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
@@ -474,10 +474,8 @@ def _check_file_for_license_boilerplate(el_file: TextIO) -> str | None:
     ...   io.StringIO('This program is free software: you can redistribute it'))
     'GPL*'
     """
-    text = el_file.read()
-    match = re.search(
-        r'SPDX-License-Identifier:[ ]*([A-Za-z0-9].+)', text, flags=re.IGNORECASE
-    )
+    text = file.read()
+    match = re.search(r'SPDX-License-Identifier:[ ]*(\w\S+)', text, flags=re.IGNORECASE)
     if match:
         # TODO: one can AND and OR licenses together
         # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
@@ -615,10 +613,13 @@ def _check_other(recipe: str, elisp_dir: Path) -> None:
 def _check_license(recipe: str, elisp_dir: Path) -> None:
     if not _check_license_api(_clone_address(recipe)):
         _check_license_file(elisp_dir)
-    for file in _files_in_recipe(recipe, elisp_dir):
-        if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
+    for file in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
+        if not file.is_file():
             continue
-        relpath = file.relative_to(elisp_dir)
+        code_suffix = {'.cpp', '.c', '.el', '.h', '.java', '.js', '.py', '.rs'}
+        if file.name.endswith('-pkg.el') or file.suffix.lower() not in code_suffix:
+            continue
+        relpath = file.relative_to(_MELPAZOID_ROOT / 'pkg')
         with file.open(encoding='utf-8', errors='replace') as stream:
             if not _check_file_for_license_boilerplate(stream):
                 _fail(
