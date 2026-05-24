@@ -222,11 +222,11 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (goto-char (point-min))
   (and (re-search-forward "^;; Author" nil t)
        (not (lm-authors))
-       (melpazoid--annotate-line "To get `(lm-authors)` to work, write `;; Author: Your Name <email/url/@handle>`"))
+       (melpazoid--annotate-line "FYI only: To get `(lm-authors)` to work, write `;; Author: Your Name <email/url/@handle>`"))
   (goto-char (point-min))
   (and (re-search-forward "^;; Maintainer" nil t)
        (not (lm-maintainers))
-       (melpazoid--annotate-line "To get `(lm-maintainers)` to work, write `;; Maintainer: Your Name <email/url/@handle>`")))
+       (melpazoid--annotate-line "FYI only: To get `(lm-maintainers)` to work, write `;; Maintainer: Your Name <email/url/@handle>`")))
 
 (defun melpazoid-check-commentary ()
   "Check the commentary."
@@ -330,8 +330,9 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(defun [^ ,]+(" "No space between the function name and argument list" t)
   (melpazoid-misc "(cl-defun [^ ,]+(" "No space between the function name and argument list" t)
   (melpazoid-misc "(defmacro [^ ,]+(" "No space between the macro name and argument list" t)
+  (melpazoid-misc "\n.*\\(lexical-binding\\):" "`lexical-binding` must be on the end of the first line" nil t)
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
-  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?" nil t nil t) ; nofmt
+  (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?  https://www.fsf.org/blogs/licensing/FSF-copyright-handling" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
   (melpazoid-misc "`[A-Z]+'" "Only use back/front quotes to link to top-level elisp symbols" nil t t)
   (melpazoid-misc ";; fill-column:" "Prefer `byte-compile-docstring-max-column` over `fill-column`" nil t) ; nofmt
@@ -345,6 +346,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
   (melpazoid-misc "(with-no-warnings" "Avoid `with-no-warnings` if the root cause can be addressed") ; nofmt
+  (melpazoid-misc "(with-suppressed-warnings" "Avoid `with-suppressed-warnings` if the root cause can be addressed") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
@@ -404,6 +406,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; Keybindings
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
   (melpazoid-misc "(global-set-key" "Don't set global bindings; create a global minor-mode map or instruct users in `;;; Commentary`.") ; nofmt
+  (melpazoid-misc "^(keymap-set" "Top-level `keymap-set': what if a user or package also uses this binding?") ; nofmt
+  (melpazoid-misc "^(transient-append-suffix" "Top-level `transient-append-suffix': what if a user or package also uses this binding?") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
   ;; f-strings
@@ -413,7 +417,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "format-time-string .*%I:%M:%S %p" "FYI only: %r is equivalent to %I:%M:%S %p in time strings" nil nil t) ; nofmt
   (melpazoid-misc "format-time-string .*%m/%d/%y" "FYI only: %D is equivalent to %m/%d/%y in time strings" nil nil t) ; nofmt
   (melpazoid-misc "format-time.string .*%H:%M[^:]" "FYI only: %R is equivalent to %H:%M in time strings" nil nil t)
-  (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
+  ;; too many false positives e.g. with `condition-case nil`:
+  ;; (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
   (melpazoid-misc "(user-error (format " "No `format` required; `user-error` takes an f-string") ; nofmt
   (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` concatenates its arguments") ; nofmt
