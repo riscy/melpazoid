@@ -680,7 +680,7 @@ def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
             )
 
 
-def check_package_name_same(recipe: str) -> None:
+def check_package_name(recipe: str) -> None:
     """Print list of same- (or too-similarly) named packages.
     Report any occurrences of invalid/reserved package names.
     This function will print nothing if there are no issues.
@@ -727,8 +727,7 @@ def check_package_name_same(recipe: str) -> None:
     emacsmirror = emacsmirror_packages()  # only check emacsmirror for fewer url_gets
     variations = [pkg for pkg in variations if pkg in emacsmirror]
     too_similar = (
-        {pkg: url for pkg, url in emacsmirror.items() if pkg == name}
-        | {pkg: emacsmirror[pkg] for pkg in variations if pkg in emacsmirror}
+        {pkg: emacsmirror[pkg] for pkg in variations}
         | emacsattic_packages(*variations)
         | emacswiki_packages(*variations)
         | elpa_packages(*variations)
@@ -740,8 +739,8 @@ def check_package_name_same(recipe: str) -> None:
         _fail('\n'.join(listing) + '\n')
 
 
-def check_package_name_similar(recipe: str, elisp_dir: Path) -> None:
-    """Print list of packages with potential namespace conflicts.
+def check_package_name_overlap(recipe: str, elisp_dir: Path) -> None:
+    """Check for overlap with namespaces in other packages.
     This function will print nothing if there are no issues.
     """
     emacsmirror = emacsmirror_packages()  # only check emacsmirror for fewer url_gets
@@ -757,7 +756,7 @@ def check_package_name_similar(recipe: str, elisp_dir: Path) -> None:
     if not parents and not children:
         return
     # update the mappings to use ELPA or MELPA links if possible:
-    parents |= melpa_packages(*parents.keys()) | elpa_packages(*parents.keys())
+    parents |= melpa_packages(*parents) | elpa_packages(*parents)
     children |= melpa_packages(*children.keys()) | elpa_packages(*children.keys())
     # look at our package's dependencies and all the files it contains:
     files = _files_in_recipe(recipe, elisp_dir)
@@ -766,8 +765,9 @@ def check_package_name_similar(recipe: str, elisp_dir: Path) -> None:
     print('\n⸺ Package name:')
     for pkg, url in parents.items():
         print(f"- `{pkg}` {url} is an implicit parent of `{name}`")
-        if not any(pkg in req for req in main_file_requirements):
-            _warn(f"  - `{name}` does not depend on `{pkg}` - consider renaming")
+        pkg_short = pkg.split()[0]  # e.g. 'org (devel)' -> 'org'
+        if not any(pkg_short in req for req in main_file_requirements):
+            _warn(f"  - `{name}` does not depend on `{pkg_short}` - consider renaming")
     for pkg, url in children.items():
         print(f"- `{pkg}` {url} is an implicit child of `{name}`")
         if conflict := next((f.name for f in files if f.stem == pkg), None):
