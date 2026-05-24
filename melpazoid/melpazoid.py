@@ -990,8 +990,8 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_containerized_build(recipe, elisp_dir)
                 check_packaging(recipe, elisp_dir)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
-                    check_package_name_same(recipe)
-                    check_package_name_similar(recipe, elisp_dir)
+                    check_package_name(recipe)
+                    check_package_name_overlap(recipe, elisp_dir)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
