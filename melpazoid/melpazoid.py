@@ -956,6 +956,7 @@ def check_melpa_pr(pr_url: str) -> None:
     _return_code(0)
     match = re.match(MELPA_PR, pr_url)
     assert match
+    _check_pr_template(pr_number=match.groups()[0])
     changed_files = _pr_changed_files(pr_number=match.groups()[0])
 
     for changed_file in changed_files:
@@ -1029,6 +1030,44 @@ def _pr_changed_files(pr_number: str) -> list[dict[str, Any]]:
     """Get data from GitHub API."""
     pr_files_url = f"https://api.github.com/repos/melpa/melpa/pulls/{pr_number}/files"
     return list(json.loads(_url_get(pr_files_url)))
+
+
+@functools.lru_cache(maxsize=5)
+def _check_pr_template(pr_number: str) -> bool:
+    """Validate PR template (and checklist) via GitHub API."""
+    pr_url = f"https://api.github.com/repos/melpa/melpa/pulls/{pr_number}"
+    pr_body: str = json.loads(_url_get(pr_url))['body']
+    pr_template_valid = True
+    for section in (
+        "### Brief summary of what the package does",
+        "### Direct link to the package repository",
+        "### Your association with the package",
+        "### Relevant communications with the upstream package maintainer",
+        "### Checklist",
+    ):
+        if section not in pr_body:
+            _fail(f'- The PR body is missing the "{section}" section.')
+            pr_template_valid = False
+    for checklist_item in (
+        "GPL-Compatible Free Software License",
+        "CONTRIBUTING.org",
+        "public repository for 1 month or more",
+        "package-lint",
+        "byte-compiles cleanly",
+        "checkdoc",
+        "built and installed the package",
+        "LLMs were used",
+    ):
+        if checklist_item not in pr_body:
+            _fail(f'- The checklist is missing the "{checklist_item}" item.')
+            pr_template_valid = False
+    if not pr_template_valid:
+        print(
+            "- Please restore the original pull-request template"
+            + " https://raw.githubusercontent.com/melpa/melpa/refs/heads/master/.github/PULL_REQUEST_TEMPLATE.md"
+            + " and make sure to fill out the checklist."
+        )
+    return pr_template_valid
 
 
 def _prettify_recipe(recipe: str) -> str:
