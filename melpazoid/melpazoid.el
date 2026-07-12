@@ -312,6 +312,11 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-picky ()
   "Miscellaneous checker (picky edition)."
   (melpazoid-check-mixed-indentation)
+  (melpazoid-misc "format-time-string .*%H:%M:%S" "FYI only: %T is equivalent to %H:%M:%S in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%m/%d/%y" "FYI only: %D is equivalent to %m/%d/%y in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%+4Y-%m-%d" "FYI only: %F is equivalent to %+4Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time-string .*%Y-%m-%d" "FYI only: %F is equivalent to %Y-%m-%d in time strings" nil nil t) ; nofmt
+  (melpazoid-misc "format-time.string .*%H:%M[^:]" "FYI only: %R is equivalent to %H:%M in time strings" nil nil t)
   (melpazoid-misc "^(autoload" "It may be simpler to just `require` this dependency") ; nofmt
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
   (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
@@ -410,13 +415,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "^(transient-append-suffix" "Top-level `transient-append-suffix': what if a user or package also uses this binding?") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
-  ;; f-strings
-  (melpazoid-misc "format-time-string .*%+4Y-%m-%d" "FYI only: %F is equivalent to %+4Y-%m-%d in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%Y-%m-%d" "FYI only: %F is equivalent to %Y-%m-%d in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%H:%M:%S" "FYI only: %T is equivalent to %H:%M:%S in time strings" nil nil t) ; nofmt
+  ;; f-strings (there are more in `melpazoid-check-picky')
   (melpazoid-misc "format-time-string .*%I:%M:%S %p" "FYI only: %r is equivalent to %I:%M:%S %p in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time-string .*%m/%d/%y" "FYI only: %D is equivalent to %m/%d/%y in time strings" nil nil t) ; nofmt
-  (melpazoid-misc "format-time.string .*%H:%M[^:]" "FYI only: %R is equivalent to %H:%M in time strings" nil nil t)
   ;; too many false positives e.g. with `condition-case nil`:
   ;; (melpazoid-misc "(error (format " "No `format` required; `error` takes an f-string") ; nofmt
   (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
