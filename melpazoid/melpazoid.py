@@ -999,7 +999,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
                     created_at = repo_info.get('created_at')
-                    print(f"- Created: {_render_iso_date(created_at, too_recent=15)}")
+                    print(f"- Created: {_render_iso_date(created_at, too_recent=30)}")
                     print(f"- Updated: {_render_iso_date(repo_info.get('updated_at'))}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
                 if (reminders := _MELPAZOID_ROOT / '_reminders.json').is_file():
@@ -1023,7 +1023,8 @@ def _render_iso_date(date: str | None, too_recent: int = 0) -> str:
         x_days_ago = f"{CLR_WARN}{days_ago} days ago{CLR_OFF}"
     else:
         x_days_ago = f"{days_ago} days ago"
-    return f"{dt:%Y/%b/%d} ({x_days_ago})"
+    dt = dt.astimezone(tz=None)
+    return f"{dt:%Y/%b/%d} {dt:%I:%M %p} ({x_days_ago})"
 
 
 @functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
@@ -1037,7 +1038,12 @@ def _pr_changed_files(pr_number: str) -> list[dict[str, Any]]:
 def _check_pr_template(pr_number: str) -> bool:
     """Validate PR template (and checklist) via GitHub API."""
     pr_url = f"https://api.github.com/repos/melpa/melpa/pulls/{pr_number}"
-    pr_body: str = json.loads(_url_get(pr_url))['body']
+    pr_json = json.loads(_url_get(pr_url))
+    pr_created = pr_json['created_at']
+    if pr_created < '2026-05-02':
+        return True
+
+    pr_body = pr_json['body']
     pr_template_valid = True
     for section in (
         "### Brief summary of what the package does",
