@@ -3,9 +3,12 @@ DOCKER ?= docker
 DOCKER_OPTIONS = --cap-drop all --security-opt=no-new-privileges --pids-limit=50
 DOCKER_OUTPUT ?= --progress=plain  # e.g. '--progress=plain' xor '--quiet'
 
+RUNNER ?= # e.g. 'uv run'
+
 .PHONY: run
 run:
-	python3 melpazoid/melpazoid.py
+	mypy melpazoid
+	$(RUNNER) python3 melpazoid/melpazoid.py
 
 # https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
 .PHONY: test
@@ -24,7 +27,7 @@ image: _requirements.el _native_deps
 .PHONY: test-melpazoid
 test-melpazoid:
 	rm -rf _requirements.el
-	mypy --strict --non-interactive --install-types melpazoid
-	pytest --doctest-modules --durations=5
+	$(RUNNER) mypy --strict --non-interactive --install-types melpazoid
+	$(RUNNER) pytest --doctest-modules --durations=5
 	ruff check . --extend-select=ISC001
 	ruff format --check .
