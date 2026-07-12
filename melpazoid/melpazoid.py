@@ -88,10 +88,11 @@ def is_recipe(recipe: str) -> bool:
 
 def _note(message: str, color: str = '', highlight: str = '') -> None:
     """Print a note, possibly in color, possibly highlighting specific text."""
+    clr_off = CLR_OFF if color else ''
     if highlight:
-        print(re.sub(f"({highlight})", f"{color}\\g<1>{CLR_OFF}", message))
+        print(re.sub(f"({highlight})", f"{color}\\g<1>{clr_off}", message))
     else:
-        print(f"{color}{message}{CLR_OFF}")
+        print(f"{color}{message}{clr_off}")
 
 
 def _fail(message: str, highlight: str = '') -> None:
