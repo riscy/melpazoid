@@ -7,7 +7,7 @@ RUNNER ?= # e.g. 'uv run'
 
 .PHONY: run
 run:
-	mypy melpazoid
+	$(RUNNER) mypy melpazoid
 	$(RUNNER) python3 melpazoid/melpazoid.py
 
 # https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
@@ -29,5 +29,5 @@ test-melpazoid:
 	rm -rf _requirements.el
 	$(RUNNER) mypy --strict --non-interactive --install-types melpazoid
 	$(RUNNER) pytest --doctest-modules --durations=5
-	ruff check . --extend-select=ISC001
-	ruff format --check .
+	$(RUNNER) ruff check . --extend-select=ISC001
+	$(RUNNER) ruff format --check .
