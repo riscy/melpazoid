@@ -167,18 +167,22 @@ affect the output of `byte-compile-file'."
       nil)
      (t package-main))))
 
-(defun melpazoid-check-declare ()
-  "Wrapper for `melpazoid' check-declare.
+(defun melpazoid-check-declare (filename)
+  "Wrapper for `check-declare' against FILENAME.
 NOTE: this sometimes backfires when running checks automatically inside
 a Docker container, e.g. kellyk/emacs does not include the .el files."
-  (melpazoid-insert "\ncheck-declare-file (optional):")
+  (melpazoid-insert "\n⸺ `%s` with check-declare-file using Emacs %s:"
+                    (file-name-nondirectory filename)
+                    emacs-version)
   (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
-  (check-declare-file (buffer-file-name (current-buffer)))
+  (let ((inhibit-message t))  ; hide "uncompressing xyz.el.gz"
+    (check-declare-file filename))
   (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
-    (if (melpazoid--buffer-almost-empty-p)
+    (if (<= (point-max) 3)
         (melpazoid-discard-pending)
       (melpazoid-insert "```")
-      (melpazoid-insert (buffer-substring (point-min) (point-max)))
+      (melpazoid-insert
+       (string-trim (buffer-substring (point-min) (point-max)) "\n"))
       (melpazoid-insert "```")
       (melpazoid-commit-pending))))
 
@@ -490,7 +494,7 @@ OBJECTS are objects to interpolate into the string using `format'."
       (set-buffer (find-file filename))
       (melpazoid-byte-compile filename)
       (melpazoid-checkdoc filename)
-      ;; (melpazoid-check-declare)
+      (melpazoid-check-declare filename)
       (melpazoid-package-lint)
       ;; (melpazoid-elint)
       (melpazoid-check-experimentals))
@@ -531,6 +535,8 @@ OBJECTS are objects to interpolate into the string using `format'."
     (dolist (filename filenames nil)
       (set-buffer (find-file filename))
       (melpazoid-check-experimentals))
+    (dolist (filename filenames nil)
+      (melpazoid-check-declare filename))
     (dolist (filename filenames nil)
       (melpazoid-checkdoc filename))
 
