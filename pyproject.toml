@@ -24,3 +24,27 @@ target-version = "py310"
 [tool.ruff.format]
 quote-style = "preserve"
 preview = true
+
+[tool.ruff.lint]
+select = ['ALL']
+ignore = [
+  'C901',
+  'D',
+  'EM102',
+  'ERA001',
+  'FIX',
+  'PT018',
+  'S101',
+  'S603',
+  'S607',
+  'T201',
+  'TD002',
+  'TD003',
+  'TD005',
+  'TRY003',
+  # format
+  'COM812',
+  'E501',
+  'ISC003',
+  'Q000',
+]
