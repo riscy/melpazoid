@@ -336,28 +336,37 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> set[str]:
 
 
 def _reqs_from_el_file(el_file: TextIO) -> set[str]:
-    """Hacky function to pull the requirements out of an elisp file.
+    r"""Use shlex to pull the requirements out of an elisp file.
     >>> import io
     >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
     {'emacs "24.4"'}
     >>> sorted(_reqs_from_el_file(io.StringIO(';; Package-Requires: ((emacs "27.1") websocket f)')))
     ['emacs "27.1"', 'f', 'websocket']
-    >>> sorted(_reqs_from_el_file(io.StringIO('Package-Requires: ((emacs "29.1") (calfw "2.0"))')))
+    >>> sorted(_reqs_from_el_file(io.StringIO('Package-Requires: ((emacs "29.1")\n(calfw "2.0"))')))
     ['calfw "2.0"', 'emacs "29.1"']
     """
-    # TODO: if Package-Requires crosses multiple lines, parsing will fail.
-    # This is also currently an issue with package-lint (2024/09/02)
-    for line in el_file:
-        match = re.match(r'[; ]*Package-Requires[ ]*:[ ]*(.*)$', line, re.IGNORECASE)
-        if match:
-            tokens = _tokenize_expression(match.groups()[0])
-            assert tokens[0] == '(' and tokens[-1] == ')', tokens
-            substring = ' '.join(tokens[1:-1])
-            return {
-                x.group().lower().replace('( ', '').replace(' )', '')
-                for x in re.finditer(r'\( [^()]+ \)|[a-z]+', substring)
-            }
-    return set()
+    lexer = shlex.shlex(el_file.read())
+    lexer.quotes = '"'
+    lexer.commenters = ''
+    lexer.whitespace += ';'
+    lexer.wordchars += "':-"
+    # advance the lexer iterator to the first `Package-Requires` -
+    if not any(tok for tok in lexer if tok.lower() == 'package-requires:'):
+        return set()
+    tokens = []
+    parens_depth = 0
+    for tok in lexer:
+        tokens.append(tok)
+        parens_depth += tok == '('
+        parens_depth -= tok == ')'
+        if parens_depth <= 0:
+            break
+    assert tokens[0] == '(' and tokens[-1] == ')', tokens
+    substring = ' '.join(tokens[1:-1])
+    return {
+        x.group().lower().replace('( ', '').replace(' )', '')
+        for x in re.finditer(r'\( [^()]+ \)|[a-z]+', substring)
+    }
 
 
 def _check_license_api(clone_address: str) -> bool:
