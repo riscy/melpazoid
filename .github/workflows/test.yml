@@ -6,16 +6,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with: { python-version: '3.10' }
-    - name: Install
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v9.0.0
+      with:
+        enable-cache: true
+
+    - name: Install Emacs
       run: |
         sudo apt-get install emacs
         emacs --version
-        pip install . mypy pytest ruff
+
     - name: Test
-      run: make test-melpazoid
+      run: RUNNER='uv run' make test-melpazoid
 
     - name: Test 'shx' Pull Request  # a small package with few dependencies
       env:  
