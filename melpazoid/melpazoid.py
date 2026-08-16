@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Chris Rayner <dchrisrayner@gmail.com>
 """
 usage: melpazoid.py [-h] [--license] [--recipe RECIPE] [target]
 
@@ -113,7 +114,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
         return
 
     files = [f.relative_to(elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
-    elisp_files = [file_.name for file_ in files if file_.name.endswith('.el')]
+    elisp_files = [file_.name for file_ in files if file_.suffix == '.el']
     if len(elisp_files) != len(set(elisp_files)):
         _fail(f"Multiple .el files with the same name: {' '.join(sorted(elisp_files))}")
         return
@@ -162,7 +163,7 @@ def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
     [PosixPath('melpazoid/melpazoid.el')]
     """
-    if not list(elisp_dir.rglob('*.el')):
+    if not any(elisp_dir.rglob('*.el')):
         _fail('There are no *.el files in the elisp_dir.')
     filenames = eval_elisp(
         f"""
@@ -405,7 +406,6 @@ def _check_license_api(clone_address: str) -> bool:
         'The Unlicense',
         'Vim License',
     }
-
     if license_.get('name') in gpl_compatible_licensee_licenses:
         pass
     elif license_.get('name') == 'Other':
@@ -416,7 +416,7 @@ def _check_license_api(clone_address: str) -> bool:
     return True
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=5)
 def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     """Use the GitHub or GitLab API to fetch details about a repository.
     Raise urllib.error.URLError if API request fails.
@@ -535,7 +535,7 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
 
 def check_packaging(recipe: str, elisp_dir: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
-    print('\n⸺ Package and license:')
+    print('\n— Package and license:')
     _check_recipe(recipe, elisp_dir)
     _check_package_requires(recipe, elisp_dir)
     _check_url(recipe, elisp_dir)
@@ -548,10 +548,12 @@ def check_packaging(recipe: str, elisp_dir: Path) -> None:
             continue
         with file_.open(encoding='utf-8', errors='replace') as stream:
             boilerplate = _check_file_for_license_boilerplate(stream)
-        print(f"- {relpath}: {boilerplate or 'license unknown'}")
+            stream.seek(0)
+            loc = len(stream.readlines())
+            print(f"- {relpath!s:<40} {boilerplate or 'license unknown'}, {loc} loc")
     if repo_info := _repo_info_api(_clone_address(recipe)):
         license_ = repo_info.get('license') or {}
-        print('- Repository:', license_.get('name', 'Unlicensed'))
+        print(f"- {'Repository:'!s:<40}", license_.get('name', 'Unlicensed'))
         if repo_info.get('archived'):
             _fail('- GitHub repository is archived')
 
@@ -716,7 +718,7 @@ def check_package_name(recipe: str) -> None:
         '^helm-source-',
     )
     if any(re.match(reserved_name, name) for reserved_name in reserved_names):
-        print('\n⸺ Package name:')
+        print('\n— Package name:')
         _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
         return
 
@@ -731,7 +733,7 @@ def check_package_name(recipe: str) -> None:
         for variation in variations:
             eval_elisp(f"(when (require '{variation} nil t) (error t))")
     except ChildProcessError:
-        print('\n⸺ Package name:')
+        print('\n— Package name:')
         _fail(f"- Error: `{variation}` is an Emacs builtin\n", highlight='Error')
         return
 
@@ -745,7 +747,7 @@ def check_package_name(recipe: str) -> None:
         | melpa_packages(*variations)
     )
     if too_similar:
-        print('\n⸺ Package name:')
+        print('\n— Package name:')
         listing = [f"- `{pkg}` exists: {url}" for pkg, url in too_similar.items()]
         _fail('\n'.join(listing) + '\n')
 
@@ -773,7 +775,7 @@ def check_package_name_overlap(recipe: str, elisp_dir: Path) -> None:
     files = _files_in_recipe(recipe, elisp_dir)
     main_file = _main_file(files, recipe)
     main_file_requirements = requirements(main_file) if main_file else set()
-    print('\n⸺ Package name:')
+    print('\n— Package name:')
     for pkg, url in parents.items():
         print(f"- `{pkg}` {url} is an implicit parent of `{name}`")
         pkg_short = pkg.split()[0]  # e.g. 'org (devel)' -> 'org'
@@ -1005,14 +1007,14 @@ def check_melpa_pr(pr_url: str) -> None:
                     check_package_name(recipe)
                     check_package_name_overlap(recipe, elisp_dir)
                 print('\n<!-- PR reviewer footnotes:')
-                _note(f"- {_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
+                _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
                     created_at = repo_info.get('created_at')
                     print(f"- Created: {_render_iso_date(created_at, too_recent=30)}")
                     print(f"- Updated: {_render_iso_date(repo_info.get('updated_at'))}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
-                if (reminders := _MELPAZOID_ROOT / '_reminders.json').is_file():
-                    for pattern, reminder in json.loads(reminders.read_text()).items():
+                if os.environ.get('REMINDERS'):
+                    for pattern, reminder in json.loads(os.environ['MELPA_REMINDER']):
                         if re.search(pattern, recipe):
                             _note(f"- REMINDER: {reminder}", CLR_INFO)
                 print('-->\n')
@@ -1036,7 +1038,7 @@ def _render_iso_date(date: str | None, too_recent: int = 0) -> str:
     return f"{dt:%Y/%b/%d} {dt:%I:%M %p} ({x_days_ago})"
 
 
-@functools.lru_cache(maxsize=3)  # cached to avoid rate limiting
+@functools.lru_cache(maxsize=5)  # cached to avoid rate limiting
 def _pr_changed_files(pr_number: str) -> list[dict[str, Any]]:
     """Get data from GitHub API."""
     pr_files_url = f"https://api.github.com/repos/melpa/melpa/pulls/{pr_number}/files"
@@ -1199,12 +1201,11 @@ def _fetch_targets() -> Iterator[str]:
         else:
             possible_target = input("Enter recipe or URL for MELPA PR: ")
         target = None
-        melpa_pr_match = re.match(MELPA_PR, possible_target)
-        if melpa_pr_match:
-            target = melpa_pr_match.string[: melpa_pr_match.end()]
+        if melpa_pr_url_match := re.match(MELPA_PR, possible_target):
+            target = melpa_pr_url_match.string[: melpa_pr_url_match.end()]
         elif is_recipe(possible_target):
             target = _prettify_recipe(possible_target)
-        elif Path(possible_target).is_file() and '/melpa/recipes' in possible_target:
+        elif '/melpa/recipes/' in possible_target and Path(possible_target).is_file():
             possible_target_text = Path(possible_target.strip()).read_text()
             if is_recipe(possible_target_text):
                 target = _prettify_recipe(possible_target_text)
@@ -1242,7 +1243,7 @@ def _url_get(url: str, retry: int = 3) -> str:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:
+        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
             return str(response.read().decode())
     except urllib.error.URLError as err:
         if retry < 1:
@@ -1258,8 +1259,8 @@ def _url_ok(url: str) -> bool:
     if ' ' in url:
         return False
     try:
-        with urllib.request.urlopen(
-            urllib.request.Request(
+        with urllib.request.urlopen(  # noqa: S310
+            urllib.request.Request(  # noqa: S310
                 url, method='HEAD', headers={'User-Agent': 'Mozilla/5.0'}
             ),
             timeout=30,
