@@ -273,7 +273,7 @@ def _write_requirements(name: str, files: list[Path]) -> None:
         )
         if name.startswith('mu4e-'):
             native_deps.write('mu4e ')
-        for req in requirements(*files):
+        for req in package_requires(*files):
             req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
             if req_ == 'emacs':
@@ -299,7 +299,7 @@ def _write_requirements(name: str, files: list[Path]) -> None:
                 native_deps.write('git ')
 
 
-def requirements(*files: Path) -> set[str]:
+def package_requires(*files: Path) -> set[str]:
     """Return (downcased) requirements given a listing of files.
     If a recipe is given, use it to determine which file is the main file;
     otherwise scan every .el file for requirements.
@@ -682,9 +682,9 @@ def _check_package_requires(recipe: str, repo: Path) -> None:
     if not main_file:
         _fail("- Can't check Package-Requires if there is no 'main' file")
         return
-    main_file_requirements = requirements(main_file)
+    main_file_requirements = package_requires(main_file)
     for file in files:
-        file_requirements = requirements(file)
+        file_requirements = package_requires(file)
         if file_requirements - main_file_requirements > set():
             _fail(
                 f"- {main_file.name} must include all of the "
@@ -774,7 +774,7 @@ def check_package_name_overlap(recipe: str, repo: Path) -> None:
     # look at our package's dependencies and all the files it contains:
     files = _files_in_recipe(recipe, repo)
     main_file = _main_file(files, recipe)
-    main_file_requirements = requirements(main_file) if main_file else set()
+    main_file_requirements = package_requires(main_file) if main_file else set()
     print('\n— Package name:')
     for pkg, url in parents.items():
         print(f"- `{pkg}` {url} is an implicit parent of `{name}`")
