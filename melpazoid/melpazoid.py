@@ -107,13 +107,13 @@ def _warn(message: str, highlight: str = '') -> None:
         _return_code(2)
 
 
-def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
-    """Build a Docker container to run checks on elisp_dir, given a recipe."""
+def check_containerized_build(recipe: str, repo: Path) -> None:
+    """Build a Docker/Podman container to run checks on repo, given a recipe."""
     if not is_recipe(recipe):
         _fail(f"Not a valid recipe: {recipe}")
         return
 
-    files = [f.relative_to(elisp_dir) for f in _files_in_recipe(recipe, elisp_dir)]
+    files = [f.relative_to(repo) for f in _files_in_recipe(recipe, repo)]
     elisp_files = [file_.name for file_ in files if file_.suffix == '.el']
     if len(elisp_files) != len(set(elisp_files)):
         _fail(f"Multiple .el files with the same name: {' '.join(sorted(elisp_files))}")
@@ -125,7 +125,7 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
         files[ii] = pkg_dir / (file.name if file.name.endswith('.el') else file)
         files[ii].parent.mkdir(parents=True, exist_ok=True)
         # shutil.copy/copytree won't work here because file can be a file or a dir:
-        subprocess.run(['cp', '-r', str(elisp_dir / file), files[ii]], check=True)
+        subprocess.run(['cp', '-r', str(repo / file), files[ii]], check=True)
     _write_requirements(package_name(recipe), files)
 
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
@@ -157,24 +157,24 @@ def check_containerized_build(recipe: str, elisp_dir: Path) -> None:
             print(line)
 
 
-def _files_in_recipe(recipe: str, elisp_dir: Path) -> list[Path]:
-    """Return a file listing, relative to elisp_dir.
-    Raise ChildProcessError if the recipe does not work against elisp_dir.
+def _files_in_recipe(recipe: str, repo: Path) -> list[Path]:
+    """Return a file listing, relative to repo.
+    Raise ChildProcessError if the recipe does not work against repo.
     >>> _files_in_recipe('(melpazoid :fetcher github :repo "xyz")', Path('melpazoid'))
     [PosixPath('melpazoid/melpazoid.el')]
     """
-    if not any(elisp_dir.rglob('*.el')):
-        _fail('There are no *.el files in the elisp_dir.')
+    if not any(repo.rglob('*.el')):
+        _fail('There are no *.el files in the repo.')
     filenames = eval_elisp(
         f"""
         (require 'package-build)
-        (setq package-build-working-dir "{elisp_dir.parent}")
+        (setq package-build-working-dir "{repo.parent}")
         (setq rcp {_recipe_struct_elisp(recipe)})
         (send-string-to-terminal
             (mapconcat #'car (package-build-expand-files-spec rcp t) "\n"))
         """
     ).split('\n')
-    files = [elisp_dir / filename for filename in filenames]
+    files = [repo / filename for filename in filenames]
     return sorted(file for file in files if file.exists())
 
 
@@ -252,7 +252,7 @@ def _main_file(files: list[Path], recipe: str) -> Path | None:
 
 
 def _write_requirements(name: str, files: list[Path]) -> None:
-    """Create a little elisp script that Docker will run as setup."""
+    """Create a little elisp script that Docker/Podman will run as setup."""
     with (
         Path('_requirements.el').open('w', encoding='utf-8') as requirements_el,
         Path('_native_deps').open('w', encoding='utf-8') as native_deps,
@@ -447,7 +447,7 @@ def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     return None
 
 
-def _check_license_file(elisp_dir: Path) -> None:
+def _check_license_file(repo: Path) -> None:
     """Scan any COPYING or LICENSE files."""
     license_names = (
         'copying',
@@ -459,7 +459,7 @@ def _check_license_file(elisp_dir: Path) -> None:
         'unlicense',
     )
     has_license_file = False
-    for license_ in elisp_dir.iterdir():
+    for license_ in repo.iterdir():
         # handles e.g. LICENSE.GPL, LICENSE.APACHE
         if not any(license_.name.lower().startswith(name) for name in license_names):
             continue
@@ -533,14 +533,14 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
         return None
 
 
-def check_packaging(recipe: str, elisp_dir: Path) -> None:
+def check_packaging(recipe: str, repo: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
     print('\n— Package and license:')
-    _check_recipe(recipe, elisp_dir)
-    _check_package_requires(recipe, elisp_dir)
-    _check_url(recipe, elisp_dir)
-    _check_license(recipe, elisp_dir)
-    _check_other(recipe, elisp_dir)
+    _check_recipe(recipe, repo)
+    _check_package_requires(recipe, repo)
+    _check_url(recipe, repo)
+    _check_license(recipe, repo)
+    _check_other(recipe, repo)
     _check_package_tags(recipe)
     for file_ in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
         relpath = file_.relative_to(_MELPAZOID_ROOT)
@@ -558,8 +558,8 @@ def check_packaging(recipe: str, elisp_dir: Path) -> None:
             _fail('- GitHub repository is archived')
 
 
-def _check_url(recipe: str, elisp_dir: Path) -> None:
-    for file in _files_in_recipe(recipe, elisp_dir):
+def _check_url(recipe: str, repo: Path) -> None:
+    for file in _files_in_recipe(recipe, repo):
         if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
             continue
         with file.open(encoding='utf-8', errors='replace') as stream:
@@ -579,18 +579,18 @@ def _check_package_tags(recipe: str) -> None:
     clone_address = _clone_address(recipe)
     clone_address = clone_address.removesuffix('.git')
     if match := re.search(r'github.com/([^"]*)', clone_address, flags=re.IGNORECASE):
-        repo = match.groups()[0].rstrip('/')
-        if tags := json.loads(_url_get(f"https://api.github.com/repos/{repo}/tags")):
+        gh_path: str = match.groups()[0].rstrip('/')
+        if tags := json.loads(_url_get(f"https://api.github.com/repos/{gh_path}/tags")):
             reminder = f"- In case you haven't, ensure GitHub release {tags[0]['name']} is up-to-date with your current code and `Package-Version`"
             _note(reminder, CLR_INFO)
 
 
-def _check_other(recipe: str, elisp_dir: Path) -> None:
-    files_in_recipe = _files_in_recipe(recipe, elisp_dir)
+def _check_other(recipe: str, repo: Path) -> None:
+    files_in_recipe = _files_in_recipe(recipe, repo)
     if not any(file.name == f"{package_name(recipe)}.el" for file in files_in_recipe):
         _fail(f"- MELPA requires a file called {package_name(recipe)}.el")
     for file in files_in_recipe:
-        relpath = file.relative_to(elisp_dir)
+        relpath = file.relative_to(repo)
         if file.stem in {'CHANGELOG', 'LICENSE', 'README'}:
             _fail(f"- {relpath} -- avoid packaging change logs, READMEs, and licenses")
             continue
@@ -622,9 +622,9 @@ def _check_other(recipe: str, elisp_dir: Path) -> None:
                 _fail(f"- {relpath} -- no packaging header")
 
 
-def _check_license(recipe: str, elisp_dir: Path) -> None:
+def _check_license(recipe: str, repo: Path) -> None:
     if not _check_license_api(_clone_address(recipe)):
-        _check_license_file(elisp_dir)
+        _check_license_file(repo)
     for file in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
         if not file.is_file():
             continue
@@ -640,8 +640,8 @@ def _check_license(recipe: str, elisp_dir: Path) -> None:
                 )
 
 
-def _check_recipe(recipe: str, elisp_dir: Path) -> None:
-    files = _files_in_recipe(recipe, elisp_dir)
+def _check_recipe(recipe: str, repo: Path) -> None:
+    files = _files_in_recipe(recipe, repo)
     for specifier in (':branch', ':commit', ':version-regexp'):
         if specifier in recipe:
             _warn(f"- Avoid `{specifier}` in recipes except in unusual cases")
@@ -655,7 +655,7 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
         _warn('- Please specify `:fetcher` before `:url` in your recipe')
     if ':files' in recipe:
         try:
-            files_default_recipe = _files_in_recipe(_default_recipe(recipe), elisp_dir)
+            files_default_recipe = _files_in_recipe(_default_recipe(recipe), repo)
         except ChildProcessError:
             _note(f"<!-- Default recipe is unusable: {_default_recipe(recipe)} -->")
             files_default_recipe = []
@@ -664,7 +664,7 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
             return
         if '"*.el"' in recipe and ':defaults' not in recipe:
             new_recipe = ' '.join(recipe.replace('"*.el"', ':defaults').split())
-            if files == _files_in_recipe(new_recipe, elisp_dir):
+            if files == _files_in_recipe(new_recipe, repo):
                 _warn(f"- Prefer equivalent recipe: `{new_recipe}`")
                 return
             _note('- Prefer :defaults instead of *.el in the recipe, if possible')
@@ -672,12 +672,12 @@ def _check_recipe(recipe: str, elisp_dir: Path) -> None:
             _warn(f"- Prefer `/{package_name(recipe)}*.el` over `/*.el` in the recipe")
 
 
-def _check_package_requires(recipe: str, elisp_dir: Path) -> None:
+def _check_package_requires(recipe: str, repo: Path) -> None:
     """Print the list of Package-Requires from the 'main' file.
     Report on any mismatches between this file and other files, since the ones
     in the other files will be ignored.
     """
-    files = _files_in_recipe(recipe, elisp_dir)
+    files = _files_in_recipe(recipe, repo)
     main_file = _main_file(files, recipe)
     if not main_file:
         _fail("- Can't check Package-Requires if there is no 'main' file")
@@ -752,7 +752,7 @@ def check_package_name(recipe: str) -> None:
         _fail('\n'.join(listing) + '\n')
 
 
-def check_package_name_overlap(recipe: str, elisp_dir: Path) -> None:
+def check_package_name_overlap(recipe: str, repo: Path) -> None:
     """Check for overlap with namespaces in other packages.
     This function will print nothing if there are no issues.
     """
@@ -772,7 +772,7 @@ def check_package_name_overlap(recipe: str, elisp_dir: Path) -> None:
     parents |= melpa_packages(*parents) | elpa_packages(*parents)
     children |= melpa_packages(*children.keys()) | elpa_packages(*children.keys())
     # look at our package's dependencies and all the files it contains:
-    files = _files_in_recipe(recipe, elisp_dir)
+    files = _files_in_recipe(recipe, repo)
     main_file = _main_file(files, recipe)
     main_file_requirements = requirements(main_file) if main_file else set()
     print('\n— Package name:')
@@ -872,16 +872,16 @@ def check_melpa_recipe(recipe: str) -> None:
     _return_code(0)
     with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = Path(tmpdir) / package_name(recipe)
+        repo = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
         local_repo = _local_repo()
         if local_repo:
             print(f"Using local repository at {local_repo}")
-            shutil.copytree(local_repo, elisp_dir)
-            check_containerized_build(recipe, elisp_dir)
-        elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
-            check_containerized_build(recipe, elisp_dir)
-        check_packaging(recipe, elisp_dir)
+            shutil.copytree(local_repo, repo)
+            check_containerized_build(recipe, repo)
+        elif _clone(clone_address, repo, _branch(recipe), _fetcher(recipe)):
+            check_containerized_build(recipe, repo)
+        check_packaging(recipe, repo)
 
 
 def check_license(recipe: str) -> None:
@@ -890,15 +890,15 @@ def check_license(recipe: str) -> None:
     _return_code(0)
     with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
-        elisp_dir = Path(tmpdir) / package_name(recipe)
+        repo = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
         local_repo = _local_repo()
         if local_repo:
             print(f"Using local repository at {local_repo}")
-            shutil.copytree(local_repo, elisp_dir)
-            _check_license(recipe, elisp_dir)
-        elif _clone(clone_address, elisp_dir, _branch(recipe), _fetcher(recipe)):
-            _check_license(recipe, elisp_dir)
+            shutil.copytree(local_repo, repo)
+            _check_license(recipe, repo)
+        elif _clone(clone_address, repo, _branch(recipe), _fetcher(recipe)):
+            _check_license(recipe, repo)
 
 
 def _fetcher(recipe: str) -> str:
@@ -994,18 +994,18 @@ def check_melpa_pr(pr_url: str) -> None:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # package-build prefers the directory to be named after the package:
-            elisp_dir = Path(tmpdir) / package_name(recipe)
+            repo = Path(tmpdir) / package_name(recipe)
             if _clone(
                 _clone_address(recipe),
-                into=elisp_dir,
+                into=repo,
                 branch=_branch(recipe),
                 fetcher=_fetcher(recipe),
             ):
-                check_containerized_build(recipe, elisp_dir)
-                check_packaging(recipe, elisp_dir)
+                check_containerized_build(recipe, repo)
+                check_packaging(recipe, repo)
                 if os.environ.get('EXIST_OK', '').lower() != 'true':
                     check_package_name(recipe)
-                    check_package_name_overlap(recipe, elisp_dir)
+                    check_package_name_overlap(recipe, repo)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
