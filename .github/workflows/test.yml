@@ -1,6 +1,9 @@
 name: test
 on: [push, pull_request]
 
+env:
+    RUNNER: uv run
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,7 +21,7 @@ jobs:
         emacs --version
 
     - name: Test
-      run: RUNNER='uv run' make test-melpazoid
+      run: make test-melpazoid
 
     - name: Test 'shx' Pull Request  # a small package with few dependencies
       env:  
