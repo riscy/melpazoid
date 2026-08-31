@@ -325,7 +325,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "http://" "Prefer `https` over `http` if possible ([why?](https://news.ycombinator.com/item?id=22933774))" nil t t) ; nofmt
   (melpazoid-misc "(when (not " "Optionally use `unless ...` instead of `when (not ...)`") ; nofmt
   (melpazoid-misc "(when (null " "Optionally use `unless ...` instead of `when (null ...)`") ; nofmt
-  (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow - avoid it")
+  (melpazoid-misc "line-number-at-pos" "line-number-at-pos is surprisingly slow on Emacs<31")
   (melpazoid-misc ")\n\n\n+(" "Prefer one blank line between this top-level form and the next") ; nofmt
   (melpazoid-misc ";; Package-Version" "Prefer `;; Version` over `;; Package-Version` (MELPA automatically adds `Package-Version`)" nil t nil t) ; nofmt
   (melpazoid-misc "^;;; Commentary:\n;;\n" "Use a blank line instead of `;;` by itself under your `;;; Commentary` header"))
@@ -383,10 +383,10 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
   (melpazoid-misc "(goto-char (line-beginning-position))" "Consider `beginning-of-line`") ; nofmt
   (melpazoid-misc "(goto-char (line-end-position))" "Consider `end-of-line`")
-  (melpazoid-misc "(goto-char (point-at-bol))" "Consider `beginning-of-line`") ; nofmt
-  (melpazoid-misc "(goto-char (point-at-eol))" "Consider `end-of-line`")
-  (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `line-beginning-position`") ; nofmt
-  (melpazoid-misc "(progn (end-of-line) (point))" "Consider `point-at-eol`") ; nofmt
+  (melpazoid-misc "(goto-char (pos-bol))" "Consider `beginning-of-line`")
+  (melpazoid-misc "(goto-char (pos-eol))" "Consider `end-of-line`")
+  (melpazoid-misc "(progn (beginning-of-line) (point))" "Consider `pos-bol`") ; nofmt
+  (melpazoid-misc "(progn (end-of-line) (point))" "Consider `pos-eol`") ; nofmt
   ;; boolean expressions
   (melpazoid-misc "(eq [^()]*\\<nil\\>.*)" "You can use `null` (or `not`) instead of `eq`")
   (melpazoid-misc "(not (not " "It may be possible to collapse this double negation") ; nofmt
