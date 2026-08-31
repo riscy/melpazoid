@@ -77,7 +77,7 @@ affect the output of `byte-compile-file'."
 (defun melpazoid-checkdoc (filename)
   "Wrapper for running `checkdoc-file' against FILENAME."
   (require 'checkdoc)
-  (melpazoid-insert "\n⸺ `%s` with checkdoc using Emacs %s (fix *within reason*):"
+  (melpazoid-insert "\n━ `%s` with checkdoc using Emacs %s (fix *within reason*):"
                     (file-name-nondirectory filename)
                     emacs-version)
   (melpazoid--kill-buffer "*Warnings*")
@@ -113,7 +113,7 @@ affect the output of `byte-compile-file'."
   (melpazoid--kill-buffer "*Package-Lint*")
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
     (melpazoid-insert
-     "\n⸺ `%s` with %s%s:"
+     "\n━ `%s` with %s%s:"
      (buffer-name)
      (melpazoid--package-lint-version)
      (if package-lint-main-file
@@ -171,7 +171,7 @@ affect the output of `byte-compile-file'."
   "Wrapper for `check-declare' against FILENAME.
 NOTE: this sometimes backfires when running checks automatically inside
 a Docker container, e.g. kellyk/emacs does not include the .el files."
-  (melpazoid-insert "\n⸺ `%s` with check-declare-file using Emacs %s:"
+  (melpazoid-insert "\n━ `%s` with check-declare-file using Emacs %s:"
                     (file-name-nondirectory filename)
                     emacs-version)
   (melpazoid--kill-buffer "*Check Declarations Warnings*")
@@ -197,7 +197,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (unless (equal melpazoid--pending "")
     (setq melpazoid--pending
           (format
-           "\n⸺ `%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
+           "\n━ `%s` with [melpazoid](https://github.com/riscy/melpazoid):\n```\n%s```\n"
            (buffer-name)
            melpazoid--pending))
     (melpazoid-commit-pending)))
