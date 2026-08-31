@@ -28,7 +28,7 @@
                     (file-name-nondirectory filename)
                     emacs-version)
   (melpazoid--remove-no-compile)
-  (ignore-errors (kill-buffer "*Compile-Log*"))
+  (melpazoid--kill-buffer "*Compile-Log*")
   (setq-default text-quoting-style 'grave)
   (let ((inhibit-message t)
         (load-path (append (melpazoid--package-load-paths) load-path)))
@@ -80,7 +80,7 @@ affect the output of `byte-compile-file'."
   (melpazoid-insert "\n⸺ `%s` with checkdoc using Emacs %s (fix *within reason*):"
                     (file-name-nondirectory filename)
                     emacs-version)
-  (ignore-errors (kill-buffer "*Warnings*"))
+  (melpazoid--kill-buffer "*Warnings*")
   (let ((sentence-end-double-space nil)  ; be a little more lenient
         (checkdoc-proper-noun-list nil)
         (checkdoc-verb-check-experimental-flag nil)
@@ -110,7 +110,7 @@ affect the output of `byte-compile-file'."
   (package-initialize)
   (require 'package-lint)
   (require 'pkg-info)
-  (ignore-errors (kill-buffer "*Package-Lint*"))
+  (melpazoid--kill-buffer "*Package-Lint*")
   (let ((package-lint-main-file (melpazoid--package-lint-main-file)))
     (melpazoid-insert
      "\n⸺ `%s` with %s%s:"
@@ -144,7 +144,7 @@ affect the output of `byte-compile-file'."
 (defun melpazoid-elint ()
   "Experimental elint call."
   (melpazoid-insert "\nelint (experimental):")
-  (ignore-errors (kill-buffer "*Elint*"))
+  (melpazoid--kill-buffer "*Elint*")
   (elint-file (buffer-file-name))
   (with-current-buffer "*Elint*"
     (goto-char (point-min))
@@ -174,7 +174,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-insert "\n⸺ `%s` with check-declare-file using Emacs %s:"
                     (file-name-nondirectory filename)
                     emacs-version)
-  (ignore-errors (kill-buffer "*Check Declarations Warnings*"))
+  (melpazoid--kill-buffer "*Check Declarations Warnings*")
   (let ((inhibit-message t))  ; hide "uncompressing xyz.el.gz"
     (check-declare-file filename))
   (with-current-buffer (get-buffer-create "*Check Declarations Warnings*")
@@ -354,8 +354,9 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; possible hacks
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
   (melpazoid-misc "(fmakunbound" "`fmakunbound` should rarely occur in packages") ; nofmt
-  (melpazoid-misc "(with-no-warnings" "Avoid `with-no-warnings` if the root cause can be addressed") ; nofmt
-  (melpazoid-misc "(with-suppressed-warnings" "Avoid `with-suppressed-warnings` if the root cause can be addressed") ; nofmt
+  (melpazoid-misc "(with-no-warnings" "Avoid `with-no-warnings` in production code; handle the root cause whenever possible") ; nofmt
+  (melpazoid-misc "(with-suppressed-warnings" "Avoid `with-suppressed-warnings` in production code; handle the root cause whenever possible") ; nofmt
+  (melpazoid-misc "(ignore-errors" "Avoid `ignore-errors` in production code; handle the root cause whenever possible") ; nofmt
   (melpazoid-misc "([^ ]*read-string \"[^\"]+[^ \"]\")" "`read-string` prompts should often end with a space" t) ; nofmt
   (melpazoid-misc "(string-match[^(](symbol-name" "Prefer to use `eq` on symbols") ; nofmt
   (melpazoid-misc "(defcustom [^ ]*--" "Customizable variables shouldn't be private" t) ; nofmt
@@ -367,6 +368,8 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(setq inhibit-read-only t" "Use `(let ((inhibit-read-only t)) ...)`") ; nofmt
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(ignore-errors (require '" "Use `require`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "(ignore-errors (line-move" "Use `line-move`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "(ignore-errors (word-search-forward" "Use `word-search-forward`'s NOERROR argument") ; nofmt
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
   (melpazoid-misc "([<>eq/=]+ (point) (line-end-position))" "Could this point/line-end-position comparison use `eolp`?") ; nofmt
@@ -484,6 +487,10 @@ OBJECTS are objects to interpolate into the string using `format'."
          (str (replace-regexp-in-string "^[\n]+" "" str)))
     str))
 
+(defun melpazoid--kill-buffer (buffer)
+  "Kill BUFFER if it exists."
+  (when (get-buffer buffer) (kill-buffer buffer))
+
 ;;;###autoload
 (defun melpazoid (&optional filename)
   "Check current buffer, or FILENAME's buffer if given."
@@ -504,7 +511,7 @@ OBJECTS are objects to interpolate into the string using `format'."
 (defun melpazoid--reset-state ()
   "Reset melpazoid's current state variables."
   (melpazoid-discard-pending)
-  (ignore-errors (kill-buffer melpazoid-buffer)))
+  (melpazoid--kill-buffer melpazoid-buffer))
 
 (defun melpazoid--check-file-p (filename)
   "Return non-nil if FILENAME should be checked."
