@@ -24,7 +24,7 @@
 
 (defun melpazoid-byte-compile (filename)
   "Wrapper for running `byte-compile-file' against FILENAME."
-  (melpazoid-insert "\n⸺ `%s` with byte-compile using Emacs %s:"
+  (melpazoid-insert "\n━ `%s` with byte-compile using Emacs %s:"
                     (file-name-nondirectory filename)
                     emacs-version)
   (melpazoid--remove-no-compile)
@@ -317,6 +317,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
 (defun melpazoid-check-picky ()
   "Miscellaneous checker (picky edition)."
   (melpazoid-check-mixed-indentation)
+  (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   (melpazoid-misc "format-time-string .*%H:%M:%S" "FYI only: %T is equivalent to %H:%M:%S in time strings" nil nil t) ; nofmt
   (melpazoid-misc "format-time-string .*%m/%d/%y" "FYI only: %D is equivalent to %m/%d/%y in time strings" nil nil t) ; nofmt
   (melpazoid-misc "format-time-string .*%+4Y-%m-%d" "FYI only: %F is equivalent to %+4Y-%m-%d in time strings" nil nil t) ; nofmt
@@ -344,13 +345,13 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(with-temp-buffer (set-buffer " "Either `with-temp-buffer` or `set-buffer` is unnecessary here") ; nofmt
   (melpazoid-misc "Copyright.*Free Software Foundation" "Have you done the paperwork to assign this copyright?  https://www.fsf.org/blogs/licensing/FSF-copyright-handling" nil t nil t) ; nofmt
   (melpazoid-misc "This file is part of GNU Emacs." "This may be a copy-paste error?" nil t nil t)
-  (melpazoid-misc "`[A-Z]+'" "Only use back/front quotes to link to top-level elisp symbols" nil t t)
+  (melpazoid-misc "`[A-Z]{2,}'" "Variables in docstrings only need to be capitalized, not back/front-quoted" nil nil t) ; nofmt
   (melpazoid-misc ";; fill-column:" "Prefer `byte-compile-docstring-max-column` over `fill-column`" nil t) ; nofmt
   ;; paths
-  (melpazoid-misc "~/.emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
-  (melpazoid-misc "~/.emacs.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
-  (melpazoid-misc "~/.emacs.d/init.el" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
-  (melpazoid-misc "~/.config/emacs" "Could you use `user-emacs-directory` instead?" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs" "Prefer  `user-emacs-directory` over `~/.emacs`" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs.el" "Prefer `user-emacs-directory` over `~/.emacs.el`" nil nil t) ; nofmt
+  (melpazoid-misc "~/.emacs.d/init.el" "Prefer `user-emacs-directory` over `~/.emacs.d/init.el`" nil nil t) ; nofmt
+  (melpazoid-misc "~/.config/emacs" "Prefer `user-emacs-directory` over `~/.config/emacs`" nil nil t) ; nofmt
   (melpazoid-misc "\"/tmp/" "Use Emacs 26.1's `(temporary-file-directory)` instead of /tmp in code") ; nofmt
   ;; possible hacks
   (melpazoid-misc "^(fset" "Ensure this top-level `fset` isn't being used as a surrogate `defalias` or `define-obsolete-function-alias`") ; nofmt
@@ -419,7 +420,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   ;; Keybindings
   ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Tips-for-Defining.html
   (melpazoid-misc "(global-set-key" "Don't set global bindings; create a global minor-mode map or instruct users in `;;; Commentary`.") ; nofmt
-  (melpazoid-misc "^(keymap-set" "Top-level `keymap-set': what if a user or package also uses this binding?") ; nofmt
+  (melpazoid-misc "^(keymap-set" "Top-level `keymap-set` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(transient-append-suffix" "Top-level `transient-append-suffix': what if a user or package also uses this binding?") ; nofmt
   (melpazoid-misc "^(bind-keys" "Top-level `bind-keys` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (bind-keys ...) km))`") ; nofmt
   (melpazoid-misc "^(define-key" "Top-level `define-key` can overwrite bindings.  Try: `(defvar my-map (let ((km (make-sparse-keymap))) (define-key ...) km))`") ; nofmt
@@ -430,10 +431,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(message (format " "No `format` required; `message` takes an f-string") ; nofmt
   (melpazoid-misc "(user-error (format " "No `format` required; `user-error` takes an f-string") ; nofmt
   (melpazoid-misc "(insert (concat" "`concat` may be unneeded; `insert` concatenates its arguments") ; nofmt
-  (melpazoid-misc "(warn (format " "No `format` required; `warn` takes an f-string") ; nofmt
-  ;; n.b. the opposite, (concat (format ...)), often can't be combined cleanly:
-  (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
-  )
+  (melpazoid-misc "(warn (format " "No `format` required; `warn` takes an f-string"))
 
 (defun melpazoid-misc (regexp msg &optional
                               no-smart-space
