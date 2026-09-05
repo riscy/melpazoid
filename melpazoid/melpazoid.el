@@ -34,10 +34,10 @@
         (load-path (append (melpazoid--package-load-paths) load-path)))
     (byte-compile-file filename))
   (with-current-buffer (get-buffer-create "*Compile-Log*")
-    (if (melpazoid--buffer-almost-empty-p)
+    (goto-char (point-min))
+    (forward-line 2)  ; skip past the "Compiling file..." log
+    (if (eobp)
         (melpazoid-discard-pending)
-      (goto-char (point-min))
-      (forward-line 2)
       (melpazoid-insert "```")
       (melpazoid-insert
        (melpazoid--newline-trim (buffer-substring (point) (point-max))))
@@ -70,7 +70,7 @@ affect the output of `byte-compile-file'."
 
 (defun melpazoid--buffer-almost-empty-p ()
   "Return non-nil if current buffer is almost empty."
-  (<= (- (point-max) (point)) 3))
+  (save-excursion (goto-char (point-min)) (<= (- (point-max) (point)) 3)))
 
 (defvar checkdoc-proper-noun-list)
 (defvar checkdoc-verb-check-experimental-flag)
@@ -208,6 +208,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (save-excursion
     (goto-char (point-min))
     (and (re-search-forward "(custom-theme-set-faces" nil t)
+         (goto-char (point-min))
          (not (re-search-forward "(add-to-list[[:space:]\n]+'custom-theme-load-path" nil t))
          (melpazoid-insert "- Warning: No `add-to-list 'custom-theme-load-path` found"))
     (goto-char (point-min))
@@ -434,13 +435,20 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(format (concat" "Can the `format` and `concat` be combined?") ; nofmt
   )
 
-(defun melpazoid-misc (regexp msg &optional no-smart-space include-comments include-strings case-insensitive)
+(defun melpazoid-misc (regexp msg &optional
+                              no-smart-space
+                              include-comments
+                              include-strings
+                              case-insensitive
+                              exclude-pattern)
   "If a search for REGEXP passes, report MSG as a misc check.
 If REGEXP defines any groups, group 1's position is reported.
 If NO-SMART-SPACE is nil, use smart spaces -- i.e. replace all
 SPC characters in REGEXP with [[:space:]]+.  If INCLUDE-COMMENTS
 then also scan comments for REGEXP; similar for INCLUDE-STRINGS.
-CASE-INSENSITIVE determines the case-sensitivity of the matches."
+CASE-INSENSITIVE determines the case-sensitivity of the matches.
+Matches with EXCLUDE-PATTERN will not be included."
+  ;; use \s- instead of smart-space??
   (unless no-smart-space
     (setq regexp (replace-regexp-in-string " " "[[:space:]\n]+" regexp)))
   (save-excursion
@@ -451,8 +459,14 @@ CASE-INSENSITIVE determines the case-sensitivity of the matches."
           (goto-char (or (match-beginning 1) (match-beginning 0)))
           (when (and
                  (or include-comments (not (nth 4 (syntax-ppss))))
-                 (or include-strings (not (nth 3 (syntax-ppss)))))
+                 (or include-strings (not (nth 3 (syntax-ppss))))
+                 (not (melpazoid-misc--exclude-p exclude-pattern)))
             (melpazoid--annotate-line msg)))))))
+
+(defun melpazoid-misc--exclude-p (exclude-pattern)
+  "Return non-nil if match data matches EXCLUDE-PATTERN."
+  (when exclude-pattern
+    (string-match exclude-pattern (match-string 0) nil 'inhibit-modify)))
 
 (defun melpazoid--annotate-line (msg)
   "Annotate the current line with MSG."
@@ -489,7 +503,7 @@ OBJECTS are objects to interpolate into the string using `format'."
 
 (defun melpazoid--kill-buffer (buffer)
   "Kill BUFFER if it exists."
-  (when (get-buffer buffer) (kill-buffer buffer))
+  (when (get-buffer buffer) (kill-buffer buffer)))
 
 ;;;###autoload
 (defun melpazoid (&optional filename)
