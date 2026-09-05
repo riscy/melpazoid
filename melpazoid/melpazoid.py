@@ -423,8 +423,7 @@ def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     """
     repo_info: dict[str, Any]
     repo_address = clone_address.removesuffix('.git')
-    match = re.search(r'github.com/([^"]*)', repo_address, flags=re.IGNORECASE)
-    if match:
+    if match := re.search(r'github.com[:/]([^"]*)', repo_address, flags=re.IGNORECASE):
         project_id = match.groups()[0].rstrip('/')
         repo_info = json.loads(_url_get(f"https://api.github.com/repos/{project_id}"))
         return repo_info
@@ -564,9 +563,9 @@ def _check_url(recipe: str, repo: Path) -> None:
             continue
         with file.open(encoding='utf-8', errors='replace') as stream:
             text = stream.read()
-        url_match = re.search(r';; URL:[ ]*(.+)', text, flags=re.IGNORECASE)
-        if url_match:
-            url = url_match.groups()[0]
+        # NOTE: both `URL:` and `Homepage:` work with (lm-homepage)
+        if match := re.search(r';; (URL|Homepage):[ ]*(.+)', text, flags=re.IGNORECASE):
+            url = match.groups()[1]
             if '"' in url:
                 _fail(f"- Remove quotation marks around URL {url!r}")
                 url = url.strip('"')
@@ -1248,8 +1247,16 @@ def _url_get(url: str, retry: int = 3) -> str:
     except urllib.error.URLError as err:
         if retry < 1:
             raise
-        print(f'<!-- Retrying {url} in 10 seconds: {err} -->')
-        time.sleep(10)
+        sleep_time = 10.0
+        if isinstance(err, urllib.error.HTTPError):
+            if reset := err.info().get('X-RateLimit-Reset'):
+                sleep_time = max(int(reset) - time.time(), 10)
+            elif err.status == 504:  # noqa: PLR2004
+                sleep_time = 10
+            else:
+                raise
+        print(f'<!-- Retrying {url} in {sleep_time} seconds: {err} -->')
+        time.sleep(sleep_time)
         return _url_get(url, retry - 1)
 
 
