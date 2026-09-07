@@ -704,10 +704,18 @@ def _check_package_requires(recipe: str, repo: Path) -> None:
             )
 
 
-def check_package_name(recipe: str) -> None:
+def check_package_name(recipe: str, repo: Path) -> None:
+    if os.environ.get('EXIST_OK', '').lower() == 'true':
+        return
+    if _check_package_name_collision(recipe):
+        return
+    _check_package_name_overlap(recipe, repo)
+
+
+def _check_package_name_collision(recipe: str) -> bool:
     """Print list of same- (or too-similarly) named packages.
     Report any occurrences of invalid/reserved package names.
-    This function will print nothing if there are no issues.
+    Return True if anything noteworthy gets printed out.
     """
     name = package_name(recipe)  # TODO: recipe :old-names?
     # is the package name implicitly reserved?
@@ -731,7 +739,7 @@ def check_package_name(recipe: str) -> None:
     if any(re.match(reserved_name, name) for reserved_name in reserved_names):
         print('\n— Package name:')
         _fail(f"- Error: `{name}` is reserved\n", highlight='Error')
-        return
+        return True
 
     variations = [name, f"{name}-mode"]
     variations += [name[:-5]] if name.endswith('-mode') else []
@@ -746,7 +754,7 @@ def check_package_name(recipe: str) -> None:
     except ChildProcessError:
         print('\n— Package name:')
         _fail(f"- Error: `{variation}` is an Emacs builtin\n", highlight='Error')
-        return
+        return True
 
     emacsmirror = emacsmirror_packages()  # only check emacsmirror for fewer url_gets
     variations = [pkg for pkg in variations if pkg in emacsmirror]
@@ -760,12 +768,14 @@ def check_package_name(recipe: str) -> None:
     if too_similar:
         print('\n— Package name:')
         listing = [f"- `{pkg}` exists: {url}" for pkg, url in too_similar.items()]
-        _fail('\n'.join(listing) + '\n')
+        _fail('\n'.join(listing))
+        return True
+    return False
 
 
-def check_package_name_overlap(recipe: str, repo: Path) -> None:
+def _check_package_name_overlap(recipe: str, repo: Path) -> bool:
     """Check for overlap with namespaces in other packages.
-    This function will print nothing if there are no issues.
+    Return True if anything noteworthy gets printed out.
     """
     emacsmirror = emacsmirror_packages()  # only check emacsmirror for fewer url_gets
     name = package_name(recipe)
@@ -778,7 +788,7 @@ def check_package_name_overlap(recipe: str, repo: Path) -> None:
         pkg: url for pkg, url in emacsmirror.items() if pkg.startswith(f"{name}-")
     }
     if not parents and not children:
-        return
+        return False
     # update the mappings to use ELPA or MELPA links if possible:
     parents |= melpa_packages(*parents) | elpa_packages(*parents)
     children |= melpa_packages(*children.keys()) | elpa_packages(*children.keys())
@@ -796,6 +806,7 @@ def check_package_name_overlap(recipe: str, repo: Path) -> None:
         print(f"- `{pkg}` {url} is an implicit child of `{name}`")
         if conflict := next((f.name for f in files if f.stem == pkg), None):
             _fail(f"  - `{conflict}` conflicts with the `{pkg}` namespace!")
+    return True
 
 
 @functools.lru_cache
@@ -893,6 +904,7 @@ def check_melpa_recipe(recipe: str) -> None:
             assert success
             check_containerized_build(recipe, repo)
         check_packaging(recipe, repo)
+        check_package_name(recipe, repo)
 
 
 def check_license(recipe: str) -> None:
@@ -1014,9 +1026,7 @@ def check_melpa_pr(pr_url: str) -> None:
             ):
                 check_containerized_build(recipe, repo)
                 check_packaging(recipe, repo)
-                if os.environ.get('EXIST_OK', '').lower() != 'true':
-                    check_package_name(recipe)
-                    check_package_name_overlap(recipe, repo)
+                check_package_name(recipe, repo)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
