@@ -146,6 +146,8 @@ def check_containerized_build(recipe: str, repo: Path) -> None:
     for line in lines:
         if re.match(r'^[a-f0-9]{64}$', line):  # sha264 image id
             continue
+        if line == '\x07':  # bell
+            continue
         # byte-compile-file writes ":Error: ", package-lint ": error: "
         if ':Error: ' in line or ': error: ' in line:
             _fail(line, highlight=r' ?[Ee]rror:')
@@ -258,7 +260,7 @@ def _write_requirements(name: str, files: list[Path]) -> None:
         Path('_native_deps').open('w', encoding='utf-8') as native_deps,
     ):
         requirements_el.write(
-            f";; {time.strftime('%Y-%m-%d')} ; helps to invalidate old Docker cache\n\n"
+            f";; {time.strftime('%Y-%m-%d')} ; helps to invalidate old build cache\n\n"
             + ";; NOTE: emacs --script <file.el> will set `load-file-name' to <file.el>\n"
             + ";; which can disrupt the compilation of packages that use that variable:\n"
             + "(setq load-file-name nil)\n"
@@ -273,7 +275,8 @@ def _write_requirements(name: str, files: list[Path]) -> None:
         )
         if name.startswith('mu4e-'):
             native_deps.write('mu4e ')
-        for req in package_requires(*files):
+        requirements_override: set[str] = set()  # for developer use
+        for req in package_requires(*files) | requirements_override:
             req_, *version_maybe = req.split()
             version = version_maybe[0].strip('"') if version_maybe else 'N/A'
             if req_ == 'emacs':
@@ -875,12 +878,12 @@ def check_melpa_recipe(recipe: str) -> None:
         # package-build prefers the directory to be named after the package:
         repo = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
-        local_repo = _local_repo()
-        if local_repo:
+        if local_repo := _local_repo():
             print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, repo)
-            check_containerized_build(recipe, repo)
-        elif _clone(clone_address, repo, _branch(recipe), _fetcher(recipe)):
+        else:
+            success = _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
+            assert success
             check_containerized_build(recipe, repo)
         check_packaging(recipe, repo)
 
@@ -1107,13 +1110,14 @@ def _clone_address(recipe: str) -> str:
     >>> _clone_address('(pmdm :fetcher hg :url "https://hg.serna.eu/emacs/pmdm")')
     'https://hg.serna.eu/emacs/pmdm'
     """
-    return eval_elisp(
+    clone_address = eval_elisp(
         f"""
         (require 'package-recipe)
         (send-string-to-terminal
           (oref {_recipe_struct_elisp(recipe)} url))
         """
     )
+    return clone_address
 
 
 @functools.lru_cache
@@ -1177,20 +1181,20 @@ def _package_build_files() -> dict[str, str]:
 
 def _check_loop() -> None:
     """Check MELPA recipes and pull requests in a loop."""
-    while True:
+    targets = _fetch_targets()
+    for target in targets:
         try:
-            for target in _fetch_targets():
-                start = time.perf_counter()
-                if is_recipe(target):
-                    _note(f"<!-- Checking recipe: {_prettify_recipe(target)} -->")
-                    check_melpa_recipe(target)
-                elif re.match(MELPA_PR, target):
-                    _note(f"<!-- Checking pull request: {target} -->")
-                    check_melpa_pr(target)
-                if _return_code() != 0:
-                    _fail(f'<!-- Failed in {time.perf_counter() - start:.2f}s -->')
-                else:
-                    _note(f'<!-- Finished in {time.perf_counter() - start:.2f}s -->')
+            start = time.perf_counter()
+            if is_recipe(target):
+                _note(f"<!-- Checking recipe: {_prettify_recipe(target)} -->")
+                check_melpa_recipe(target)
+            elif re.match(MELPA_PR, target):
+                _note(f"<!-- Checking pull request: {target} -->")
+                check_melpa_pr(target)
+            if _return_code() != 0:
+                _fail(f'<!-- Failed in {time.perf_counter() - start:.2f}s -->')
+            else:
+                _note(f'<!-- Finished in {time.perf_counter() - start:.2f}s -->')
         except KeyboardInterrupt:  # noqa: PERF203
             breakpoint()  # noqa: T100
 
