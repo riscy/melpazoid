@@ -1011,7 +1011,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
                 if repo_info := _repo_info_api(_clone_address(recipe)):
                     created_at = repo_info.get('created_at')
-                    print(f"- Created: {_render_iso_date(created_at, too_recent=30)}")
+                    print(f"- Created: {_render_iso_date(created_at, too_recent=27)}")
                     print(f"- Updated: {_render_iso_date(repo_info.get('updated_at'))}")
                     print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
                 if os.environ.get('REMINDERS'):
@@ -1035,6 +1035,10 @@ def _render_iso_date(date: str | None, too_recent: int = 0) -> str:
         x_days_ago = f"{CLR_WARN}{days_ago} days ago{CLR_OFF}"
     else:
         x_days_ago = f"{days_ago} days ago"
+    if too_recent and days_ago < too_recent:
+        n_days_ago = f"{days_ago} {'days' if days_ago != 1 else 'day'}"
+        if template := os.environ.get('MELPA_TOO_RECENT', 'Repo existed for %s days'):
+            _warn(' '.join(template.split('\n')).strip() % n_days_ago)
     dt = dt.astimezone(tz=None)
     return f"{dt:%Y/%b/%d} {dt:%I:%M %p} ({x_days_ago})"
 
@@ -1055,7 +1059,7 @@ def _check_pr_template(pr_number: str) -> bool:
     if pr_created < '2026-05-02':
         return True
 
-    pr_body = pr_json['body']
+    pr_body = pr_json['body'] or ''
     pr_template_valid = True
     for section in (
         "### Brief summary of what the package does",
@@ -1077,7 +1081,7 @@ def _check_pr_template(pr_number: str) -> bool:
         "built and installed the package",
         "LLMs were used",
     ):
-        if checklist_item not in pr_body:
+        if checklist_item.lower() not in pr_body.lower():
             _fail(f'- The checklist is missing the "{checklist_item}" item.')
             pr_template_valid = False
     if not pr_template_valid:
