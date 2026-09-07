@@ -590,6 +590,13 @@ def _check_other(recipe: str, repo: Path) -> None:
             continue
         if not file.name.endswith('.el'):
             continue
+        if file.name == '.dir-locals.el':
+            _fail(f"- {relpath} -- avoid packaging .dir-locals.el")
+            continue
+        if file.name.endswith('-autoloads.el'):
+            # https://www.gnu.org/software/emacs/manual/html_node/elisp/Multi_002dfile-Packages.html
+            _warn(f"- {relpath} -- the `-autoloads.el` suffix is reserved by Emacs")
+            continue
         if file.name == f"{package_name(recipe)}-pkg.el":
             _warn(
                 f"- {relpath} -- consider excluding; "
