@@ -493,6 +493,9 @@ def _check_file_for_license_boilerplate(file: TextIO) -> str | None:
         if license_ is None:
             _fail(f"- Invalid SPDX id `{license_id}`; check https://spdx.dev/ids/")
             return None
+        if license_id == 'GPL-2.0-only':
+            # Use GPL-2.0-or-later, GPL-3.0-only, or GPL-3.0-or-later.
+            _fail(f"- {license_id} is incompatible with MELPA, use GPL-2.0-or-later")
         if license_.get('isDeprecatedLicenseId'):
             _fail(f"- Deprecated license: {license_id}")
         if not license_.get('isFsfLibre'):
@@ -538,23 +541,12 @@ def check_packaging(recipe: str, repo: Path) -> None:
     _check_recipe(recipe, repo)
     _check_package_requires(recipe, repo)
     _check_url(recipe, repo)
-    _check_license(recipe, repo)
     _check_other(recipe, repo)
     _check_package_tags(recipe)
-    for file_ in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
-        relpath = file_.relative_to(_MELPAZOID_ROOT)
-        if file_.is_dir():
-            continue
-        with file_.open(encoding='utf-8', errors='replace') as stream:
-            boilerplate = _check_file_for_license_boilerplate(stream)
-            stream.seek(0)
-            loc = len(stream.readlines())
-            print(f"- {relpath!s:<40} {boilerplate or 'license unknown'}, {loc} loc")
-    if repo_info := _repo_info_api(_clone_address(recipe)):
-        license_ = repo_info.get('license') or {}
-        print(f"- {'Repository:'!s:<40}", license_.get('name', 'Unlicensed'))
-        if repo_info.get('archived'):
-            _fail('- GitHub repository is archived')
+    _check_license(recipe, repo)
+    repo_info = _repo_info_api(_clone_address(recipe))
+    if repo_info and repo_info.get('archived'):
+        _fail('- GitHub repository is archived')
 
 
 def _check_url(recipe: str, repo: Path) -> None:
@@ -637,6 +629,16 @@ def _check_license(recipe: str, repo: Path) -> None:
                     f"- {relpath} needs *formal* license boilerplate and/or an"
                     + " [SPDX-License-Identifier](https://spdx.dev/ids/)"
                 )
+    for file_ in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
+        relpath = file_.relative_to(_MELPAZOID_ROOT)
+        with file_.open(encoding='utf-8', errors='replace') as stream:
+            boilerplate = _check_file_for_license_boilerplate(stream)
+            stream.seek(0)
+            loc = len(stream.readlines())
+            print(f"- {relpath!s:<40} {boilerplate or 'license unknown'}, {loc} loc")
+    if repo_info := _repo_info_api(_clone_address(recipe)):
+        license_ = repo_info.get('license') or {}
+        print(f"- {'Repository:'!s:<40}", license_.get('name', 'Unlicensed'))
 
 
 def _check_recipe(recipe: str, repo: Path) -> None:
