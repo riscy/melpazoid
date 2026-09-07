@@ -547,9 +547,26 @@ def check_packaging(recipe: str, repo: Path) -> None:
     _check_other(recipe, repo)
     _check_package_tags(recipe)
     _check_license(recipe, repo)
-    repo_info = _repo_info_api(_clone_address(recipe))
-    if repo_info and repo_info.get('archived'):
-        _fail('- GitHub repository is archived')
+
+
+def check_repo_upkeep(recipe: str, repo: Path) -> None:
+    """Check the upstream repository for any issues."""
+    repo_files = list(repo.rglob('*'))
+    for repo_file in repo_files:
+        if repo_file.suffix == '.elc':
+            _fail(f"- FYI: repository shouldn't contain .elc file {repo_file.name!r}")
+        elif repo_file.name.endswith('~'):
+            _fail(f"- FYI: repository shouldn't contain backup file {repo_file.name!r}")
+        elif repo_file.name == '.DS_Store':
+            _fail(f"- FYI: repository shouldn't contain {repo_file.name!r}")
+    if repo_info := _repo_info_api(_clone_address(recipe)):
+        if repo_info.get('archived'):
+            _fail('- GitHub repository is archived')
+        if repo_info.get('created_at'):
+            created_at = repo_info.get('created_at')
+            print(f"- Created: {_render_iso_date(created_at, too_recent=27)}")
+            print(f"- Updated: {_render_iso_date(repo_info.get('updated_at'))}")
+            print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
 
 
 def _check_url(recipe: str, repo: Path) -> None:
@@ -1029,11 +1046,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 check_package_name(recipe, repo)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
-                if repo_info := _repo_info_api(_clone_address(recipe)):
-                    created_at = repo_info.get('created_at')
-                    print(f"- Created: {_render_iso_date(created_at, too_recent=27)}")
-                    print(f"- Updated: {_render_iso_date(repo_info.get('updated_at'))}")
-                    print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
+                check_repo_upkeep(recipe, repo)
                 if os.environ.get('REMINDERS'):
                     for pattern, reminder in json.loads(os.environ['MELPA_REMINDER']):
                         if re.search(pattern, recipe):
