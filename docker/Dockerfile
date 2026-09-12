@@ -1,13 +1,20 @@
 # Based on:
-# <https://ubuntuhandbook.org/index.php/2023/08/gnu-emacs-29-1-ubuntu-ppa/>
-FROM ubuntu:24.04
+# <https://gist.github.com/dvmarinoff/f9000e3cce3fd5e515965beebe01cdbf>
+FROM ubuntu:26.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV EMACS_VERSION=31.1
 
 RUN apt-get update \
-        && apt-get -y install curl gnupg openssh-client wget \
-        && apt-get -y --no-install-recommends install software-properties-common \
-        && add-apt-repository ppa:ubuntuhandbook1/emacs \
-        && apt-get -y install emacs emacs-common \
-        && apt-get -y purge software-properties-common \
+        && apt-get -y --no-install-recommends install \
+          ca-certificates curl gnupg openssh-client wget \
+          autoconf gcc make pkg-config texinfo \
+          libxml2-dev libjansson-dev libncurses-dev libgnutls28-dev zlib1g-dev \
+        && curl -fsSL https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz | tar -xz -C ./ \
+        && cd ./emacs-${EMACS_VERSION} \
+        && ./configure --without-native-compilation --without-x \
+        && make -j2 install \
+        && rm -rf ./emacs-${EMACS_VERSION} \
         && apt-get -y autoremove \
         && rm -rf /var/lib/apt/lists/* /root/.cache/*
 
