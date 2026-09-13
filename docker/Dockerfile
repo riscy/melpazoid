@@ -6,17 +6,22 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV EMACS_VERSION=31.1
 
 RUN apt-get update \
-        && apt-get -y --no-install-recommends install \
-          ca-certificates curl gnupg openssh-client wget \
-          autoconf gcc make pkg-config texinfo \
-          libxml2-dev libjansson-dev libncurses-dev libgnutls28-dev zlib1g-dev \
-        && curl -fsSL https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz | tar -xz -C ./ \
-        && cd ./emacs-${EMACS_VERSION} \
-        && ./configure --without-native-compilation --without-x \
-        && make -j2 install \
-        && rm -rf ./emacs-${EMACS_VERSION} \
-        && apt-get -y autoremove \
-        && rm -rf /var/lib/apt/lists/* /root/.cache/*
+    && apt-get -y --no-install-recommends install \
+      ca-certificates curl gnupg openssh-client wget \
+      autoconf gcc make pkg-config texinfo \
+      libgnutls28-dev libjansson-dev libncurses-dev libx11-dev libxml2-dev zlib1g-dev \
+    && curl -fsSL https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz | tar -xz -C /tmp \
+    && cd /tmp/emacs-${EMACS_VERSION} \
+    && ./configure \
+      --without-native-compilation \
+      --with-x-toolkit=no \
+      --with-gif=ifavailable \
+      --with-jpeg=ifavailable \
+      --with-png=ifavailable \
+      --with-tiff=ifavailable \
+      --with-xpm=ifavailable \
+    && make -j2 install \
+    && rm -rf /tmp/* /var/lib/apt/lists/* /root/.cache/*
 
 # install any special system-level packages we depend on (e.g. cmake):
 ARG NATIVE_DEPS=""
