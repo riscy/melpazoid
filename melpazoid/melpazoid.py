@@ -581,7 +581,7 @@ def _check_url(recipe: str, repo: Path) -> None:
             if '"' in url:
                 _fail(f"- Remove quotation marks around URL {url!r}")
                 url = url.strip('"')
-            if not _url_ok(url):
+            if not _url_ok_cached(url):
                 _fail(f"- Unreachable package URL in {file.name}: {url!r}")
 
 
@@ -834,7 +834,7 @@ def emacsattic_packages(*keywords: str) -> dict[str, str]:
     {'sos': 'https://github.com/emacsattic/sos'}
     """
     packages = {kw: f"https://github.com/emacsattic/{kw}" for kw in keywords}
-    return {kw: url for kw, url in packages.items() if _pkg_ok(url)}
+    return {kw: url for kw, url in packages.items() if _url_ok_cached(url)}
 
 
 @functools.lru_cache
@@ -847,7 +847,7 @@ def emacswiki_packages(*keywords: str) -> dict[str, str]:
     for keyword in set(keywords):
         el_file = keyword if keyword.endswith('.el') else keyword + '.el'
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
-        if _pkg_ok(pkg):
+        if _url_ok_cached(pkg):
             packages[keyword] = pkg
     return packages
 
@@ -881,7 +881,7 @@ def elpa_packages(*keywords: str) -> dict[str, str]:
         **{kw: f"{elpa}/packages/{kw}.html" for kw in keywords},
         **{f"{kw} (nongnu)": f"{nongnu_elpa}/nongnu/{kw}.html" for kw in keywords},
     }
-    return {kw: url for kw, url in sources.items() if _pkg_ok(url)}
+    return {kw: url for kw, url in sources.items() if _url_ok_cached(url)}
 
 
 @functools.lru_cache
@@ -896,14 +896,10 @@ def melpa_packages(*keywords: str) -> dict[str, str]:
         for kw in keywords
     }
     return {
-        kw: f"https://melpa.org/#/{kw}" for kw, url in sources.items() if _pkg_ok(url)
+        kw: f"https://melpa.org/#/{kw}"
+        for kw, url in sources.items()
+        if _url_ok_cached(url)
     }
-
-
-@functools.lru_cache
-def _pkg_ok(url: str) -> bool:
-    """Cached wrapper around _url_ok."""
-    return _url_ok(url)
 
 
 def check_melpa_recipe(recipe: str) -> None:
@@ -1021,7 +1017,7 @@ def check_melpa_pr(pr_url: str) -> None:
             _note(f"Skipping {filename} (file was removed in this PR)")
             continue
 
-        recipe = _url_get(changed_file['raw_url'])
+        recipe = _url_get_cached(changed_file['raw_url'])
         if Path(filename).name != package_name(recipe):
             _fail(f"'{filename}' does not match '{package_name(recipe)}'")
             continue
@@ -1300,6 +1296,12 @@ def _url_get(url: str, retry: int = 3) -> str:
         return _url_get(url, retry - 1)
 
 
+@functools.lru_cache
+def _url_get_cached(url: str) -> str:
+    """Cached wrapper around _url_get."""
+    return _url_get(url)
+
+
 def _url_ok(url: str) -> bool:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
@@ -1315,6 +1317,12 @@ def _url_ok(url: str) -> bool:
             return True
     except urllib.error.URLError:
         return False
+
+
+@functools.lru_cache
+def _url_ok_cached(url: str) -> bool:
+    """Cached wrapper around _url_ok."""
+    return _url_ok(url)
 
 
 def _main() -> None:
