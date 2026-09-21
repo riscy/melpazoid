@@ -538,15 +538,15 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
         return None
 
 
-def check_packaging(recipe: str, repo: Path) -> None:
+def check_package(recipe: str, repo: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
     print('\n— Package and license:')
-    _check_recipe(recipe, repo)
+    _check_package_recipe(recipe, repo)
     _check_package_requires(recipe, repo)
-    _check_url(recipe, repo)
-    _check_other(recipe, repo)
+    _check_package_url(recipe, repo)
+    _check_package_manifest(recipe, repo)
     _check_package_tags(recipe)
-    _check_license(recipe, repo)
+    _check_package_license(recipe, repo)
 
 
 def check_repo_upkeep(recipe: str, repo: Path) -> None:
@@ -569,7 +569,7 @@ def check_repo_upkeep(recipe: str, repo: Path) -> None:
             print(f"- Watched: {repo_info.get('watchers_count', 'N/A')}")
 
 
-def _check_url(recipe: str, repo: Path) -> None:
+def _check_package_url(recipe: str, repo: Path) -> None:
     for file in _files_in_recipe(recipe, repo):
         if not file.name.endswith('.el') or file.name.endswith('-pkg.el'):
             continue
@@ -596,7 +596,8 @@ def _check_package_tags(recipe: str) -> None:
             _note(reminder, CLR_INFO)
 
 
-def _check_other(recipe: str, repo: Path) -> None:
+def _check_package_manifest(recipe: str, repo: Path) -> None:
+    """Review the inventory of files to be included with the package."""
     files_in_recipe = _files_in_recipe(recipe, repo)
     if not any(file.name == f"{package_name(recipe)}.el" for file in files_in_recipe):
         _fail(f"- MELPA requires a file called {package_name(recipe)}.el")
@@ -640,7 +641,7 @@ def _check_other(recipe: str, repo: Path) -> None:
                 _fail(f"- {relpath} -- no packaging header")
 
 
-def _check_license(recipe: str, repo: Path) -> None:
+def _check_package_license(recipe: str, repo: Path) -> None:
     if not _check_license_api(_clone_address(recipe)):
         _check_license_file(repo)
     for file in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
@@ -668,7 +669,7 @@ def _check_license(recipe: str, repo: Path) -> None:
         print(f"- {'Repository:'!s:<40}", license_.get('name', 'Unlicensed'))
 
 
-def _check_recipe(recipe: str, repo: Path) -> None:
+def _check_package_recipe(recipe: str, repo: Path) -> None:
     files = _files_in_recipe(recipe, repo)
     for specifier in (':branch', ':commit', ':version-regexp'):
         if specifier in recipe:
@@ -916,8 +917,9 @@ def check_melpa_recipe(recipe: str) -> None:
             success = _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
             assert success
             check_containerized_build(recipe, repo)
-        check_packaging(recipe, repo)
+        check_package(recipe, repo)
         check_package_name(recipe, repo)
+        check_repo_upkeep(recipe, repo)
 
 
 def check_license(recipe: str) -> None:
@@ -932,9 +934,9 @@ def check_license(recipe: str) -> None:
         if local_repo:
             print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, repo)
-            _check_license(recipe, repo)
+            _check_package_license(recipe, repo)
         elif _clone(clone_address, repo, _branch(recipe), _fetcher(recipe)):
-            _check_license(recipe, repo)
+            _check_package_license(recipe, repo)
 
 
 def _fetcher(recipe: str) -> str:
@@ -1038,7 +1040,7 @@ def check_melpa_pr(pr_url: str) -> None:
                 fetcher=_fetcher(recipe),
             ):
                 check_containerized_build(recipe, repo)
-                check_packaging(recipe, repo)
+                check_package(recipe, repo)
                 check_package_name(recipe, repo)
                 print('\n<!-- PR reviewer footnotes:')
                 _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
