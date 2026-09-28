@@ -9,11 +9,12 @@ RUN apt-get update \
     && apt-get -y --no-install-recommends install \
       ca-certificates curl gnupg openssh-client wget \
       autoconf gcc make pkg-config texinfo \
-      libgnutls28-dev libjansson-dev libncurses-dev libx11-dev libxml2-dev zlib1g-dev \
+      libgnutls28-dev libjansson-dev libncurses-dev libtree-sitter-dev libx11-dev libxml2-dev zlib1g-dev \
     && curl -fsSL https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz | tar -xz -C /tmp \
     && cd /tmp/emacs-${EMACS_VERSION} \
     && ./configure \
       --without-native-compilation \
+      --with-tree-sitter \
       --with-x-toolkit=no \
       --with-gif=ifavailable \
       --with-jpeg=ifavailable \
