@@ -511,7 +511,7 @@ def _check_package_manifest(recipe: str, repo: Path) -> None:
         elif prefix.endswith('-themes'):
             prefix = prefix[:-7]
         if not re.match(f"^{prefix}[-.]", file.name):
-            _fail(f"- {relpath} -- not in package namespace `{prefix}-<module>.el`")
+            _fail(f"- {relpath!s:<40} wrong prefix.  Use: `{prefix}-<module>.el`")
         with file.open(encoding='utf-8', errors='replace') as stream:
             try:
                 header = stream.readline()
