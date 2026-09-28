@@ -373,52 +373,6 @@ def _reqs_from_el_file(el_file: TextIO) -> set[str]:
     }
 
 
-def _check_license_api(clone_address: str) -> bool:
-    """Use the GitHub or GitLab API to check for a license.
-    Return False if unable to check (e.g. it's not on GitHub).
-    >>> _check_license_api('https://github.com/riscy/elfmt')
-    True
-    """
-    repo_info = _repo_info_api(clone_address)
-    if repo_info is None or 'license' not in repo_info:
-        return False
-
-    license_ = repo_info['license']
-    if not license_:
-        _fail('- Add a LICENSE file to the repository')
-        print('  See: https://github.com/licensee/licensee')
-        return True
-
-    gpl_compatible_licensee_licenses = {
-        'Apache License 2.0',
-        'BSD 2-Clause "Simplified" License',
-        'BSD 3-Clause "New" or "Revised" License',
-        'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
-        'Creative Commons Zero v1.0 Universal',
-        'Do What The F*ck You Want To Public License',
-        'GNU Affero General Public License v3.0',
-        # GPL-2.0-only is MELPA-incompatible.  Use GPL-2.0-or-later, GPL-3.0-only, or GPL-3.0-or-later.
-        'GNU General Public License v2.0 or later',
-        'GNU General Public License v3.0 only',
-        'GNU General Public License v3.0 or later',
-        'GNU General Public License v3.0',
-        'GNU Lesser General Public License v3.0',
-        'ISC License',
-        'MIT License',
-        'Mozilla Public License 2.0',
-        'The Unlicense',
-        'Vim License',
-    }
-    if license_.get('name') in gpl_compatible_licensee_licenses:
-        pass
-    elif license_.get('name') == 'Other':
-        _warn('- Try to use a standard license file format for your repo')
-        print('  This helps detection tools like: https://github.com/licensee/licensee')
-    else:
-        _warn(f"- License {license_.get('name')} may not be compatible")
-    return True
-
-
 @functools.lru_cache(maxsize=5)
 def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     """Use the GitHub or GitLab API to fetch details about a repository.
@@ -449,79 +403,6 @@ def _repo_info_api(clone_address: str) -> dict[str, Any] | None:
     return None
 
 
-def _check_license_file(repo: Path) -> None:
-    """Scan any COPYING or LICENSE files."""
-    license_names = (
-        'copying',
-        'copying.txt',
-        'license',
-        'license.md',
-        'license.txt',
-        'licenses',
-        'unlicense',
-    )
-    has_license_file = False
-    for license_ in repo.iterdir():
-        # handles e.g. LICENSE.GPL, LICENSE.APACHE
-        if not any(license_.name.lower().startswith(name) for name in license_names):
-            continue
-        has_license_file = True
-        if license_.is_dir():
-            licenses = ', '.join(f"`{f.name}`" for f in license_.iterdir())
-            print(f"- {license_.name} directory: {licenses}")
-            return
-        with license_.open(encoding='utf-8', errors='replace') as stream:
-            excerpt = ' '.join(stream.read(200).split())[:50]
-            print(f"- {license_.name} excerpt: `{excerpt}`...")
-    if not has_license_file:
-        _fail('- Add a GPL-compatible LICENSE file to the repository')
-
-
-def _check_file_for_license_boilerplate(file: TextIO) -> str | None:
-    """Check an elisp file for some license boilerplate.
-    >>> import io
-    >>> _check_file_for_license_boilerplate(io.StringIO('SPDX-License-Identifier: ISC'))
-    'ISC License'
-    >>> _check_file_for_license_boilerplate(
-    ...   io.StringIO('This program is free software: you can redistribute it'))
-    'GPL*'
-    """
-    text = file.read()
-    match = re.search(r'SPDX-License-Identifier:[ ]*(\w\S+)', text, flags=re.IGNORECASE)
-    if match:
-        # TODO: one can AND and OR licenses together
-        # https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
-        license_id = match.groups()[0]
-        license_ = _spdx_license(license_id)
-        if license_ is None:
-            _fail(f"- Invalid SPDX id `{license_id}`; check https://spdx.dev/ids/")
-            return None
-        if license_id == 'GPL-2.0-only':
-            # Use GPL-2.0-or-later, GPL-3.0-only, or GPL-3.0-or-later.
-            _fail(f"- {license_id} is incompatible with MELPA, use GPL-2.0-or-later")
-        if license_.get('isDeprecatedLicenseId'):
-            _fail(f"- Deprecated license: {license_id}")
-        if not license_.get('isFsfLibre'):
-            _fail(f"- Possible non-free/libre license: {license_id}")
-        return str(license_['name'])
-
-    gpl_compatible_license_excerpts = {
-        # NOTE: consider using https://github.com/emacscollective/elx instead
-        'Apache License 2.0': 'Licensed under the Apache License, Version 2.0',
-        'BSD*': 'Redistribution and use in source and binary forms',
-        'FSFAP': 'Copying and distribution of this file, with or without',
-        'GPL*': 'is free software.* you can redistribute it',
-        '0BSD/ISC License': 'Permission to use, copy, modify, and/or distribute this',
-        'MIT License': 'Permission is hereby granted, free of charge, to any person',
-        'MPL-2': 'This source code form is subject to the terms of the Mozilla',
-        'The Unlicense': 'This is free and unencumbered software released into',
-    }
-    for license_key, license_text in gpl_compatible_license_excerpts.items():
-        if re.search(license_text, text, re.IGNORECASE):
-            return license_key
-    return None
-
-
 @functools.lru_cache
 def _spdx_license(license_id: str) -> dict[str, Any] | None:
     for operator_ in (' OR ', ' AND ', ' WITH '):
@@ -546,7 +427,7 @@ def check_package(recipe: str, repo: Path) -> None:
     _check_package_url(recipe, repo)
     _check_package_manifest(recipe, repo)
     _check_package_tags(recipe)
-    _check_package_license(recipe, repo)
+    check_package_license(recipe, repo)
 
 
 def check_repo_upkeep(recipe: str, repo: Path) -> None:
@@ -641,32 +522,143 @@ def _check_package_manifest(recipe: str, repo: Path) -> None:
                 _fail(f"- {relpath} -- no packaging header")
 
 
-def _check_package_license(recipe: str, repo: Path) -> None:
-    if not _check_license_api(_clone_address(recipe)):
-        _check_license_file(repo)
+def check_package_license(recipe: str, repo: Path) -> None:
+    details: list[str] = []
+
+    api_response = _repo_info_api(_clone_address(recipe)) or {}
+    if 'license' in api_response:
+        details.append(_check_license_repo_api(api_response))
+    else:
+        details.append(_check_license_repo_tree(repo))
+
+    code_suffix = {'.cpp', '.c', '.el', '.h', '.java', '.js', '.py', '.rs'}
     for file in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
+        relpath = file.relative_to(_MELPAZOID_ROOT / 'pkg')
         if not file.is_file():
             continue
-        code_suffix = {'.cpp', '.c', '.el', '.h', '.java', '.js', '.py', '.rs'}
-        if file.name.endswith('-pkg.el') or file.suffix.lower() not in code_suffix:
-            continue
-        relpath = file.relative_to(_MELPAZOID_ROOT / 'pkg')
         with file.open(encoding='utf-8', errors='replace') as stream:
-            if not _check_file_for_license_boilerplate(stream):
-                _fail(
-                    f"- {relpath} needs *formal* license boilerplate and/or an"
-                    + " [SPDX-License-Identifier](https://spdx.dev/ids/)"
-                )
-    for file_ in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
-        relpath = file_.relative_to(_MELPAZOID_ROOT)
-        with file_.open(encoding='utf-8', errors='replace') as stream:
-            boilerplate = _check_file_for_license_boilerplate(stream)
-            stream.seek(0)
-            loc = len(stream.readlines())
-            print(f"- {relpath!s:<40} {boilerplate or 'license unknown'}, {loc} loc")
-    if repo_info := _repo_info_api(_clone_address(recipe)):
-        license_ = repo_info.get('license') or {}
-        print(f"- {'Repository:'!s:<40}", license_.get('name', 'Unlicensed'))
+            text = stream.read()
+            file_license = _check_text_for_license(text)
+            loc = len(text.split('\n'))
+        if (
+            file_license
+            or file.name.endswith('-pkg.el')
+            or file.suffix.lower() not in code_suffix
+        ):
+            details.append(f"{relpath!s:<40} {file_license}, {loc} loc")
+        else:
+            details.append(
+                f"Error: {relpath} needs *formal* license boilerplate and/or an"
+                + " [SPDX-License-Identifier](https://spdx.dev/ids/)"
+            )
+
+    for error in (d for d in details if 'Error:' in d):
+        _fail(f"- {error}", highlight='Error')
+    for warn in (d for d in details if 'Warning:' in d):
+        _warn(f"- {warn}", highlight='Warning')
+    for note in (d for d in details if 'Error:' not in d and 'Warning:' not in d):
+        print(f"- {note}")
+
+
+def _check_license_repo_api(api_response: dict[str, dict[str, str]]) -> str:
+    """Check a repo API response for license data."""
+    license_ = api_response.get('license')
+    if not license_:
+        return 'Error: Add a LICENSE file to the repository.  (See https://github.com/licensee/licensee)'
+    gpl_compatible_licensee_licenses = {
+        'Apache License 2.0',
+        'BSD 2-Clause "Simplified" License',
+        'BSD 3-Clause "New" or "Revised" License',
+        'BSD Zero Clause License',  # https://github.com/melpa/melpa/pull/7189
+        'Creative Commons Zero v1.0 Universal',
+        'Do What The F*ck You Want To Public License',
+        'GNU Affero General Public License v3.0',
+        # GPL-2.0-only is MELPA-incompatible.  Use GPL-2.0-or-later, GPL-3.0-only, or GPL-3.0-or-later.
+        'GNU General Public License v2.0 or later',
+        'GNU General Public License v3.0 only',
+        'GNU General Public License v3.0 or later',
+        'GNU General Public License v3.0',
+        'GNU Lesser General Public License v3.0',
+        'ISC License',
+        'MIT License',
+        'Mozilla Public License 2.0',
+        'The Unlicense',
+        'Vim License',
+    }
+    if license_.get('name') in gpl_compatible_licensee_licenses:
+        return f"{'(Repository)'!s:<40} {license_.get('name', 'Unlicensed')}"
+    if license_.get('name') == 'Other':
+        return (
+            'Warning: Try to use a standard license file format for your repo.'
+            + '  This helps detection tools like: https://github.com/licensee/licensee'
+        )
+    return f"Warning: License {license_.get('name')} may not be GPL-compatible"
+
+
+def _check_license_repo_tree(repo: Path) -> str:
+    """Check a repo tree (COPYING or LICENSE files) for license data."""
+    license_names = (
+        'copying',
+        'copying.txt',
+        'license',
+        'license.md',
+        'license.txt',
+        'licenses',
+        'unlicense',
+    )
+    for license_ in repo.iterdir():
+        # handles e.g. LICENSE.GPL, LICENSE.APACHE
+        if not any(license_.name.lower().startswith(name) for name in license_names):
+            continue
+        if license_.is_dir():
+            licenses = ', '.join(f"`{f.name}`" for f in license_.iterdir())
+            return f"{license_.name} directory: {licenses}"
+        with license_.open(encoding='utf-8', errors='replace') as stream:
+            excerpt = ' '.join(stream.read(200).split())[:50]
+            return f"{license_.name} excerpt: `{excerpt}`..."
+    return 'Error: Add a GPL-compatible LICENSE file to the repository'
+
+
+def _check_text_for_license(text: str) -> str | None:
+    """Check the given text for license data.
+    >>> _check_text_for_license('SPDX-License-Identifier: ISC')
+    'ISC License'
+    >>> _check_text_for_license('This program is free software: you can redistribute it')
+    'GPL*'
+    """
+    match = re.search(r'SPDX-License-Identifier:[ ]*(\w\S+)', text, flags=re.IGNORECASE)
+    if match:
+        # TODO: https://spdx.github.io/spdx-spec/v2.3/SPDX-license-expressions/
+        license_id = match.groups()[0]
+        license_ = _spdx_license(license_id)
+        if license_ is None:
+            _fail(f"- Invalid SPDX id `{license_id}`; check https://spdx.dev/ids/")
+            return None
+        if license_id == 'GPL-2.0-only':
+            # Use GPL-2.0-or-later, GPL-3.0-only, or GPL-3.0-or-later.
+            _fail(f"- {license_id} is incompatible with MELPA, use GPL-2.0-or-later")
+        if license_.get('isDeprecatedLicenseId'):
+            _fail(f"- Deprecated license: {license_id}")
+        if not license_.get('isFsfLibre'):
+            _fail(f"- Possible non-free/libre license: {license_id}")
+        return str(license_['name'])
+
+    # crude fallback if no SPDX identifier found:
+    gpl_compatible_license_excerpts = {
+        # NOTE: consider using https://github.com/emacscollective/elx instead
+        'Apache License 2.0': 'Licensed under the Apache License, Version 2.0',
+        'BSD*': 'Redistribution and use in source and binary forms',
+        'FSFAP': 'Copying and distribution of this file, with or without',
+        'GPL*': 'is free software.* you can redistribute it',
+        '0BSD/ISC License': 'Permission to use, copy, modify, and/or distribute this',
+        'MIT License': 'Permission is hereby granted, free of charge, to any person',
+        'MPL-2': 'This source code form is subject to the terms of the Mozilla',
+        'The Unlicense': 'This is free and unencumbered software released into',
+    }
+    for license_key, license_text in gpl_compatible_license_excerpts.items():
+        if re.search(license_text, text, re.IGNORECASE):
+            return license_key
+    return None
 
 
 def _check_package_recipe(recipe: str, repo: Path) -> None:
@@ -934,9 +926,9 @@ def check_license(recipe: str) -> None:
         if local_repo:
             print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, repo)
-            _check_package_license(recipe, repo)
+            check_package_license(recipe, repo)
         elif _clone(clone_address, repo, _branch(recipe), _fetcher(recipe)):
-            _check_package_license(recipe, repo)
+            check_package_license(recipe, repo)
 
 
 def _fetcher(recipe: str) -> str:
