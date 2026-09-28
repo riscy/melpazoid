@@ -1108,7 +1108,7 @@ def _check_pr_template(pr_number: str) -> bool:
             _fail(f'- The checklist is missing the "{checklist_item}" item.')
             pr_template_valid = False
     if not pr_template_valid:
-        print(
+        _fail(
             "- Please restore the original pull-request template"
             + " https://raw.githubusercontent.com/melpa/melpa/refs/heads/master/.github/PULL_REQUEST_TEMPLATE.md"
             + " and make sure to fill out the checklist."
