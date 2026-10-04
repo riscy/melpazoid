@@ -371,6 +371,7 @@ a Docker container, e.g. kellyk/emacs does not include the .el files."
   (melpazoid-misc "(ignore-errors (search-[fb]" "Use `search-*`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(ignore-errors (require '" "Use `require`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(ignore-errors (line-move" "Use `line-move`'s NOERROR argument") ; nofmt
+  (melpazoid-misc "(ignore-errors (load" "Use `load`'s NOERROR argument") ; nofmt
   (melpazoid-misc "(ignore-errors (word-search-forward" "Use `word-search-forward`'s NOERROR argument") ; nofmt
   ;; simplified conditionals
   (melpazoid-misc "([<>eq/=]+ (point) (line-beginning-position))" "Could this point/line-beginning-position comparison use `bolp`?") ; nofmt
