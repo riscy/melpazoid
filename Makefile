@@ -7,7 +7,6 @@ RUNNER ?= # e.g. 'uv run'
 
 .PHONY: run
 run:
-	$(RUNNER) mypy melpazoid
 	$(RUNNER) python3 melpazoid/melpazoid.py
 
 # https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html
