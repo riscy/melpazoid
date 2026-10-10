@@ -10,7 +10,7 @@ RUN apt-get update \
       ca-certificates curl gnupg openssh-client wget \
       autoconf gcc make pkg-config texinfo \
       libgnutls28-dev libjansson-dev libncurses-dev libtree-sitter-dev libx11-dev libxml2-dev zlib1g-dev \
-    && curl -fsSL https://ftp.gnu.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz | tar -xz -C /tmp \
+    && curl -fsSL https://mirrors.kernel.org/gnu/emacs/emacs-${EMACS_VERSION}.tar.gz | tar -xz -C /tmp \
     && cd /tmp/emacs-${EMACS_VERSION} \
     && ./configure \
       --without-native-compilation \
