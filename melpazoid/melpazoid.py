@@ -896,7 +896,7 @@ def melpa_packages(*keywords: str) -> dict[str, str]:
 
 
 def check_melpa_recipe(recipe: str) -> None:
-    """Check a MELPA recipe definition."""
+    """Check a MELPA recipe."""
     _return_code(0)
     with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
@@ -905,29 +905,33 @@ def check_melpa_recipe(recipe: str) -> None:
         if local_repo := _local_repo():
             print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, repo)
-        else:
-            success = _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
-            assert success
             check_containerized_build(recipe, repo)
-        check_package(recipe, repo)
-        check_package_name(recipe, repo)
-        check_repo_upkeep(recipe, repo)
+            check_package(recipe, repo)
+            check_package_name(recipe, repo)
+            check_physical_layout()
+        else:
+            _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
+            check_containerized_build(recipe, repo)
+            check_package(recipe, repo)
+            check_package_name(recipe, repo)
+            check_physical_layout()
+            check_repo_upkeep(recipe, repo)
 
 
 def check_license(recipe: str) -> None:
-    """Check license for a given recipe."""
+    """Check *only* the license for a MELPA recipe."""
     # TODO: DRY up wrt check_melpa_recipe
     _return_code(0)
     with tempfile.TemporaryDirectory() as tmpdir:
         # package-build prefers the directory to be named after the package:
         repo = Path(tmpdir) / package_name(recipe)
         clone_address = _clone_address(recipe)
-        local_repo = _local_repo()
-        if local_repo:
+        if local_repo := _local_repo():
             print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, repo)
             check_package_license(recipe, repo)
-        elif _clone(clone_address, repo, _branch(recipe), _fetcher(recipe)):
+        else:
+            _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
             check_package_license(recipe, repo)
 
 
@@ -946,8 +950,10 @@ def _local_repo() -> Path | None:
     return Path.expanduser(Path(os.environ['LOCAL_REPO']))
 
 
-def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> bool:
-    """Try to clone the repository; return whether we succeeded."""
+def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> None:
+    """Try to clone the repository.
+    Raise subprocess.CalledProcessError if SCM clone command fails.
+    """
     _note(f"<!-- Cloning {repo} {'@' + branch if branch else ''} -->")
 
     # check if we're being used in GitHub CI -- if so, modify the branch
@@ -972,13 +978,7 @@ def _clone(repo: str, into: Path, branch: str | None, fetcher: str) -> bool:
     elif scm == 'hg':
         options = ['--branch', branch or 'default']
     scm_command = [scm, 'clone', *options, repo, str(into)]
-    run_result = subprocess.run(scm_command, capture_output=True, check=False)
-    if run_result.returncode != 0:
-        _fail(f"Unable to clone:\n  {' '.join(scm_command)}")
-        _fail(run_result.stdout.decode())
-        _fail(run_result.stderr.decode())
-        return False
-    return True
+    subprocess.run(scm_command, stdout=subprocess.PIPE, check=True)
 
 
 def _branch(recipe: str) -> str | None:
@@ -1025,23 +1025,28 @@ def check_melpa_pr(pr_url: str) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             # package-build prefers the directory to be named after the package:
             repo = Path(tmpdir) / package_name(recipe)
-            if _clone(
-                _clone_address(recipe),
-                into=repo,
-                branch=_branch(recipe),
-                fetcher=_fetcher(recipe),
-            ):
-                check_containerized_build(recipe, repo)
-                check_package(recipe, repo)
-                check_package_name(recipe, repo)
-                print('\n<!-- PR reviewer footnotes:')
-                _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
-                check_repo_upkeep(recipe, repo)
-                if os.environ.get('REMINDERS'):
-                    for pattern, reminder in json.loads(os.environ['MELPA_REMINDER']):
-                        if re.search(pattern, recipe):
-                            _note(f"- REMINDER: {reminder}", CLR_INFO)
-                print('-->\n')
+            try:
+                _clone(
+                    _clone_address(recipe),
+                    into=repo,
+                    branch=_branch(recipe),
+                    fetcher=_fetcher(recipe),
+                )
+            except subprocess.CalledProcessError:
+                _fail(f"Failed to clone {recipe!r}")
+                continue
+
+            check_containerized_build(recipe, repo)
+            check_package(recipe, repo)
+            check_package_name(recipe, repo)
+            print('\n<!-- PR reviewer footnotes:')
+            _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
+            check_repo_upkeep(recipe, repo)
+            if os.environ.get('REMINDERS'):
+                for pattern, reminder in json.loads(os.environ['MELPA_REMINDER']):
+                    if re.search(pattern, recipe):
+                        _note(f"- REMINDER: {reminder}", CLR_INFO)
+            print('-->\n')
 
 
 def _render_iso_date(date: str | None, too_recent: int = 0) -> str:
