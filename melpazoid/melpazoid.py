@@ -908,13 +908,11 @@ def check_melpa_recipe(recipe: str) -> None:
             check_containerized_build(recipe, repo)
             check_package(recipe, repo)
             check_package_name(recipe, repo)
-            check_physical_layout()
         else:
             _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
             check_containerized_build(recipe, repo)
             check_package(recipe, repo)
             check_package_name(recipe, repo)
-            check_physical_layout()
             check_repo_upkeep(recipe, repo)
 
 
