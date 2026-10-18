@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 _RETURN_CODE = 0  # eventual return code when run as script
 _WARN_IS_ERROR = os.environ.get('WARN_IS_ERROR', 'false').lower() == 'true'
 _MELPAZOID_ROOT = (Path(__file__).parent if '__file__' in vars() else Path.cwd()).parent
+_PKG_PATH = _MELPAZOID_ROOT / 'pkg'
 
 # define the colors of the report (or none), per https://no-color.org
 # https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -113,19 +114,10 @@ def check_containerized_build(recipe: str, repo: Path) -> None:
         _fail(f"Not a valid recipe: {recipe}")
         return
 
-    files = [f.relative_to(repo) for f in _files_in_recipe(recipe, repo)]
-    elisp_files = [file_.name for file_ in files if file_.suffix == '.el']
-    if len(elisp_files) != len(set(elisp_files)):
-        _fail(f"Multiple .el files with the same name: {' '.join(sorted(elisp_files))}")
+    files = _extract_files_to_pkg(recipe, repo)
+    if not files:
         return
 
-    pkg_dir = _MELPAZOID_ROOT / 'pkg'
-    shutil.rmtree(pkg_dir, ignore_errors=True)
-    for ii, file in enumerate(files):
-        files[ii] = pkg_dir / (file.name if file.name.endswith('.el') else file)
-        files[ii].parent.mkdir(parents=True, exist_ok=True)
-        # shutil.copy/copytree won't work here because file can be a file or a dir:
-        subprocess.run(['cp', '-r', str(repo / file), files[ii]], check=True)
     _write_requirements(package_name(recipe), files)
 
     _note(f"<!-- Building container for {package_name(recipe)}... 🐳 -->")
@@ -136,7 +128,7 @@ def check_containerized_build(recipe: str, repo: Path) -> None:
     _note('\n<!-- Running tests... -->')
     cmd = ['make', '-C', str(_MELPAZOID_ROOT), 'test']
     main_file = _main_file(files, recipe)
-    if main_file and sum(f.name.endswith('.el') for f in pkg_dir.iterdir()) > 1:
+    if main_file and sum(f.name.endswith('.el') for f in _PKG_PATH.iterdir()) > 1:
         cmd.append(f"PACKAGE_MAIN={main_file.name}")
     run_result = subprocess.run(cmd, capture_output=True, check=False, env=run_env)
     lines = run_result.stdout.decode().strip().split('\n')
@@ -157,6 +149,22 @@ def check_containerized_build(recipe: str, repo: Path) -> None:
             _note(line, CLR_INFO)
         elif not line.startswith('make[1]: Leaving directory'):
             print(line)
+
+
+def _extract_files_to_pkg(recipe: str, repo: Path) -> list[Path]:
+    files = [f.relative_to(repo) for f in _files_in_recipe(recipe, repo)]
+    elisp_files = [file_.name for file_ in files if file_.suffix == '.el']
+    if len(elisp_files) != len(set(elisp_files)):
+        _fail(f"Multiple .el files with the same name: {' '.join(sorted(elisp_files))}")
+        return []
+
+    shutil.rmtree(_PKG_PATH, ignore_errors=True)
+    for ii, file in enumerate(files):
+        files[ii] = _PKG_PATH / (file.name if file.name.endswith('.el') else file)
+        files[ii].parent.mkdir(parents=True, exist_ok=True)
+        # shutil.copy/copytree won't work here because file can be a file or a dir:
+        subprocess.run(['cp', '-r', str(repo / file), files[ii]], check=True)
+    return files
 
 
 def _files_in_recipe(recipe: str, repo: Path) -> list[Path]:
@@ -427,7 +435,7 @@ def check_package(recipe: str, repo: Path) -> None:
     _check_package_url(recipe, repo)
     _check_package_manifest(recipe, repo)
     _check_package_tags(recipe)
-    check_package_license(recipe, repo)
+    _check_licenses_in_pkg(recipe, repo)
 
 
 def check_repo_upkeep(recipe: str, repo: Path) -> None:
@@ -522,7 +530,7 @@ def _check_package_manifest(recipe: str, repo: Path) -> None:
                 _fail(f"- {relpath} -- no packaging header")
 
 
-def check_package_license(recipe: str, repo: Path) -> None:
+def _check_licenses_in_pkg(recipe: str, repo: Path) -> None:
     details: list[str] = []
 
     api_response = _repo_info_api(_clone_address(recipe)) or {}
@@ -532,8 +540,8 @@ def check_package_license(recipe: str, repo: Path) -> None:
         details.append(_check_license_repo_tree(repo))
 
     code_suffix = {'.cpp', '.c', '.el', '.h', '.java', '.js', '.py', '.rs'}
-    for file in (_MELPAZOID_ROOT / 'pkg').rglob('*'):
-        relpath = file.relative_to(_MELPAZOID_ROOT / 'pkg')
+    for file in _PKG_PATH.glob('*'):
+        relpath = file.relative_to(_PKG_PATH)
         if not file.is_file():
             continue
         with file.open(encoding='utf-8', errors='replace') as stream:
@@ -925,10 +933,12 @@ def check_license(recipe: str) -> None:
         if local_repo := _local_repo():
             print(f"Using local repository at {local_repo}")
             shutil.copytree(local_repo, repo)
-            check_package_license(recipe, repo)
+            _extract_files_to_pkg(recipe, repo)
+            _check_licenses_in_pkg(recipe, repo)
         else:
             _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
-            check_package_license(recipe, repo)
+            _extract_files_to_pkg(recipe, repo)
+            _check_licenses_in_pkg(recipe, repo)
 
 
 def _fetcher(recipe: str) -> str:
