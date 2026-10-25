@@ -429,7 +429,7 @@ def _spdx_license(license_id: str) -> dict[str, Any] | None:
 
 def check_package(recipe: str, repo: Path) -> None:
     """Print additional details (how it's licensed, what files, etc.)"""
-    print('\n— Package and license:')
+    print('\n━ Package and license:')
     _check_package_recipe(recipe, repo)
     _check_package_requires(recipe, repo)
     _check_package_url(recipe, repo)
@@ -472,6 +472,58 @@ def _check_package_url(recipe: str, repo: Path) -> None:
                 url = url.strip('"')
             if not _url_ok(url):
                 _fail(f"- Unreachable package URL in {file.name}: {url!r}")
+
+
+def _check_physical_layout_of_pkg() -> None:  # noqa: PLR0912
+    """Parse physical layout; print Mermaid diagram if noteworthy."""
+    local_providers: set[str] = set()  # (provide 'pkg-x)
+    local_requires: dict[str, set[str]] = {}  # (require 'pkg-x)
+    local_declares: dict[str, set[str]] = {}  # (declare-function pkg-x-f "pkg-x")
+    external_declares: dict[str, set[str]] = {}  # (declare-function dep-f "dep-f")
+    el_files = list(_PKG_PATH.rglob('*.el'))
+    el_files_stems = {el_file.stem for el_file in el_files}
+    for requirer in el_files:
+        elisp = requirer.read_text('utf-8')
+        for m in re.finditer(r"(?m)^[^\n;]*[(]require\s*'([^) ]+)", elisp):
+            provider = m.groups()[0]
+            if provider in el_files_stems:
+                local_requires.setdefault(requirer.stem, set()).add(provider)
+                local_providers.add(provider)
+        for m in re.finditer(r'(?m)^[(]declare-function\s*[^\s]*\s*"([^"]+)"', elisp):
+            provider = m.groups()[0]
+            if provider in el_files_stems:
+                local_declares.setdefault(requirer.stem, set()).add(provider)
+                local_providers.add(provider)
+            else:
+                external_declares.setdefault(requirer.stem, set()).add(provider)
+    # heuristic for whether or not to print this graph out:
+    orphans = set()
+    if len(el_files) > 1:
+        orphans = el_files_stems - local_providers - set(local_requires)
+    if any((orphans, local_declares, external_declares, len(el_files) > 5)):
+        print('\n━ Physical layout:')
+        print('```mermaid')
+        print('flowchart RL')
+        index = 0
+        for file1, filenames in local_requires.items():
+            for file2 in filenames:
+                print(f"  {file2} --> {file1}")
+                index += 1
+        for file1, filenames in external_declares.items():
+            # forward-declaring something outside (probable optional dependency)
+            for file2 in filenames:
+                dep = f"{file2} -.-> {file1}"
+                print(f"  {dep:<50}; linkStyle {index} stroke:#0AF,strokewidth:1px;")
+                index += 1
+        for file1, filenames in local_declares.items():
+            # forward-declaring something inside package (probable cyclic dependency)
+            for file2 in filenames:
+                dep = f"{file2} -.-> {file1}"
+                print(f"  {dep:<50}; linkStyle {index} stroke:#F00,strokewidth:1px;")
+                index += 1
+        for orphan in orphans:
+            print(f"  {orphan}")
+        print('```')
 
 
 def _check_package_tags(recipe: str) -> None:
@@ -914,11 +966,13 @@ def check_melpa_recipe(recipe: str) -> None:
             check_containerized_build(recipe, repo)
             check_package(recipe, repo)
             check_package_name(recipe, repo)
+            _check_physical_layout_of_pkg()
         else:
             _clone(clone_address, repo, _branch(recipe), _fetcher(recipe))
             check_containerized_build(recipe, repo)
             check_package(recipe, repo)
             check_package_name(recipe, repo)
+            _check_physical_layout_of_pkg()
             check_repo_upkeep(recipe, repo)
 
 
@@ -1045,6 +1099,7 @@ def check_melpa_pr(pr_url: str) -> None:
             check_containerized_build(recipe, repo)
             check_package(recipe, repo)
             check_package_name(recipe, repo)
+            _check_physical_layout_of_pkg()
             print('\n<!-- PR reviewer footnotes:')
             _note(f"{_prettify_recipe(recipe)}", CLR_INFO, ':[^ ]+')
             check_repo_upkeep(recipe, repo)
