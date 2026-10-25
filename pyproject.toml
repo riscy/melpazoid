@@ -36,6 +36,7 @@ ignore = [
   'FIX',
   'INP001',
   'PT018',
+  'PLR2004',  # numerical constants are safe
   'RET504',
   'S101',
   'S603',

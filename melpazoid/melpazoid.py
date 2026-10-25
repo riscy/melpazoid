@@ -1292,7 +1292,7 @@ def _url_get(url: str, retry: int = 3) -> str:
         if isinstance(err, urllib.error.HTTPError):
             if reset := err.info().get('X-RateLimit-Reset'):
                 sleep_time = max(int(reset) - time.time(), 10)
-            elif err.status == 504:  # noqa: PLR2004
+            elif err.status == 504:
                 sleep_time = 10
             else:
                 raise
@@ -1307,11 +1307,11 @@ def _url_get_cached(url: str) -> str:
     return _url_get(url)
 
 
-@functools.lru_cache
+@functools.cache
 def _url_ok(url: str) -> bool:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
-    if ' ' in url:
+    if ' ' in url or not url.isprintable():
         return False
     try:
         with urllib.request.urlopen(  # noqa: S310
@@ -1325,7 +1325,7 @@ def _url_ok(url: str) -> bool:
             timeout=30,
         ):
             return True
-    except urllib.error.URLError:
+    except (urllib.error.URLError, ValueError):
         return False
 
 
