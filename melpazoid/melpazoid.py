@@ -32,7 +32,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -317,27 +317,25 @@ def package_requires(*files: Path) -> set[str]:
     """
     reqs: set[str] = set()
     for file_ in (f for f in files if f.is_file()):
-        with file_.open(encoding='utf-8', errors='replace') as stream:
-            try:
-                if file_.name.endswith('-pkg.el'):
-                    reqs = reqs.union(_reqs_from_pkg_el(stream))
-                elif file_.name.endswith('.el'):
-                    reqs = reqs.union(_reqs_from_el_file(stream))
-            except ValueError as err:
-                _fail(f"<!-- Couldn't parse requirements in {file_.name}: {err} -->")
+        file_contents = file_.read_text(encoding='utf-8', errors='replace')
+        try:
+            if file_.name.endswith('-pkg.el'):
+                reqs = reqs.union(_reqs_from_pkg_el(file_contents))
+            elif file_.name.endswith('.el'):
+                reqs = reqs.union(_reqs_from_el_file(file_contents))
+        except ValueError as err:
+            _fail(f"<!-- Couldn't parse requirements in {file_.name}: {err} -->")
     return reqs
 
 
-def _reqs_from_pkg_el(pkg_el: TextIO) -> set[str]:
+def _reqs_from_pkg_el(pkg_el_text: str) -> set[str]:
     """Pull the requirements out of a -pkg.el file.
-    >>> import io
-    >>> sorted(_reqs_from_pkg_el(io.StringIO(
-    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))''')))
+    >>> sorted(_reqs_from_pkg_el(
+    ...   '''(define-package "x" "1.2" "A pkg." '(a (b "31.5")))'''))
     ['a', 'b "31.5"']
     """
     # TODO: fails if EXTRA-PROPERTIES args were given to #'define-package
-    reqs = pkg_el.read()
-    reqs = ' '.join(_tokenize_expression(reqs)[5:-1])
+    reqs = ' '.join(_tokenize_expression(pkg_el_text)[5:-1])
     reqs = reqs[reqs.find("' (") + 2 :]
     reqs = reqs[: reqs.find(') )') + 3]
     return {
@@ -347,24 +345,22 @@ def _reqs_from_pkg_el(pkg_el: TextIO) -> set[str]:
     }
 
 
-def _reqs_from_el_file(el_file: TextIO) -> set[str]:
+def _reqs_from_el_file(el_file_text: str) -> set[str]:
     r"""Use shlex to pull the requirements out of an elisp file.
-    >>> import io
-    >>> _reqs_from_el_file(io.StringIO(';; package-requires: ((emacs "24.4"))'))
+    >>> _reqs_from_el_file(';; package-requires: ((emacs "24.4"))')
     {'emacs "24.4"'}
-    >>> sorted(_reqs_from_el_file(io.StringIO(';; Package-Requires: ((emacs "27.1") websocket f)')))
+    >>> sorted(_reqs_from_el_file(';; Package-Requires: ((emacs "27.1") websocket f)'))
     ['emacs "27.1"', 'f', 'websocket']
-    >>> sorted(_reqs_from_el_file(io.StringIO('Package-Requires: ((emacs "29.1")\n(calfw "2.0"))')))
+    >>> sorted(_reqs_from_el_file('Package-Requires: ((emacs "29.1")\n(calfw "2.0"))'))
     ['calfw "2.0"', 'emacs "29.1"']
     """
-    lexer = shlex.shlex(el_file.read())
+    if not (match := re.search('package-requires:', el_file_text, re.IGNORECASE)):
+        return set()
+    lexer = shlex.shlex(el_file_text[match.end() :])
     lexer.quotes = '"'
     lexer.commenters = ''
     lexer.whitespace += ';'
     lexer.wordchars += "':-"
-    # advance the lexer iterator to the first `Package-Requires` -
-    if not any(tok for tok in lexer if tok.lower() == 'package-requires:'):
-        return set()
     tokens = []
     parens_depth = 0
     for tok in lexer:
