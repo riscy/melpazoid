@@ -29,6 +29,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -470,7 +471,12 @@ def _check_package_url(recipe: str, repo: Path) -> None:
             if '"' in url:
                 _fail(f"- Remove quotation marks around URL {url!r}")
                 url = url.strip('"')
-            if not _url_ok(url):
+            ok = _url_ok(url)
+            # When either the URL to the package was not found or timed out, we
+            # fail with a message.
+            if ok is None:
+                _fail(f"- No answer from package URL in {file.name}: {url!r}")
+            elif not ok:
                 _fail(f"- Unreachable package URL in {file.name}: {url!r}")
 
 
@@ -835,7 +841,7 @@ def emacsattic_packages(*keywords: str) -> dict[str, str]:
     {'sos': 'https://github.com/emacsattic/sos'}
     """
     packages = {kw: f"https://github.com/emacsattic/{kw}" for kw in keywords}
-    return {kw: url for kw, url in packages.items() if _url_ok(url)}
+    return {kw: url for kw, url in packages.items() if _url_found(url)}
 
 
 @functools.lru_cache
@@ -848,7 +854,7 @@ def emacswiki_packages(*keywords: str) -> dict[str, str]:
     for keyword in set(keywords):
         el_file = keyword if keyword.endswith('.el') else keyword + '.el'
         pkg = f"https://github.com/emacsmirror/emacswiki.org/blob/master/{el_file}"
-        if _url_ok(pkg):
+        if _url_found(pkg):
             packages[keyword] = pkg
     return packages
 
@@ -882,7 +888,7 @@ def elpa_packages(*keywords: str) -> dict[str, str]:
         **{kw: f"{elpa}/packages/{kw}.html" for kw in keywords},
         **{f"{kw} (nongnu)": f"{nongnu_elpa}/nongnu/{kw}.html" for kw in keywords},
     }
-    return {kw: url for kw, url in sources.items() if _url_ok(url)}
+    return {kw: url for kw, url in sources.items() if _url_found(url)}
 
 
 @functools.lru_cache
@@ -897,7 +903,9 @@ def melpa_packages(*keywords: str) -> dict[str, str]:
         for kw in keywords
     }
     return {
-        kw: f"https://melpa.org/#/{kw}" for kw, url in sources.items() if _url_ok(url)
+        kw: f"https://melpa.org/#/{kw}"
+        for kw, url in sources.items()
+        if _url_found(url)
     }
 
 
@@ -1279,18 +1287,38 @@ def _argparse_recipe(recipe: str) -> str:
     return recipe
 
 
+def _github_token(request: urllib.request.Request) -> urllib.request.Request:
+    """Add GITHUB_TOKEN, if it is set, to a REQUEST to api.github.com.
+    The token goes to no other host, and not to a host a redirect leads to:
+    an unredirected header is not copied to the redirected request."""
+    token = os.environ.get('GITHUB_TOKEN')
+    if token and urllib.parse.urlsplit(request.full_url).hostname == 'api.github.com':
+        request.add_unredirected_header('Authorization', f'Bearer {token}')
+    return request
+
+
 def _url_get(url: str, retry: int = 3) -> str:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
+        with urllib.request.urlopen(  # noqa: S310
+            _github_token(urllib.request.Request(url)),  # noqa: S310
+            timeout=30,
+        ) as response:
             return str(response.read().decode())
-    except urllib.error.URLError as err:
+    except (urllib.error.URLError, TimeoutError) as err:
+        # TimeoutError: the server took the request but did not answer in time
         if retry < 1:
             raise
         sleep_time = 10.0
         if isinstance(err, urllib.error.HTTPError):
-            if reset := err.info().get('X-RateLimit-Reset'):
+            # The GitHub API sends X-RateLimit-Reset with every answer, a 404
+            # too; the limit is reached only when none of it remains
+            if (
+                err.status in {403, 429}
+                and err.info().get('X-RateLimit-Remaining') == '0'
+                and (reset := err.info().get('X-RateLimit-Reset'))
+            ):
                 sleep_time = max(int(reset) - time.time(), 10)
             elif err.status == 504:  # noqa: PLR2004
                 sleep_time = 10
@@ -1307,24 +1335,58 @@ def _url_get_cached(url: str) -> str:
     return _url_get(url)
 
 
+_GITHUB_REPO_URL = re.compile(r'https?://github\.com/([\w.-]+)/([\w.-]+?)(?:\.git)?/?')
+
+
+# We cache the reply so that we don't emit the same warning multiple times for
+# the same URL being checked.
 @functools.lru_cache
-def _url_ok(url: str) -> bool:
+def _url_found(url: str) -> bool:
+    """Whether URL is reachable; warn when it did not answer in time."""
+    ok = _url_ok(url)
+    if ok is None:
+        _warn(f"- No answer from {url!r}; could not check it")
+    return bool(ok)
+
+
+@functools.lru_cache
+def _url_ok(url: str) -> bool | None:  # noqa: PLR0911
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
     if ' ' in url:
         return False
+    if match := _GITHUB_REPO_URL.fullmatch(url):
+        # The API answers for a repository's page, and takes GITHUB_TOKEN.
+        owner, name = match.groups()
+        try:
+            repo = json.loads(_url_get(f"https://api.github.com/repos/{owner}/{name}"))
+        except TimeoutError:
+            # no response
+            return None
+        except urllib.error.URLError:
+            # unreachable URL
+            return False
+        # When using a token, the query can also see private repositories.  To
+        # avoid returning True for a private repository (which would not be
+        # accessible by MELPA users), we also check that the repository is
+        # public.
+        return repo.get('private') is False
     try:
         with urllib.request.urlopen(  # noqa: S310
-            urllib.request.Request(  # noqa: S310
-                url,
-                method='HEAD',
-                headers={
-                    'User-Agent': 'melpazoid (+https://github.com/riscy/melpazoid)'
-                },
+            _github_token(
+                urllib.request.Request(  # noqa: S310
+                    url,
+                    method='HEAD',
+                    headers={
+                        'User-Agent': 'melpazoid (+https://github.com/riscy/melpazoid)'
+                    },
+                )
             ),
             timeout=30,
         ):
             return True
+    except TimeoutError:
+        return None
     except urllib.error.URLError:
         return False
 
