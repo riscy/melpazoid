@@ -27,4 +27,7 @@ jobs:
         WARN_IS_ERROR: false
         # set this to false (or remove it) if the package isn't on MELPA:
         EXIST_OK: true
+        # melpazoid.py sends this token with its requests to api.github.com;
+        # GitHub allows more requests with a token than without one.
+        GITHUB_TOKEN: ${{ github.token }}
       run: echo $GITHUB_REF && make -C ~/melpazoid

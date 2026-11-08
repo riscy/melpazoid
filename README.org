@@ -39,10 +39,17 @@ are not foolproof, sometimes opinionated, and may raise false positives.
    #+end_src
    then edit the file (~.github/workflows/melpazoid.yml~) and change the values
    of ~RECIPE~ and ~EXIST_OK~ to fit.  Instructions are in the file.
+
+   If you copied ~melpazoid.yml~ before 2026-11-08, add
+   ~GITHUB_TOKEN: ${{ github.token }}~ to the ~env~ of its run step, as in the
+   current file: melpazoid then sends the token with its requests to
+   api.github.com, which makes them less likely to hit GitHub's rate limits.
 ** Use it locally
    You will need Python ≥ 3.6 and Docker. An image will be built with
    (hopefully) all of your requirements installed. By default, it will be run
    with no network access. The output scroll will report any discovered issues.
+   Set ~GITHUB_TOKEN~ here too, for the same reason, for example with
+   ~GITHUB_TOKEN=$(gh auth token)~ if you use the [[https://cli.github.com][GitHub CLI]].
 *** Test an open MELPA PR
     If you've already opened a PR against MELPA, you can use the Makefile.
     #+begin_src bash

@@ -29,6 +29,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1279,11 +1280,24 @@ def _argparse_recipe(recipe: str) -> str:
     return recipe
 
 
+def _github_token(request: urllib.request.Request) -> urllib.request.Request:
+    """Add GITHUB_TOKEN, if it is set, to a REQUEST to api.github.com.
+    The token goes to no other host, and not to a host a redirect leads to:
+    an unredirected header is not copied to the redirected request."""
+    token = os.environ.get('GITHUB_TOKEN')
+    if token and urllib.parse.urlsplit(request.full_url).hostname == 'api.github.com':
+        request.add_unredirected_header('Authorization', f'Bearer {token}')
+    return request
+
+
 def _url_get(url: str, retry: int = 3) -> str:
     if not url.startswith(('http://', 'https://')):
         raise ValueError(url)
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
+        with urllib.request.urlopen(  # noqa: S310
+            _github_token(urllib.request.Request(url)),  # noqa: S310
+            timeout=30,
+        ) as response:
             return str(response.read().decode())
     except urllib.error.URLError as err:
         if retry < 1:
@@ -1315,12 +1329,14 @@ def _url_ok(url: str) -> bool:
         return False
     try:
         with urllib.request.urlopen(  # noqa: S310
-            urllib.request.Request(  # noqa: S310
-                url,
-                method='HEAD',
-                headers={
-                    'User-Agent': 'melpazoid (+https://github.com/riscy/melpazoid)'
-                },
+            _github_token(
+                urllib.request.Request(  # noqa: S310
+                    url,
+                    method='HEAD',
+                    headers={
+                        'User-Agent': 'melpazoid (+https://github.com/riscy/melpazoid)'
+                    },
+                )
             ),
             timeout=30,
         ):
