@@ -1312,7 +1312,13 @@ def _url_get(url: str, retry: int = 3) -> str:
             raise
         sleep_time = 10.0
         if isinstance(err, urllib.error.HTTPError):
-            if reset := err.info().get('X-RateLimit-Reset'):
+            # The GitHub API sends X-RateLimit-Reset with every answer, a 404
+            # too; the limit is reached only when none of it remains
+            if (
+                err.status in {403, 429}
+                and err.info().get('X-RateLimit-Remaining') == '0'
+                and (reset := err.info().get('X-RateLimit-Reset'))
+            ):
                 sleep_time = max(int(reset) - time.time(), 10)
             elif err.status == 504:  # noqa: PLR2004
                 sleep_time = 10
